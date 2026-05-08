@@ -63,6 +63,15 @@ jobs:
       - name: Validate agent files
         run: ./scripts/validation/validate-agents.sh
 
+  template-cleanliness:
+    name: template-cleanliness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for forbidden cloud-provider terms
+        run: ./scripts/check-template-cleanliness.sh
+
   lint-agent-policies:
     name: lint-agent-policies
     runs-on: ubuntu-latest
