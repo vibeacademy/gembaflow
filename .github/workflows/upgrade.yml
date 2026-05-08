@@ -1,0 +1,41 @@
+name: Upgrade from upstream
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Conflict resolution mode"
+        required: false
+        default: "abort-on-conflict"
+        type: choice
+        options:
+          - abort-on-conflict
+          - accept-upstream
+
+# Only one upgrade at a time
+concurrency:
+  group: upgrade
+  cancel-in-progress: false
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "upgrade-bot"
+          git config user.email "noreply@github.com"
+
+      - name: Run upgrade script
+        run: bash scripts/upgrade.sh --${{ inputs.mode }}
+
+      - name: Push upgraded branch
+        run: git push origin HEAD
