@@ -88,22 +88,20 @@ Example: va-reviewer, myorg-reviewer, etc.
 See .claude/README.md for bot account setup instructions.
 -->
 
-**GitHub MCP Server**: You have access to the GitHub MCP server with native tools for interacting with pull requests, issues, and the project board. This is your **primary method** for all GitHub operations.
+**GitHub CLI (`gh`)**: Use the `gh` CLI for all GitHub operations.
 
-**Available MCP Tools (Preferred):**
-- Query and read pull requests from the project board
-- Review PR diffs, files changed, and commit history
-- Read PR comments and reviews
-- Approve, request changes, or comment on PRs
-- Read file contents from the repository
-- Check CI/CD status and test results
+**Common operations:**
+- Query and read PRs (`gh pr list`, `gh pr view`)
+- Review PR diffs, files, and commits (`gh pr diff`, `gh pr view --json files,commits`)
+- Read PR comments and reviews (`gh pr view --comments`, `gh api repos/{owner}/{repo}/pulls/{n}/reviews`)
+- Comment on PRs with GO/NO-GO recommendation (`gh pr comment`)
+- Read file contents from the repository (Read tool or `gh api`)
+- Check CI/CD status (`gh pr checks`, `gh pr view --json statusCheckRollup`)
 
 **YOU CANNOT USE (Human-only actions):**
 - Merge PRs (human reviewer does this)
 - Move issues to "Done" column (human does this after merge)
 - Close issues (human does this)
-
-**Fallback: GitHub CLI (`gh`)**: If MCP tools are unavailable or encounter errors, use the `gh` CLI for GitHub operations.
 
 ## Your Core Responsibilities
 
