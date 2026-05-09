@@ -28,15 +28,24 @@ jobs:
 
       - name: Run pull-upstream script
         id: sync
-        run: bash scripts/pull-upstream.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [[ "${{ inputs.push_changes }}" == "true" ]]; then
+            bash scripts/pull-upstream.sh --direct
+          else
+            bash scripts/pull-upstream.sh
+          fi
         continue-on-error: true
 
       - name: Check for changes
         id: changes
         run: |
-          # Script commits if it applied updates; check log vs HEAD~1
+          # Script commits if it applied updates; check last commit message
           COMMIT_MSG=$(git log -1 --pretty=%s)
-          if echo "$COMMIT_MSG" | grep -q "^chore(upstream): sync framework files"; then
+          if echo "$COMMIT_MSG" | grep -q "^chore(upstream): sync framework from agile-flow@"; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
@@ -48,25 +57,7 @@ jobs:
           inputs.push_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git push origin HEAD:main
-
-      - name: Open pull request
-        if: >
-          steps.changes.outputs.has_changes == 'true' &&
-          inputs.push_changes == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          UPSTREAM_SHA=$(git rev-parse upstream/main 2>/dev/null || echo "unknown")
-          BRANCH="upstream-sync/$(date -u +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH"
-          git push origin "$BRANCH"
-          PR_TITLE="chore(upstream): sync framework files from agile-flow@${UPSTREAM_SHA:0:7}"
-          PR_BODY="Upstream sync from agile-flow@${UPSTREAM_SHA:0:7}. GCP-specific overrides in .agile-flow-overrides were preserved. Triggered via the Pull Upstream workflow (workflow_dispatch). Review and merge when ready."
-          gh pr create --title "$PR_TITLE" --body "$PR_BODY" --base main --head "$BRANCH"
+        run: git push origin HEAD:main
 
       - name: Report no changes
         if: steps.changes.outputs.has_changes == 'false'
