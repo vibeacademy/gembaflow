@@ -15,5 +15,6 @@
   "MD041": false,
   "MD047": false,
   "MD058": false,
+  "MD060": false,
   "_comment": "Relaxed rules to accept existing agent documentation style. Consider gradually enabling rules as files are updated."
 }
