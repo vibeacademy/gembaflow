@@ -62,6 +62,84 @@ receive the change. The PR author must consider:
    introduces GCP, AWS, Render, Neon, or Supabase-specific terms fails the
    `template-cleanliness` CI job and must be rejected.
 
+### Protecting downstream customizations
+
+Any downstream fork that diverges from the framework — to use a different
+ticket tracker, a different agent platform, or entirely different workflow
+tooling — must protect its customizations from being overwritten by
+framework syncs.
+
+**The mechanism: `.agile-flow-overrides`**
+
+The downstream fork maintains `.agile-flow-overrides`, a text file with
+one path per line. Both sync paths respect this file:
+
+- `pull-upstream.sh` — skips any file whose path matches an entry in
+  `.agile-flow-overrides`
+- `upgrade.sh` — after a three-way merge, auto-restores any overridden
+  file to the downstream's version, discarding the upstream content for
+  that path
+
+**Example: replacing GitHub with a different issue tracker**
+
+A downstream fork that replaces GitHub tooling with another platform
+would add the relevant agent and command files to `.agile-flow-overrides`:
+
+```
+.claude/agents/github-ticket-worker.md
+.claude/agents/pr-reviewer.md
+.claude/commands/work-ticket.md
+.claude/commands/review-pr.md
+```
+
+After this, every `pull-upstream.sh` and `upgrade.sh` run skips these
+files. The downstream's custom agents are preserved indefinitely, even
+across framework releases.
+
+**Where the override mechanism breaks — and why file identity is a
+framework obligation**
+
+The override mechanism works by exact file path. If the framework renames
+or moves a file that a downstream fork has overridden:
+
+- The `.agile-flow-overrides` entry (old path) no longer matches anything
+- The renamed file from upstream is synced in as a new, unprotected file
+- The downstream fork now has both its custom version (old path) and the
+  upstream version (new path) — silently diverged
+
+This is why **renaming or moving any file within `syncDirectories` is a
+breaking change** and requires:
+
+1. A major version bump
+2. A migration guide with the old and new paths explicitly listed
+3. A note to downstream forks to update their `.agile-flow-overrides`
+   entries before running the upgrade
+
+**What `.agile-flow-overrides` does not protect against**
+
+- **New files in `syncDirectories`:** a file the downstream also wants to
+  customize will be synced in on the first run. The downstream must add
+  it to `.agile-flow-overrides` after initial sync to protect future
+  updates.
+- **Semantic drift:** if the framework improves a file the downstream has
+  overridden, the downstream will not receive those improvements. The
+  downstream is responsible for manually reviewing upstream changes to
+  overridden files on each release and cherry-picking what is relevant.
+- **Silent path mismatches:** a typo or stale path in
+  `.agile-flow-overrides` silently fails to protect the target. There is
+  no validation that listed paths actually exist.
+
+**The downstream fork's responsibility**
+
+The framework cannot know what a downstream fork has customized. The
+downstream maintainer is responsible for:
+
+1. Adding any customized file to `.agile-flow-overrides` before syncing
+2. Reading release notes for each framework version to check whether any
+   overridden files were renamed or removed
+3. Updating `.agile-flow-overrides` entries when the framework reorganizes
+   files (on major version upgrades)
+
 ### Version significance
 
 | Change type | Version bump | CHANGELOG required |
