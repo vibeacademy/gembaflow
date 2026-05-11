@@ -54,6 +54,22 @@ fi
 echo "Update available: $LOCAL_VERSION -> $LATEST_VERSION"
 
 ###############################################################################
+# 3a. Skip cleanly if the sync branch is already pushed (idempotent re-run)
+###############################################################################
+SYNC_BRANCH="agile-flow-sync/v${LATEST_VERSION}"
+
+if git ls-remote --exit-code --heads origin "$SYNC_BRANCH" >/dev/null 2>&1; then
+  echo "Sync branch '$SYNC_BRANCH' already exists on remote — nothing to do."
+  if command -v gh >/dev/null 2>&1; then
+    EXISTING_PR_URL=$(gh pr list --head "$SYNC_BRANCH" --state open --json url --jq '.[0].url // empty' 2>/dev/null || true)
+    if [ -n "${EXISTING_PR_URL:-}" ]; then
+      echo "Existing PR: $EXISTING_PR_URL"
+    fi
+  fi
+  exit 0
+fi
+
+###############################################################################
 # 4. Download and extract release tarball
 ###############################################################################
 WORK_DIR=$(mktemp -d)
@@ -176,13 +192,7 @@ fi
 ###############################################################################
 # 9. Create branch, commit, and open PR
 ###############################################################################
-SYNC_BRANCH="agile-flow-sync/v${LATEST_VERSION}"
-
-# Check if a branch or PR already exists for this version
-if git ls-remote --heads origin "$SYNC_BRANCH" | grep -q "$SYNC_BRANCH"; then
-  echo "Branch $SYNC_BRANCH already exists on remote. Skipping PR creation."
-  exit 0
-fi
+# SYNC_BRANCH was computed and verified absent on remote in step 3a above.
 
 git checkout -b "$SYNC_BRANCH"
 
@@ -198,11 +208,12 @@ with open('$VERSION_FILE', 'w') as f:
 "
 git add "$VERSION_FILE"
 
-git config user.name "github-actions[bot]"
-git config user.email "github-actions[bot]@users.noreply.github.com"
-
 COMMIT_MSG="chore(sync): update Agile Flow framework to v${LATEST_VERSION}"
-git commit -m "$COMMIT_MSG"
+# Scope the bot identity to this single commit using -c so running locally
+# does NOT overwrite the user's per-repo git author config.
+git -c user.name="github-actions[bot]" \
+    -c user.email="github-actions[bot]@users.noreply.github.com" \
+    commit -m "$COMMIT_MSG"
 git push origin "$SYNC_BRANCH"
 
 # Build file list for PR body
