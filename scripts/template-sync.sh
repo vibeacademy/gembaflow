@@ -73,7 +73,37 @@ if [ -z "$EXTRACTED_DIR" ]; then
 fi
 
 ###############################################################################
-# 5. Sync each directory/file from syncDirectories
+# 5. Create pre-upgrade rollback tag (local-only safety net)
+###############################################################################
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "ERROR: not inside a git repository — cannot create rollback tag."
+  rm -rf "$WORK_DIR"
+  exit 1
+fi
+
+if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+  echo "ERROR: working tree has uncommitted changes — refusing to upgrade without a clean rollback point."
+  echo "Commit or stash your changes, then retry."
+  rm -rf "$WORK_DIR"
+  exit 1
+fi
+
+if ! git symbolic-ref -q HEAD >/dev/null; then
+  echo "ERROR: HEAD is detached — refusing to upgrade without a branch to roll back to."
+  rm -rf "$WORK_DIR"
+  exit 1
+fi
+
+ROLLBACK_TAG="pre-upgrade-$(date +%Y%m%d-%H%M%S)"
+if ! git tag "$ROLLBACK_TAG" 2>/dev/null; then
+  echo "ERROR: failed to create rollback tag '$ROLLBACK_TAG'. Aborting."
+  rm -rf "$WORK_DIR"
+  exit 1
+fi
+echo "Created rollback tag: $ROLLBACK_TAG (local-only)"
+
+###############################################################################
+# 6. Sync each directory/file from syncDirectories
 ###############################################################################
 FILES_CHANGED=()
 
@@ -131,12 +161,12 @@ while IFS= read -r sync_path; do
 done <<< "$SYNC_DIRS"
 
 ###############################################################################
-# 6. Clean up
+# 7. Clean up
 ###############################################################################
 rm -rf "$WORK_DIR"
 
 ###############################################################################
-# 7. If no files changed, exit
+# 8. If no files changed, exit
 ###############################################################################
 if [ ${#FILES_CHANGED[@]} -eq 0 ]; then
   echo "Already up to date. All synced files match the latest release."
@@ -144,7 +174,7 @@ if [ ${#FILES_CHANGED[@]} -eq 0 ]; then
 fi
 
 ###############################################################################
-# 8. Create branch, commit, and open PR
+# 9. Create branch, commit, and open PR
 ###############################################################################
 SYNC_BRANCH="agile-flow-sync/v${LATEST_VERSION}"
 
@@ -203,4 +233,8 @@ gh pr create \
   --base main \
   --head "$SYNC_BRANCH"
 
+echo ""
+echo "===================== Summary ====================="
 echo "PR created successfully for v${LATEST_VERSION}."
+echo "Rollback: git reset --hard $ROLLBACK_TAG"
+echo "==================================================="
