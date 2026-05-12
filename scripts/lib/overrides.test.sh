@@ -115,7 +115,7 @@ echo
 echo "Test 6: Glob patterns"
 cat > "$WORK_DIR/globs" <<'EOF'
 scripts/*.sh
-.claude/agents/gcp-*.md
+.claude/agents/worker-*.md
 docs/**
 EOF
 load_override_patterns "$WORK_DIR/globs"
@@ -124,8 +124,8 @@ assert_match "scripts/*.sh matches scripts/workshop-setup.sh" "scripts/workshop-
 # Bash pattern matching: `*` is greedy and crosses `/`, so a glob anchored to
 # a directory prefix matches nested files too. Documented in overrides.sh.
 assert_match "scripts/*.sh also matches nested file (bash glob is greedy)" "scripts/lib/overrides.sh"
-assert_match "gcp-*.md matches gcp-engineer" ".claude/agents/gcp-engineer.md"
-assert_no_match "gcp-*.md does NOT match other agents" ".claude/agents/system-architect.md"
+assert_match "worker-*.md matches worker-engineer" ".claude/agents/worker-engineer.md"
+assert_no_match "worker-*.md does NOT match other agents" ".claude/agents/system-architect.md"
 
 echo
 echo "Test 7: Reloading replaces previous patterns"
