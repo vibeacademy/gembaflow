@@ -50,7 +50,7 @@ issues you own). Use it for problems that exist in the upstream framework files.
    - Expected Behaviour: what should happen
    - Actual Behaviour: what actually happens
    - Error Output: paste relevant terminal output
-   - Context: workshop date, participant count, track (Founder/GCP/AWS)
+   - Context: workshop date, participant count, track
 
 5. **Handle the exit code**:
 
