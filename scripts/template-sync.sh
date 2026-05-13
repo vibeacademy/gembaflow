@@ -13,6 +13,7 @@ if [ -z "${BASH_VERSION:-}" ]; then
   exec bash "$0" "$@"
 fi
 
+main() {
 set -euo pipefail
 
 UPSTREAM_REPO="vibeacademy/agile-flow"
@@ -281,3 +282,6 @@ echo "===================== Summary ====================="
 echo "PR created successfully for v${LATEST_VERSION}."
 echo "Rollback: git reset --hard $ROLLBACK_TAG"
 echo "==================================================="
+}
+
+main "$@"
