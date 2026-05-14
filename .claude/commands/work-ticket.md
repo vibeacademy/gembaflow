@@ -28,11 +28,10 @@ the user if any check fails — do not continue with partial tooling.
 1. **Branch from main**: `feature/issue-{number}-short-description`
 2. **Move ticket to In Progress** on the project board before starting work
 3. **All tests must pass before pushing** — never use `--no-verify`
-4. **Monitor CI after PR creation**: `gh pr checks <PR_NUMBER> --watch` until all required checks are final
-5. **Fix all required CI failures on the same branch** before handoff (do not hand off red CI)
-6. **Move ticket to In Review** only when required CI checks are green
-7. **Never merge PRs** — human reviewer does this
-8. **Never commit directly to main** — always use feature branches and PRs
+4. **Monitor CI after PR creation**: `gh pr checks <PR_NUMBER> --watch` — fix failures up to 3 times
+5. **Move ticket to In Review** only when CI passes
+6. **Never merge PRs** — human reviewer does this
+7. **Never commit directly to main** — always use feature branches and PRs
 
 ## Workflow Steps
 
@@ -65,7 +64,7 @@ the user if any check fails — do not continue with partial tooling.
 6. **Test Locally** — Run lint and tests. Do NOT push if any fail.
 7. **Push** — If pre-push hook fails, fix and retry (see Reference below)
 8. **Create PR** — Detailed description, link to issue
-9. **Monitor CI** — Wait for required checks, fix failures, move to In Review only when green
+9. **Monitor CI** — Watch checks, auto-fix failures, move to In Review when green
 
 ## Quick Fix Protocol
 
@@ -129,7 +128,7 @@ gh pr checks <PR_NUMBER> --watch
 # If checks fail:
 gh run list --branch <BRANCH> --status failure --limit 1 --json databaseId,name
 gh run view <RUN_ID> --log-failed
-# Fix, commit, push, and repeat until required checks are green
+# Fix, commit, push, repeat (max 3 attempts)
 ```
 
 | Failure Type | Response |
@@ -139,11 +138,11 @@ gh run view <RUN_ID> --log-failed
 | Import errors | Fix import paths or add missing dependencies |
 | Build failures | Fix build configuration or dependencies |
 
-### When to Escalate
+### When to Stop Retrying
 
-Escalate when encountering:
+Stop after 3 fix attempts OR when encountering:
 
-- Flaky tests that fail twice in a row after one re-run
+- Flaky tests that pass/fail randomly (note in PR comment)
 - Infrastructure issues (GitHub Actions outage)
 - Failures requiring architectural changes beyond ticket scope
 - Missing secrets or environment configuration

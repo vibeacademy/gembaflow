@@ -151,19 +151,6 @@ Emergency rollback triggered manually via GitHub Actions UI.
 
 ## Troubleshooting
 
-## Merge Readiness Gate
-
-Do not hand off a PR for review until required CI checks are green on the PR
-head commit.
-
-```bash
-gh pr checks <PR_NUMBER> --watch
-```
-
-If a required check fails, fix it on the same branch and push a follow-up
-commit. Keep the linked ticket in "In Progress" while checks are red or
-pending. Move to "In Review" only after required checks are green.
-
 ### Common CI Failures
 
 | Failure | Cause | Fix |
