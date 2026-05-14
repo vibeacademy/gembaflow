@@ -152,6 +152,10 @@ Worker (bot)          Reviewer (bot)         Human
 No single actor can take a change from inception to production. This is the
 agentic equivalent of the two-person rule in security-critical systems.
 
+Merge-readiness rule: when a PR references a tracking issue, that issue must
+have a close-out comment and be closed (or explicitly marked close-on-merge)
+before human merge.
+
 ---
 
 ## Layer 4: CI/CD Verification Pipeline
