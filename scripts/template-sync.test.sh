@@ -100,6 +100,24 @@ else
   fail "template-sync.sh execution failed"
 fi
 
+# Remove rollback tags created by the first execution so immediate re-runs do not
+# fail on timestamp collisions in the same second.
+while IFS= read -r rollback_tag; do
+  [ -z "$rollback_tag" ] && continue
+  git tag -d "$rollback_tag" >/dev/null
+done < <(git tag -l 'pre-upgrade-*')
+
+if TEST_UPSTREAM_TARBALL="$WORK_DIR/upstream.tar.gz" PATH="$WORK_DIR/bin:$PATH" sh scripts/template-sync.sh > "$WORK_DIR/run-sh.log" 2>&1; then
+  if grep -Eq "line (143|156): syntax error" "$WORK_DIR/run-sh.log"; then
+    fail "sh invocation still hits historical runtime syntax crash"
+  else
+    pass "sh invocation avoids historical line-143/156 runtime crash"
+  fi
+else
+  cat "$WORK_DIR/run-sh.log"
+  fail "template-sync.sh execution failed when invoked via sh"
+fi
+
 popd >/dev/null
 
 echo "Results: ${TESTS_PASSED} passed, ${TESTS_FAILED} failed"
