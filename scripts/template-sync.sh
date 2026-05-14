@@ -32,11 +32,25 @@ RUNTIME_PROTECTED_PATHS=(
   "scripts/lib/overrides.sh"
 )
 
+normalize_rel_path() {
+  local path="$1"
+  while [[ "$path" == ./* ]]; do
+    path="${path#./}"
+  done
+  while [[ "$path" == *"//"* ]]; do
+    path="${path//\/\//\/}"
+  done
+  path="${path%/}"
+  printf '%s\n' "$path"
+}
+
 is_runtime_protected() {
   local path="$1"
+  local normalized_path
+  normalized_path="$(normalize_rel_path "$path")"
   local protected
   for protected in "${RUNTIME_PROTECTED_PATHS[@]}"; do
-    if [ "$path" = "$protected" ]; then
+    if [ "$normalized_path" = "$(normalize_rel_path "$protected")" ]; then
       return 0
     fi
   done
@@ -175,11 +189,12 @@ while IFS= read -r sync_path; do
     while IFS= read -r file; do
       rel_file="${file#"$upstream_path"/}"
       local_file="$sync_path/$rel_file"
+      normalized_local_file="$(normalize_rel_path "$local_file")"
       upstream_file="$file"
 
-      if is_runtime_protected "$local_file"; then
-        echo "SKIP (runtime-protected): $local_file"
-        FILES_SKIPPED_RUNTIME+=("$local_file")
+      if is_runtime_protected "$normalized_local_file"; then
+        echo "SKIP (runtime-protected): $normalized_local_file"
+        FILES_SKIPPED_RUNTIME+=("$normalized_local_file")
         continue
       fi
 
@@ -212,9 +227,10 @@ while IFS= read -r sync_path; do
     done < <(find "$upstream_path" -type f)
   else
     # Single file sync
-    if is_runtime_protected "$sync_path"; then
-      echo "SKIP (runtime-protected): $sync_path"
-      FILES_SKIPPED_RUNTIME+=("$sync_path")
+    normalized_sync_path="$(normalize_rel_path "$sync_path")"
+    if is_runtime_protected "$normalized_sync_path"; then
+      echo "SKIP (runtime-protected): $normalized_sync_path"
+      FILES_SKIPPED_RUNTIME+=("$normalized_sync_path")
       continue
     fi
 

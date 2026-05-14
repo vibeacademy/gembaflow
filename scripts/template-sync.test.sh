@@ -33,7 +33,7 @@ cat > "$REPO_DIR/.agile-flow-version" <<'JSON'
 {
   "version": "0.1.0",
   "syncDirectories": [
-    "scripts"
+    "./scripts"
   ]
 }
 JSON
