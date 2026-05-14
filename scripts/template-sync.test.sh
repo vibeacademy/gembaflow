@@ -156,6 +156,21 @@ chmod +x "$WORK_DIR/bin/curl-reentry"
 mkdir -p "$WORK_DIR/reentry-bin"
 cp "$WORK_DIR/bin/curl-reentry" "$WORK_DIR/reentry-bin/curl"
 chmod +x "$WORK_DIR/reentry-bin/curl"
+cat > "$WORK_DIR/reentry-bin/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "gh $*" >> "$TEST_GH_LOG"
+if [[ "${1:-}" == "pr" && "${2:-}" == "create" ]]; then
+  echo "https://example.invalid/pr/204"
+  exit 0
+fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "list" ]]; then
+  echo '[]'
+  exit 0
+fi
+exit 0
+SH
+chmod +x "$WORK_DIR/reentry-bin/gh"
 
 pushd "$REENTRY_DIR" >/dev/null
 git init >/dev/null
@@ -168,7 +183,7 @@ git push -u origin HEAD >/dev/null
 cp "$SCRIPT_SOURCE_DIR/template-sync.sh" scripts/template-sync.sh
 git add scripts/template-sync.sh .agile-flow-version
 
-if TEST_REENTRY_TARBALL="$WORK_DIR/reentry-upstream.tar.gz" PATH="$WORK_DIR/reentry-bin:$PATH" bash scripts/template-sync.sh > "$WORK_DIR/reentry.log" 2>&1; then
+if TEST_REENTRY_TARBALL="$WORK_DIR/reentry-upstream.tar.gz" TEST_GH_LOG="$WORK_DIR/reentry-gh.log" PATH="$WORK_DIR/reentry-bin:$PATH" bash scripts/template-sync.sh > "$WORK_DIR/reentry.log" 2>&1; then
   pass "bootstrap re-entry run exits successfully"
   if grep -q "detected bootstrap re-entry" "$WORK_DIR/reentry.log"; then
     pass "bootstrap warning is emitted"
@@ -177,10 +192,28 @@ if TEST_REENTRY_TARBALL="$WORK_DIR/reentry-upstream.tar.gz" PATH="$WORK_DIR/reen
   fi
 
   DOWNLOAD_COUNT=$(grep -c "Downloading release tarball..." "$WORK_DIR/reentry.log" || true)
-  if [ "$DOWNLOAD_COUNT" = "1" ]; then
-    pass "download banner appears once in re-entry path"
+  if [ "$DOWNLOAD_COUNT" = "0" ]; then
+    pass "no second-pass tarball download in re-entry path"
   else
-    fail "expected a single download banner in re-entry path"
+    fail "expected no tarball download banner in re-entry path"
+  fi
+
+  if git show-ref --verify --quiet refs/heads/agile-flow-sync/v1.0.4; then
+    pass "re-entry path creates local sync branch"
+  else
+    fail "expected local sync branch agile-flow-sync/v1.0.4"
+  fi
+
+  if git --git-dir "$WORK_DIR/reentry-origin.git" show-ref --verify --quiet refs/heads/agile-flow-sync/v1.0.4; then
+    pass "re-entry path pushes sync branch to origin"
+  else
+    fail "expected sync branch pushed to origin"
+  fi
+
+  if grep -q "gh pr create" "$WORK_DIR/reentry-gh.log"; then
+    pass "re-entry path opens PR"
+  else
+    fail "expected gh pr create call in re-entry path"
   fi
 else
   cat "$WORK_DIR/reentry.log"

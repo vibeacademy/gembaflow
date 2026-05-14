@@ -166,151 +166,165 @@ if git ls-remote --exit-code --heads origin "$SYNC_BRANCH" >/dev/null 2>&1; then
 fi
 
 ###############################################################################
-# 4. Download and extract release tarball
-###############################################################################
-WORK_DIR=$(mktemp -d)
-TARBALL="$WORK_DIR/release.tar.gz"
-
-echo "Downloading release tarball..."
-curl -sfL "$TARBALL_URL" -o "$TARBALL"
-tar -xzf "$TARBALL" -C "$WORK_DIR"
-
-# GitHub tarballs extract into a directory like owner-repo-hash/
-EXTRACTED_DIR=$(find "$WORK_DIR" -mindepth 1 -maxdepth 1 -type d | head -1)
-
-if [ -z "$EXTRACTED_DIR" ]; then
-  echo "ERROR: Could not find extracted release directory."
-  rm -rf "$WORK_DIR"
-  exit 1
-fi
-
-###############################################################################
-# 5. Create pre-upgrade rollback tag (local-only safety net)
+# 4. Detect bootstrap re-entry state
 ###############################################################################
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   echo "ERROR: not inside a git repository — cannot create rollback tag."
-  rm -rf "$WORK_DIR"
   exit 1
 fi
 
+BOOTSTRAP_REENTRY_MODE=0
 if ! git diff-index --quiet HEAD -- 2>/dev/null; then
   if bootstrap_reentry_dirty_tree_is_safe; then
-    echo "WARNING: detected bootstrap re-entry with staged sync-target files; continuing upgrade."
+    BOOTSTRAP_REENTRY_MODE=1
+    echo "WARNING: detected bootstrap re-entry with staged sync-target files; reusing staged payload."
   else
     echo "ERROR: working tree has uncommitted changes — refusing to upgrade without a clean rollback point."
     echo "Commit or stash your changes, then retry."
+    exit 1
+  fi
+fi
+
+###############################################################################
+# 5. Download and extract release tarball (normal path only)
+###############################################################################
+WORK_DIR=""
+EXTRACTED_DIR=""
+if [ "$BOOTSTRAP_REENTRY_MODE" -eq 0 ]; then
+  WORK_DIR=$(mktemp -d)
+  TARBALL="$WORK_DIR/release.tar.gz"
+
+  echo "Downloading release tarball..."
+  curl -sfL "$TARBALL_URL" -o "$TARBALL"
+  tar -xzf "$TARBALL" -C "$WORK_DIR"
+
+  # GitHub tarballs extract into a directory like owner-repo-hash/
+  EXTRACTED_DIR=$(find "$WORK_DIR" -mindepth 1 -maxdepth 1 -type d | head -1)
+
+  if [ -z "$EXTRACTED_DIR" ]; then
+    echo "ERROR: Could not find extracted release directory."
     rm -rf "$WORK_DIR"
     exit 1
   fi
 fi
 
+###############################################################################
+# 6. Create pre-upgrade rollback tag (local-only safety net)
+###############################################################################
 if ! git symbolic-ref -q HEAD >/dev/null; then
   echo "ERROR: HEAD is detached — refusing to upgrade without a branch to roll back to."
-  rm -rf "$WORK_DIR"
+  [ -n "$WORK_DIR" ] && rm -rf "$WORK_DIR"
   exit 1
 fi
 
 ROLLBACK_TAG="pre-upgrade-$(date +%Y%m%d-%H%M%S)"
 if ! git tag "$ROLLBACK_TAG" 2>/dev/null; then
   echo "ERROR: failed to create rollback tag '$ROLLBACK_TAG'. Aborting."
-  rm -rf "$WORK_DIR"
+  [ -n "$WORK_DIR" ] && rm -rf "$WORK_DIR"
   exit 1
 fi
 echo "Created rollback tag: $ROLLBACK_TAG (local-only)"
 
 ###############################################################################
-# 6. Sync each directory/file from syncDirectories
+# 7. Build change payload
 ###############################################################################
 FILES_CHANGED=()
 FILES_SKIPPED_OVERRIDE=()
 FILES_SKIPPED_RUNTIME=()
 
-while IFS= read -r sync_path; do
-  [ -z "$sync_path" ] && continue
+if [ "$BOOTSTRAP_REENTRY_MODE" -eq 1 ]; then
+  while IFS= read -r changed_path; do
+    [ -z "$changed_path" ] && continue
+    FILES_CHANGED+=("$changed_path")
+  done < <(git diff --cached --name-only)
+else
+  while IFS= read -r sync_path; do
+    [ -z "$sync_path" ] && continue
 
-  upstream_path="$EXTRACTED_DIR/$sync_path"
+    upstream_path="$EXTRACTED_DIR/$sync_path"
 
-  if [ ! -e "$upstream_path" ]; then
-    echo "SKIP: $sync_path not found in upstream release."
-    continue
-  fi
+    if [ ! -e "$upstream_path" ]; then
+      echo "SKIP: $sync_path not found in upstream release."
+      continue
+    fi
 
-  if [ -d "$upstream_path" ]; then
-    # Directory sync: iterate over each file in the upstream directory
-    while IFS= read -r file; do
-      rel_file="${file#"$upstream_path"/}"
-      local_file="$sync_path/$rel_file"
-      normalized_local_file="$(normalize_rel_path "$local_file")"
-      upstream_file="$file"
+    if [ -d "$upstream_path" ]; then
+      # Directory sync: iterate over each file in the upstream directory
+      while IFS= read -r file; do
+        rel_file="${file#"$upstream_path"/}"
+        local_file="$sync_path/$rel_file"
+        normalized_local_file="$(normalize_rel_path "$local_file")"
+        upstream_file="$file"
 
-      if is_runtime_protected "$normalized_local_file"; then
-        echo "SKIP (runtime-protected): $normalized_local_file"
-        FILES_SKIPPED_RUNTIME+=("$normalized_local_file")
-        continue
-      fi
+        if is_runtime_protected "$normalized_local_file"; then
+          echo "SKIP (runtime-protected): $normalized_local_file"
+          FILES_SKIPPED_RUNTIME+=("$normalized_local_file")
+          continue
+        fi
 
-      if is_override "$local_file"; then
-        echo "SKIP (override): $local_file"
-        FILES_SKIPPED_OVERRIDE+=("$local_file")
-        continue
-      fi
-      if [ "$local_file" = "$RUNNING_SCRIPT_REL" ]; then
-        echo "SKIP: $local_file is the currently running script."
-        continue
-      fi
+        if is_override "$local_file"; then
+          echo "SKIP (override): $local_file"
+          FILES_SKIPPED_OVERRIDE+=("$local_file")
+          continue
+        fi
+        if [ "$local_file" = "$RUNNING_SCRIPT_REL" ]; then
+          echo "SKIP: $local_file is the currently running script."
+          continue
+        fi
 
-      # Create parent directory if needed
-      mkdir -p "$(dirname "$local_file")"
+        # Create parent directory if needed
+        mkdir -p "$(dirname "$local_file")"
 
-      if [ -f "$local_file" ]; then
-        if ! diff -q "$upstream_file" "$local_file" >/dev/null 2>&1; then
+        if [ -f "$local_file" ]; then
+          if ! diff -q "$upstream_file" "$local_file" >/dev/null 2>&1; then
+            cp "$upstream_file" "$local_file"
+            git add "$local_file"
+            FILES_CHANGED+=("$local_file")
+            echo "UPDATED: $local_file"
+          fi
+        else
           cp "$upstream_file" "$local_file"
           git add "$local_file"
           FILES_CHANGED+=("$local_file")
-          echo "UPDATED: $local_file"
+          echo "ADDED: $local_file"
+        fi
+      done < <(find "$upstream_path" -type f)
+    else
+      # Single file sync
+      normalized_sync_path="$(normalize_rel_path "$sync_path")"
+      if is_runtime_protected "$normalized_sync_path"; then
+        echo "SKIP (runtime-protected): $normalized_sync_path"
+        FILES_SKIPPED_RUNTIME+=("$normalized_sync_path")
+        continue
+      fi
+
+      if is_override "$sync_path"; then
+        echo "SKIP (override): $sync_path"
+        FILES_SKIPPED_OVERRIDE+=("$sync_path")
+        continue
+      fi
+      if [ "$sync_path" = "$RUNNING_SCRIPT_REL" ]; then
+        echo "SKIP: $sync_path is the currently running script."
+        continue
+      fi
+
+      if [ -f "$sync_path" ]; then
+        if ! diff -q "$upstream_path" "$sync_path" >/dev/null 2>&1; then
+          cp "$upstream_path" "$sync_path"
+          git add "$sync_path"
+          FILES_CHANGED+=("$sync_path")
+          echo "UPDATED: $sync_path"
         fi
       else
-        cp "$upstream_file" "$local_file"
-        git add "$local_file"
-        FILES_CHANGED+=("$local_file")
-        echo "ADDED: $local_file"
-      fi
-    done < <(find "$upstream_path" -type f)
-  else
-    # Single file sync
-    normalized_sync_path="$(normalize_rel_path "$sync_path")"
-    if is_runtime_protected "$normalized_sync_path"; then
-      echo "SKIP (runtime-protected): $normalized_sync_path"
-      FILES_SKIPPED_RUNTIME+=("$normalized_sync_path")
-      continue
-    fi
-
-    if is_override "$sync_path"; then
-      echo "SKIP (override): $sync_path"
-      FILES_SKIPPED_OVERRIDE+=("$sync_path")
-      continue
-    fi
-    if [ "$sync_path" = "$RUNNING_SCRIPT_REL" ]; then
-      echo "SKIP: $sync_path is the currently running script."
-      continue
-    fi
-
-    if [ -f "$sync_path" ]; then
-      if ! diff -q "$upstream_path" "$sync_path" >/dev/null 2>&1; then
+        mkdir -p "$(dirname "$sync_path")"
         cp "$upstream_path" "$sync_path"
         git add "$sync_path"
         FILES_CHANGED+=("$sync_path")
-        echo "UPDATED: $sync_path"
+        echo "ADDED: $sync_path"
       fi
-    else
-      mkdir -p "$(dirname "$sync_path")"
-      cp "$upstream_path" "$sync_path"
-      git add "$sync_path"
-      FILES_CHANGED+=("$sync_path")
-      echo "ADDED: $sync_path"
     fi
-  fi
-done <<< "$SYNC_DIRS"
+  done <<< "$SYNC_DIRS"
+fi
 
 if [ "${#FILES_SKIPPED_OVERRIDE[@]}" -gt 0 ]; then
   echo "Skipped ${#FILES_SKIPPED_OVERRIDE[@]} override(s) — kept local versions."
@@ -321,12 +335,12 @@ if [ "${#FILES_SKIPPED_RUNTIME[@]}" -gt 0 ]; then
 fi
 
 ###############################################################################
-# 7. Clean up
+# 8. Clean up
 ###############################################################################
-rm -rf "$WORK_DIR"
+[ -n "$WORK_DIR" ] && rm -rf "$WORK_DIR"
 
 ###############################################################################
-# 8. If no files changed, exit
+# 9. If no files changed, exit
 ###############################################################################
 if [ ${#FILES_CHANGED[@]} -eq 0 ]; then
   echo "Already up to date. All synced files match the latest release."
@@ -334,7 +348,7 @@ if [ ${#FILES_CHANGED[@]} -eq 0 ]; then
 fi
 
 ###############################################################################
-# 9. Create branch, commit, and open PR
+# 10. Create branch, commit, and open PR
 ###############################################################################
 # SYNC_BRANCH was computed and verified absent on remote in step 3a above.
 
