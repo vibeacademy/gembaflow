@@ -18,7 +18,7 @@ insufficiently verified behavior in downstream-fork scenarios.
 This defect is accepted as `fix-with-test`.
 
 The implementation fix and verification evidence are owned by Wave 2 /
-Workstream C: [VIB-135](https://github.com/vibeacademy/agile-flow/issues/203).
+Workstream C (`VIB-135`).
 That workstream is responsible for landing the code-level correction and
 corresponding tests before closure of the defect lifecycle.
 
