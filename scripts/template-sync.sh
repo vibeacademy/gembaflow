@@ -25,6 +25,38 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/overrides.sh
 source "$SCRIPT_DIR/lib/overrides.sh"
 
+# Runtime-critical files must never be overwritten while this script is running.
+# The overrides file is user-configurable, so we enforce these guards in code.
+RUNTIME_PROTECTED_PATHS=(
+  "scripts/template-sync.sh"
+  "scripts/lib/overrides.sh"
+)
+
+normalize_rel_path() {
+  local path="$1"
+  while [[ "$path" == ./* ]]; do
+    path="${path#./}"
+  done
+  while [[ "$path" == *"//"* ]]; do
+    path="${path//\/\//\/}"
+  done
+  path="${path%/}"
+  printf '%s\n' "$path"
+}
+
+is_runtime_protected() {
+  local path="$1"
+  local normalized_path
+  normalized_path="$(normalize_rel_path "$path")"
+  local protected
+  for protected in "${RUNTIME_PROTECTED_PATHS[@]}"; do
+    if [ "$normalized_path" = "$(normalize_rel_path "$protected")" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 ###############################################################################
 # 1. Read local version and syncDirectories
 ###############################################################################
@@ -140,6 +172,7 @@ echo "Created rollback tag: $ROLLBACK_TAG (local-only)"
 ###############################################################################
 FILES_CHANGED=()
 FILES_SKIPPED_OVERRIDE=()
+FILES_SKIPPED_RUNTIME=()
 
 while IFS= read -r sync_path; do
   [ -z "$sync_path" ] && continue
@@ -156,7 +189,14 @@ while IFS= read -r sync_path; do
     while IFS= read -r file; do
       rel_file="${file#"$upstream_path"/}"
       local_file="$sync_path/$rel_file"
+      normalized_local_file="$(normalize_rel_path "$local_file")"
       upstream_file="$file"
+
+      if is_runtime_protected "$normalized_local_file"; then
+        echo "SKIP (runtime-protected): $normalized_local_file"
+        FILES_SKIPPED_RUNTIME+=("$normalized_local_file")
+        continue
+      fi
 
       if is_override "$local_file"; then
         echo "SKIP (override): $local_file"
@@ -187,6 +227,13 @@ while IFS= read -r sync_path; do
     done < <(find "$upstream_path" -type f)
   else
     # Single file sync
+    normalized_sync_path="$(normalize_rel_path "$sync_path")"
+    if is_runtime_protected "$normalized_sync_path"; then
+      echo "SKIP (runtime-protected): $normalized_sync_path"
+      FILES_SKIPPED_RUNTIME+=("$normalized_sync_path")
+      continue
+    fi
+
     if is_override "$sync_path"; then
       echo "SKIP (override): $sync_path"
       FILES_SKIPPED_OVERRIDE+=("$sync_path")
@@ -216,6 +263,10 @@ done <<< "$SYNC_DIRS"
 
 if [ "${#FILES_SKIPPED_OVERRIDE[@]}" -gt 0 ]; then
   echo "Skipped ${#FILES_SKIPPED_OVERRIDE[@]} override(s) — kept local versions."
+fi
+
+if [ "${#FILES_SKIPPED_RUNTIME[@]}" -gt 0 ]; then
+  echo "Skipped ${#FILES_SKIPPED_RUNTIME[@]} runtime-protected file(s)."
 fi
 
 ###############################################################################
