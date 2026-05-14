@@ -25,6 +25,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/overrides.sh
 source "$SCRIPT_DIR/lib/overrides.sh"
 
+# Runtime-critical files must never be overwritten while this script is running.
+# The overrides file is user-configurable, so we enforce these guards in code.
+RUNTIME_PROTECTED_PATHS=(
+  "scripts/template-sync.sh"
+  "scripts/lib/overrides.sh"
+)
+
+is_runtime_protected() {
+  local path="$1"
+  local protected
+  for protected in "${RUNTIME_PROTECTED_PATHS[@]}"; do
+    if [ "$path" = "$protected" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 ###############################################################################
 # 1. Read local version and syncDirectories
 ###############################################################################
@@ -140,6 +158,7 @@ echo "Created rollback tag: $ROLLBACK_TAG (local-only)"
 ###############################################################################
 FILES_CHANGED=()
 FILES_SKIPPED_OVERRIDE=()
+FILES_SKIPPED_RUNTIME=()
 
 while IFS= read -r sync_path; do
   [ -z "$sync_path" ] && continue
@@ -157,6 +176,12 @@ while IFS= read -r sync_path; do
       rel_file="${file#"$upstream_path"/}"
       local_file="$sync_path/$rel_file"
       upstream_file="$file"
+
+      if is_runtime_protected "$local_file"; then
+        echo "SKIP (runtime-protected): $local_file"
+        FILES_SKIPPED_RUNTIME+=("$local_file")
+        continue
+      fi
 
       if is_override "$local_file"; then
         echo "SKIP (override): $local_file"
@@ -187,6 +212,12 @@ while IFS= read -r sync_path; do
     done < <(find "$upstream_path" -type f)
   else
     # Single file sync
+    if is_runtime_protected "$sync_path"; then
+      echo "SKIP (runtime-protected): $sync_path"
+      FILES_SKIPPED_RUNTIME+=("$sync_path")
+      continue
+    fi
+
     if is_override "$sync_path"; then
       echo "SKIP (override): $sync_path"
       FILES_SKIPPED_OVERRIDE+=("$sync_path")
@@ -216,6 +247,10 @@ done <<< "$SYNC_DIRS"
 
 if [ "${#FILES_SKIPPED_OVERRIDE[@]}" -gt 0 ]; then
   echo "Skipped ${#FILES_SKIPPED_OVERRIDE[@]} override(s) — kept local versions."
+fi
+
+if [ "${#FILES_SKIPPED_RUNTIME[@]}" -gt 0 ]; then
+  echo "Skipped ${#FILES_SKIPPED_RUNTIME[@]} runtime-protected file(s)."
 fi
 
 ###############################################################################
