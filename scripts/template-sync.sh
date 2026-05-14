@@ -19,6 +19,7 @@ set -euo pipefail
 UPSTREAM_REPO="vibeacademy/agile-flow"
 VERSION_FILE=".agile-flow-version"
 OVERRIDES_FILE=".agile-flow-overrides"
+RUNNING_SCRIPT_REL=$(python3 -c "import os,sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.getcwd()))" "$0")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/overrides.sh
@@ -162,6 +163,10 @@ while IFS= read -r sync_path; do
         FILES_SKIPPED_OVERRIDE+=("$local_file")
         continue
       fi
+      if [ "$local_file" = "$RUNNING_SCRIPT_REL" ]; then
+        echo "SKIP: $local_file is the currently running script."
+        continue
+      fi
 
       # Create parent directory if needed
       mkdir -p "$(dirname "$local_file")"
@@ -185,6 +190,10 @@ while IFS= read -r sync_path; do
     if is_override "$sync_path"; then
       echo "SKIP (override): $sync_path"
       FILES_SKIPPED_OVERRIDE+=("$sync_path")
+      continue
+    fi
+    if [ "$sync_path" = "$RUNNING_SCRIPT_REL" ]; then
+      echo "SKIP: $sync_path is the currently running script."
       continue
     fi
 
