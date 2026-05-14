@@ -7,6 +7,13 @@
 #   - Does NOT auto-merge; PR requires human review
 #   - Uses unauthenticated GitHub API to fetch release metadata
 
+# If invoked via `sh scripts/template-sync.sh`, re-exec with bash so bash-only
+# features below (arrays/process substitution) do not crash at runtime.
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec bash "$0" "$@"
+fi
+
+main() {
 set -euo pipefail
 
 UPSTREAM_REPO="vibeacademy/agile-flow"
@@ -275,3 +282,6 @@ echo "===================== Summary ====================="
 echo "PR created successfully for v${LATEST_VERSION}."
 echo "Rollback: git reset --hard $ROLLBACK_TAG"
 echo "==================================================="
+}
+
+main "$@"
