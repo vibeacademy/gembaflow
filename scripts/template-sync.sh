@@ -57,6 +57,53 @@ is_runtime_protected() {
   return 1
 }
 
+path_allowed_for_bootstrap_reentry() {
+  local path="$1"
+  local normalized_path
+  local protected
+  local sync_path
+
+  normalized_path="$(normalize_rel_path "$path")"
+
+  if [ "$normalized_path" = "$(normalize_rel_path "$VERSION_FILE")" ]; then
+    return 0
+  fi
+
+  for protected in "${RUNTIME_PROTECTED_PATHS[@]}"; do
+    if [ "$normalized_path" = "$(normalize_rel_path "$protected")" ] || [[ "$normalized_path" == "$(normalize_rel_path "$protected")/"* ]]; then
+      return 0
+    fi
+  done
+
+  while IFS= read -r sync_path; do
+    [ -z "$sync_path" ] && continue
+    sync_path="$(normalize_rel_path "$sync_path")"
+    if [ "$normalized_path" = "$sync_path" ] || [[ "$normalized_path" == "$sync_path/"* ]]; then
+      return 0
+    fi
+  done <<< "$SYNC_DIRS"
+
+  return 1
+}
+
+bootstrap_reentry_dirty_tree_is_safe() {
+  local status_line
+  local changed_path
+
+  while IFS= read -r status_line; do
+    [ -z "$status_line" ] && continue
+    changed_path="${status_line:3}"
+    if [[ "$changed_path" == *" -> "* ]]; then
+      changed_path="${changed_path##* -> }"
+    fi
+    if ! path_allowed_for_bootstrap_reentry "$changed_path"; then
+      return 1
+    fi
+  done < <(git status --porcelain)
+
+  return 0
+}
+
 ###############################################################################
 # 1. Read local version and syncDirectories
 ###############################################################################
@@ -147,10 +194,14 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-  echo "ERROR: working tree has uncommitted changes — refusing to upgrade without a clean rollback point."
-  echo "Commit or stash your changes, then retry."
-  rm -rf "$WORK_DIR"
-  exit 1
+  if bootstrap_reentry_dirty_tree_is_safe; then
+    echo "WARNING: detected bootstrap re-entry with staged sync-target files; continuing upgrade."
+  else
+    echo "ERROR: working tree has uncommitted changes — refusing to upgrade without a clean rollback point."
+    echo "Commit or stash your changes, then retry."
+    rm -rf "$WORK_DIR"
+    exit 1
+  fi
 fi
 
 if ! git symbolic-ref -q HEAD >/dev/null; then

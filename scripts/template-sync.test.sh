@@ -22,6 +22,7 @@ fail() {
 
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 REPO_DIR="$WORK_DIR/repo"
 mkdir -p "$REPO_DIR/scripts/lib"
@@ -100,6 +101,91 @@ else
   fail "template-sync.sh execution failed"
 fi
 
+popd >/dev/null
+
+echo ""
+echo "Scenario 2: bootstrap re-entry dirty state is allowed for sync-target paths"
+
+REENTRY_DIR="$WORK_DIR/reentry"
+mkdir -p "$REENTRY_DIR/scripts/lib"
+
+cat > "$REENTRY_DIR/.agile-flow-version" <<'JSON'
+{
+  "version": "0.0.1",
+  "syncDirectories": [
+    "scripts"
+  ]
+}
+JSON
+
+cat > "$REENTRY_DIR/scripts/template-sync.sh" <<'SH'
+#!/usr/bin/env bash
+echo "legacy placeholder"
+SH
+chmod +x "$REENTRY_DIR/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$REENTRY_DIR/scripts/lib/overrides.sh"
+
+mkdir -p "$WORK_DIR/reentry-upstream/scripts"
+cp scripts/template-sync.sh "$WORK_DIR/reentry-upstream/scripts/template-sync.sh"
+tar -czf "$WORK_DIR/reentry-upstream.tar.gz" -C "$WORK_DIR/reentry-upstream" .
+
+cat > "$WORK_DIR/bin/curl-reentry" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == *"/releases/latest"* ]]; then
+  printf '{"tag_name":"v1.0.4","html_url":"https://example.invalid/release","tarball_url":"https://example.invalid/reentry-upstream.tar.gz"}'
+  exit 0
+fi
+if [[ "$*" == *"reentry-upstream.tar.gz"* ]]; then
+  out=''
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "-o" ]; then
+      out="$2"
+      shift 2
+      continue
+    fi
+    shift
+  done
+  cp "$TEST_REENTRY_TARBALL" "$out"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$WORK_DIR/bin/curl-reentry"
+
+mkdir -p "$WORK_DIR/reentry-bin"
+cp "$WORK_DIR/bin/curl-reentry" "$WORK_DIR/reentry-bin/curl"
+chmod +x "$WORK_DIR/reentry-bin/curl"
+
+pushd "$REENTRY_DIR" >/dev/null
+git init >/dev/null
+git add .
+git commit -m "init reentry" >/dev/null
+git init --bare "$WORK_DIR/reentry-origin.git" >/dev/null
+git remote add origin "$WORK_DIR/reentry-origin.git"
+git push -u origin HEAD >/dev/null
+
+cp "$SCRIPT_SOURCE_DIR/template-sync.sh" scripts/template-sync.sh
+git add scripts/template-sync.sh .agile-flow-version
+
+if TEST_REENTRY_TARBALL="$WORK_DIR/reentry-upstream.tar.gz" PATH="$WORK_DIR/reentry-bin:$PATH" bash scripts/template-sync.sh > "$WORK_DIR/reentry.log" 2>&1; then
+  pass "bootstrap re-entry run exits successfully"
+  if grep -q "detected bootstrap re-entry" "$WORK_DIR/reentry.log"; then
+    pass "bootstrap warning is emitted"
+  else
+    fail "expected bootstrap warning in re-entry run"
+  fi
+
+  DOWNLOAD_COUNT=$(grep -c "Downloading release tarball..." "$WORK_DIR/reentry.log" || true)
+  if [ "$DOWNLOAD_COUNT" = "1" ]; then
+    pass "download banner appears once in re-entry path"
+  else
+    fail "expected a single download banner in re-entry path"
+  fi
+else
+  cat "$WORK_DIR/reentry.log"
+  fail "bootstrap re-entry scenario failed"
+fi
 popd >/dev/null
 
 echo "Results: ${TESTS_PASSED} passed, ${TESTS_FAILED} failed"
