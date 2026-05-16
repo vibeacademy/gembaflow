@@ -31,9 +31,8 @@ addopts = [
 ]
 
 [tool.coverage.run]
-source = ["."]
+source = ["features/steps"]
 omit = [
-    "features/*",
     "scripts/*", 
     "node_modules/*",
     ".git/*",
