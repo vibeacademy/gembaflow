@@ -57,8 +57,10 @@ if [ -z "$UPSTREAM_URL" ]; then
 fi
 
 # Extract org/repo from https or git@ GitHub URLs
+# Strip .git suffix before matching (bash 3.2 doesn't support non-greedy regex)
+UPSTREAM_URL_CLEAN="${UPSTREAM_URL%.git}"
 UPSTREAM_REPO=""
-if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+?)(\.git)?$ ]]; then
+if [[ "$UPSTREAM_URL_CLEAN" =~ github\.com[:/]([^/]+/[^/]+)$ ]]; then
   UPSTREAM_REPO="${BASH_REMATCH[1]}"
 else
   echo "ERROR: Cannot parse GitHub repo from: $UPSTREAM_URL" >&2
