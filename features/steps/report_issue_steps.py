@@ -21,40 +21,32 @@ def temp_git_repo():
         repo_path = Path(tmpdir)
 
         # Initialize git repo
-        subprocess.run(
-            ["git", "init"],
-            cwd=repo_path,
-            check=True,
-            capture_output=True
-        )
+        subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
 
         # Set git user for commits
         subprocess.run(
             ["git", "config", "user.name", "Test User"],
             cwd=repo_path,
             check=True,
-            capture_output=True
+            capture_output=True,
         )
         subprocess.run(
             ["git", "config", "user.email", "test@example.com"],
             cwd=repo_path,
             check=True,
-            capture_output=True
+            capture_output=True,
         )
 
         # Create initial commit
         (repo_path / "README.md").write_text("# Test Repo\n")
         subprocess.run(
-            ["git", "add", "README.md"],
-            cwd=repo_path,
-            check=True,
-            capture_output=True
+            ["git", "add", "README.md"], cwd=repo_path, check=True, capture_output=True
         )
         subprocess.run(
             ["git", "commit", "-m", "Initial commit"],
             cwd=repo_path,
             check=True,
-            capture_output=True
+            capture_output=True,
         )
 
         yield repo_path
@@ -95,18 +87,11 @@ def gh_cli_authenticated():
     """Verify gh CLI is available and authenticated."""
     try:
         # Check if gh CLI is available
-        subprocess.run(
-            ["gh", "--version"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        subprocess.run(["gh", "--version"], capture_output=True, text=True, check=True)
 
         # Check if authenticated (this will fail in CI, but that's expected)
         auth_result = subprocess.run(
-            ["gh", "auth", "status"],
-            capture_output=True,
-            text=True
+            ["gh", "auth", "status"], capture_output=True, text=True
         )
 
         if auth_result.returncode != 0:
@@ -140,7 +125,7 @@ def user_runs_report_issue_with_valid_inputs(
     # Fix the double backslashes in the regex
     patched_content = script_content.replace(
         'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
-        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then'
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
     )
 
     target_script.write_text(patched_content)
@@ -152,13 +137,16 @@ def user_runs_report_issue_with_valid_inputs(
             "bash",
             str(target_script),
             "--non-interactive",
-            "--severity", "p3",
-            "--component", "docs",
-            "--title", "Test issue for BDD verification"
+            "--severity",
+            "p3",
+            "--component",
+            "docs",
+            "--title",
+            "Test issue for BDD verification",
         ],
         cwd=temp_git_repo,
         capture_output=True,
-        text=True
+        text=True,
     )
 
 
@@ -169,8 +157,9 @@ def exit_code_is_zero():
     assert _test_result is not None, "Script was not run"
 
     # In case gh CLI fails (expected in CI), we accept fallback success (exit code 0)
-    assert _test_result.returncode == 0, \
+    assert _test_result.returncode == 0, (
         f"Script failed with output: {_test_result.stderr}"
+    )
 
 
 @then("issue is created in upstream repo with label downstream-report")
@@ -186,11 +175,12 @@ def issue_created_with_label(mock_upstream_repo):
     success_indicators = [
         "Issue filed successfully",
         "manual submission required",
-        f"github.com/{mock_upstream_repo}/issues/new"
+        f"github.com/{mock_upstream_repo}/issues/new",
     ]
 
-    assert any(indicator in output for indicator in success_indicators), \
+    assert any(indicator in output for indicator in success_indicators), (
         f"No success indicator found in output: {output}"
+    )
 
 
 @then("report file is saved to .agile-flow-meta/reports/")
@@ -215,8 +205,9 @@ def report_file_saved(temp_git_repo):
     assert "agile_flow_report: true" in content, "Missing agile_flow_report marker"
     assert "severity: p3" in content, "Missing severity in report"
     assert "component: docs" in content, "Missing component in report"
-    assert 'title: "Test issue for BDD verification"' in content, \
+    assert 'title: "Test issue for BDD verification"' in content, (
         "Missing title in report"
+    )
 
 
 @given("gh CLI is not available or authentication fails")
@@ -239,8 +230,9 @@ def fallback_url_provided(mock_upstream_repo):
     fallback_indicators = [
         "manual submission required",
         "Open this URL to file the issue",
-        f"github.com/{mock_upstream_repo}/issues/new"
+        f"github.com/{mock_upstream_repo}/issues/new",
     ]
 
-    assert any(indicator in output for indicator in fallback_indicators), \
+    assert any(indicator in output for indicator in fallback_indicators), (
         f"No fallback URL found in output: {output}"
+    )
