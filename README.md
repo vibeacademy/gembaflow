@@ -134,7 +134,14 @@ Once bootstrap is complete, use the standard workflow:
 /evaluate-feature       # Assess feature requests
 /release-decision       # Go/no-go for releases
 /architect-review       # Design guidance
+
+# Feedback
+/report-issue           # Report issues to upstream template maintainers
 ```
+
+Use `/report-issue` to send structured bug reports or suggestions back to the
+upstream Agile Flow maintainers. This creates a feedback loop that helps improve
+the framework for everyone. See [`.claude/commands/report-issue.md`](.claude/commands/report-issue.md) for details.
 
 ## Project Structure
 
