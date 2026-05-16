@@ -24,7 +24,7 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 # Check if gh is authenticated
-if ! gh auth status >/dev/null 2>&1; then
+if ! gh auth token >/dev/null 2>&1; then
   echo "ERROR: GitHub CLI is not authenticated."
   echo "Please run: gh auth login"
   echo "Then retry the upgrade command."
