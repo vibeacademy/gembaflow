@@ -18,3 +18,12 @@ Feature: Report Issue to Upstream
     Then exit code is 0
     And report file is saved to .agile-flow-meta/reports/
     And fallback URL is provided for manual submission
+
+  Scenario: Fallback to manual submission when gh CLI lacks write access
+    Given .agile-flow-meta/upstream exists with valid GitHub URL
+    And gh CLI lacks write access to upstream (permission denied)
+    When user runs report-issue.sh with valid inputs
+    Then exit code is 0
+    And report file is saved to .agile-flow-meta/reports/
+    And pre-filled GitHub issue URL is printed
+    And report body is copied to clipboard (if available)

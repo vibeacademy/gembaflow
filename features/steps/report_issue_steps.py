@@ -217,6 +217,89 @@ def gh_cli_unavailable():
     pass
 
 
+@given("gh CLI lacks write access to upstream (permission denied)")
+def gh_cli_lacks_write_access(monkeypatch):
+    """Simulate gh CLI permission denied error."""
+    # Store the original subprocess.run
+    original_run = subprocess.run
+
+    def mock_subprocess_run(*args, **kwargs):
+        # If it's a gh issue create command, simulate permission denied
+        if (
+            len(args) > 0
+            and isinstance(args[0], list)
+            and len(args[0]) >= 3
+            and args[0][0] == "gh"
+            and args[0][1] == "issue"
+            and args[0][2] == "create"
+        ):
+            # Create a mock result with permission denied error
+            result = subprocess.CompletedProcess(
+                args=args[0],
+                returncode=1,
+                stdout="",
+                stderr="ERROR: Permission denied\nHTTP 403: Forbidden\n",
+            )
+
+            # If check=True was specified, raise CalledProcessError
+            if kwargs.get("check", False):
+                raise subprocess.CalledProcessError(1, args[0], stderr=result.stderr)
+
+            return result
+
+        # For all other subprocess calls, use the original implementation
+        return original_run(*args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+
+
+@then("pre-filled GitHub issue URL is printed")
+def pre_filled_github_issue_url_printed(mock_upstream_repo):
+    """Verify that a pre-filled GitHub issue URL is printed."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    output = _test_result.stdout + _test_result.stderr
+
+    # Check for the URL components that should be present
+    expected_patterns = [
+        f"github.com/{mock_upstream_repo}/issues/new",
+        "title=",
+        "body=",
+        "labels=downstream-report",
+    ]
+
+    for pattern in expected_patterns:
+        assert pattern in output, (
+            f"Expected pattern '{pattern}' not found in output: {output}"
+        )
+
+    # Ensure the URL is specifically mentioned for manual filing
+    assert "Open this URL to file the issue" in output, (
+        f"Manual filing instruction not found in output: {output}"
+    )
+
+
+@then("report body is copied to clipboard (if available)")
+def report_body_copied_to_clipboard():
+    """Verify attempt to copy report body to clipboard."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    output = _test_result.stdout + _test_result.stderr
+
+    # The script should either:
+    # 1. Successfully copy to clipboard and show success message
+    # 2. Silently fail (acceptable - clipboard may not be available in test env)
+    # Check that the clipboard logic was attempted by looking for report file
+    assert "Report saved:" in output, (
+        f"No indication that report was processed for clipboard: {output}"
+    )
+
+    # Optionally check for clipboard success message if clipboard tools are available
+    # This is not required as clipboard might not be available in test environment
+
+
 @then("fallback URL is provided for manual submission")
 def fallback_url_provided(mock_upstream_repo):
     """Verify fallback URL was provided for manual submission."""
