@@ -1,4 +1,5 @@
 """BDD test runner for coverage measurement."""
+
 from pytest_bdd import scenarios
 
 # Import step definitions so they're available
