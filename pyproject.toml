@@ -30,6 +30,21 @@ addopts = [
     "--strict-markers",
 ]
 
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "features/*",
+    "scripts/*", 
+    "node_modules/*",
+    ".git/*",
+    "*.egg-info/*",
+    "*/__pycache__/*"
+]
+
+[tool.coverage.report]
+skip_empty = true
+fail_under = 0
+
 [tool.ruff]
 line-length = 88
 target-version = "py39"
