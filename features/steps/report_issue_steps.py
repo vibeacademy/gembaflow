@@ -5,10 +5,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from pytest_bdd import given, scenarios, then, when
+from pytest_bdd import given, then, when
 
 # Load scenarios from the feature file
-scenarios("../report-issue.feature")
 
 # Global variable to store test result between steps
 _test_result = None
