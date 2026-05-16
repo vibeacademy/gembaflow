@@ -225,20 +225,24 @@ def gh_cli_lacks_write_access(monkeypatch):
 
     def mock_subprocess_run(*args, **kwargs):
         # If it's a gh issue create command, simulate permission denied
-        if (len(args) > 0 and isinstance(args[0], list) and
-            len(args[0]) >= 3 and args[0][0] == "gh" and
-            args[0][1] == "issue" and args[0][2] == "create"):
-
+        if (
+            len(args) > 0
+            and isinstance(args[0], list)
+            and len(args[0]) >= 3
+            and args[0][0] == "gh"
+            and args[0][1] == "issue"
+            and args[0][2] == "create"
+        ):
             # Create a mock result with permission denied error
             result = subprocess.CompletedProcess(
                 args=args[0],
                 returncode=1,
                 stdout="",
-                stderr="ERROR: Permission denied\nHTTP 403: Forbidden\n"
+                stderr="ERROR: Permission denied\nHTTP 403: Forbidden\n",
             )
 
             # If check=True was specified, raise CalledProcessError
-            if kwargs.get('check', False):
+            if kwargs.get("check", False):
                 raise subprocess.CalledProcessError(1, args[0], stderr=result.stderr)
 
             return result
@@ -262,7 +266,7 @@ def pre_filled_github_issue_url_printed(mock_upstream_repo):
         f"github.com/{mock_upstream_repo}/issues/new",
         "title=",
         "body=",
-        "labels=downstream-report"
+        "labels=downstream-report",
     ]
 
     for pattern in expected_patterns:
