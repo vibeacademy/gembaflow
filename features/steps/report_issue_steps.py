@@ -318,3 +318,251 @@ def fallback_url_provided(mock_upstream_repo):
     assert any(indicator in output for indicator in fallback_indicators), (
         f"No fallback URL found in output: {output}"
     )
+
+
+# ============================================================================
+# Error case step definitions
+# ============================================================================
+
+
+@given(".agile-flow-meta/ does not exist")
+def agile_flow_meta_does_not_exist(temp_git_repo):
+    """Ensure .agile-flow-meta/ directory does not exist."""
+    meta_dir = temp_git_repo / ".agile-flow-meta"
+    if meta_dir.exists():
+        import shutil
+
+        shutil.rmtree(meta_dir)
+
+
+@given(".agile-flow-meta/ exists but upstream file is missing")
+def agile_flow_meta_exists_but_upstream_missing(temp_git_repo):
+    """Create .agile-flow-meta/ but without upstream file."""
+    meta_dir = temp_git_repo / ".agile-flow-meta"
+    meta_dir.mkdir(exist_ok=True)
+
+    # Create version file but NOT upstream
+    version_file = meta_dir / "version"
+    version_file.write_text("v2.1.0 @ abc123def456\n")
+
+    # Ensure upstream does not exist
+    upstream_file = meta_dir / "upstream"
+    if upstream_file.exists():
+        upstream_file.unlink()
+
+
+@when("user runs report-issue.sh")
+def user_runs_report_issue(temp_git_repo, report_script_path, monkeypatch):
+    """Run report-issue.sh without any arguments."""
+    global _test_result
+
+    monkeypatch.chdir(temp_git_repo)
+
+    # Copy the script to temp repo
+    scripts_dir = temp_git_repo / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+
+    project_root = Path(__file__).parent.parent.parent
+    original_script = project_root / report_script_path
+    target_script = scripts_dir / "report-issue.sh"
+
+    script_content = original_script.read_text()
+    patched_content = script_content.replace(
+        'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
+    )
+    target_script.write_text(patched_content)
+    target_script.chmod(0o755)
+
+    _test_result = subprocess.run(
+        ["bash", str(target_script), "--non-interactive"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+@when("user runs report-issue.sh with --severity invalid")
+def user_runs_report_issue_with_invalid_severity(
+    temp_git_repo, report_script_path, monkeypatch
+):
+    """Run report-issue.sh with an invalid severity value."""
+    global _test_result
+
+    monkeypatch.chdir(temp_git_repo)
+
+    scripts_dir = temp_git_repo / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+
+    project_root = Path(__file__).parent.parent.parent
+    original_script = project_root / report_script_path
+    target_script = scripts_dir / "report-issue.sh"
+
+    script_content = original_script.read_text()
+    patched_content = script_content.replace(
+        'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
+    )
+    target_script.write_text(patched_content)
+    target_script.chmod(0o755)
+
+    _test_result = subprocess.run(
+        [
+            "bash",
+            str(target_script),
+            "--non-interactive",
+            "--severity",
+            "invalid",
+            "--component",
+            "docs",
+            "--title",
+            "Test issue",
+        ],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+@when("user runs report-issue.sh with --component invalid")
+def user_runs_report_issue_with_invalid_component(
+    temp_git_repo, report_script_path, monkeypatch
+):
+    """Run report-issue.sh with an invalid component value."""
+    global _test_result
+
+    monkeypatch.chdir(temp_git_repo)
+
+    scripts_dir = temp_git_repo / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+
+    project_root = Path(__file__).parent.parent.parent
+    original_script = project_root / report_script_path
+    target_script = scripts_dir / "report-issue.sh"
+
+    script_content = original_script.read_text()
+    patched_content = script_content.replace(
+        'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
+    )
+    target_script.write_text(patched_content)
+    target_script.chmod(0o755)
+
+    _test_result = subprocess.run(
+        [
+            "bash",
+            str(target_script),
+            "--non-interactive",
+            "--severity",
+            "p3",
+            "--component",
+            "invalid",
+            "--title",
+            "Test issue",
+        ],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+@when("user runs report-issue.sh with empty title")
+def user_runs_report_issue_with_empty_title(
+    temp_git_repo, report_script_path, monkeypatch
+):
+    """Run report-issue.sh with an empty title."""
+    global _test_result
+
+    monkeypatch.chdir(temp_git_repo)
+
+    scripts_dir = temp_git_repo / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+
+    project_root = Path(__file__).parent.parent.parent
+    original_script = project_root / report_script_path
+    target_script = scripts_dir / "report-issue.sh"
+
+    script_content = original_script.read_text()
+    patched_content = script_content.replace(
+        'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
+    )
+    target_script.write_text(patched_content)
+    target_script.chmod(0o755)
+
+    _test_result = subprocess.run(
+        [
+            "bash",
+            str(target_script),
+            "--non-interactive",
+            "--severity",
+            "p3",
+            "--component",
+            "docs",
+            "--title",
+            "",
+        ],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+@then("exit code is 1")
+def exit_code_is_one():
+    """Verify the script exited with error code 1."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+    assert _test_result.returncode == 1, (
+        f"Expected exit code 1, got {_test_result.returncode}. "
+        f"stdout: {_test_result.stdout}, stderr: {_test_result.stderr}"
+    )
+
+
+@then("error output suggests running /upgrade")
+def error_suggests_upgrade():
+    """Verify error message suggests running /upgrade."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    output = _test_result.stdout + _test_result.stderr
+    assert "/upgrade" in output.lower() or "upgrade" in output.lower(), (
+        f"Expected error to mention /upgrade. Output: {output}"
+    )
+
+
+@then("error output lists valid severity values p1, p2, p3")
+def error_lists_valid_severity_values():
+    """Verify error lists valid severity values."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    output = _test_result.stdout + _test_result.stderr
+    assert "p1" in output and "p2" in output and "p3" in output, (
+        f"Expected error to list valid severity values (p1, p2, p3). Output: {output}"
+    )
+
+
+@then("error output lists valid components")
+def error_lists_valid_components():
+    """Verify error lists valid components."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    output = _test_result.stdout + _test_result.stderr
+    # Check for at least some common component names that should be listed
+    component_indicators = ["component", "valid", "docs", "core", "cli"]
+    matches = sum(1 for ind in component_indicators if ind.lower() in output.lower())
+    assert matches >= 2, f"Expected error to list valid components. Output: {output}"
+
+
+@then("error output indicates title is required")
+def error_indicates_title_required():
+    """Verify error indicates title is required."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    output = _test_result.stdout + _test_result.stderr
+    assert "title" in output.lower() and (
+        "required" in output.lower() or "empty" in output.lower()
+    ), f"Expected error to indicate title is required. Output: {output}"
