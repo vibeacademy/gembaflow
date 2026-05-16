@@ -19,6 +19,7 @@ exclude = ["app*", "reports*", "starters*", "node_modules*"]
 [project.optional-dependencies]
 dev = [
     "ruff>=0.6.0",
+    "pytest-cov>=5.0",
 ]
 
 [tool.pytest.ini_options]
