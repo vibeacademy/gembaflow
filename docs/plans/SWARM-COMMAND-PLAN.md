@@ -163,11 +163,11 @@ Nothing new to build here. `/swarm` just has to link them prominently in the Pha
 
 ### Modifications
 
-5. **`.claude/agents/github-ticket-worker.md`** — tiny addition to the workflow section describing "swarm mode": when invoked with a brief + pre-assigned worktree + pre-assigned branch, skip ticket selection and skip the "In Progress" move (the orchestrator handles board state). This is the one place the single-worker assumption must be relaxed.
+1. **`.claude/agents/github-ticket-worker.md`** — tiny addition to the workflow section describing "swarm mode": when invoked with a brief + pre-assigned worktree + pre-assigned branch, skip ticket selection and skip the "In Progress" move (the orchestrator handles board state). This is the one place the single-worker assumption must be relaxed.
 
-6. **`CLAUDE.md`** — add `/swarm` to the Slash Commands table. Add `docs/SWARM-WORKFLOW.md` to the Reference table.
+2. **`CLAUDE.md`** — add `/swarm` to the Slash Commands table. Add `docs/SWARM-WORKFLOW.md` to the Reference table.
 
-7. **`README.md`** — mention `/swarm` in the "After Bootstrap" command list.
+3. **`README.md`** — mention `/swarm` in the "After Bootstrap" command list.
 
 ### Deliberately NOT changing
 

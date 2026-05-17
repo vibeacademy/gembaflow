@@ -7,7 +7,7 @@
 
 ---
 
-# Epic #72 — /swarm: parallel ticket implementations with preview comparison
+## Epic #72 — /swarm: parallel ticket implementations with preview comparison
 
 **Title:** `epic: /swarm command for parallel ticket implementations`
 
@@ -78,7 +78,7 @@ P1 -- High-leverage framework capability. Not blocking any other epic.
 
 ---
 
-# Issue #73 — Add `.claude/worktrees/` to `.gitignore`
+## Issue #73 — Add `.claude/worktrees/` to `.gitignore`
 
 **Title:** `chore: gitignore .claude/worktrees/`
 
@@ -132,7 +132,7 @@ P1 -- High-leverage framework capability. Not blocking any other epic.
 
 ---
 
-# Issue #74 — Create `swarm-planner` agent definition
+## Issue #74 — Create `swarm-planner` agent definition
 
 **Title:** `feat(agents): add swarm-planner agent`
 
@@ -199,7 +199,7 @@ P1 -- High-leverage framework capability. Not blocking any other epic.
 
 ---
 
-# Issue #75 — Create `/swarm` slash command
+## Issue #75 — Create `/swarm` slash command
 
 **Title:** `feat(cmd): add /swarm command for parallel ticket implementations`
 
@@ -276,7 +276,7 @@ Add the `/swarm` slash command that orchestrates the full workflow: planner -> f
 
 ---
 
-# Issue #76 — Extend `github-ticket-worker` for swarm mode
+## Issue #76 — Extend `github-ticket-worker` for swarm mode
 
 **Title:** `feat(agents): add swarm mode to github-ticket-worker`
 
@@ -342,7 +342,7 @@ This is the one place the single-worker assumption is relaxed. It touches a NON-
 
 ---
 
-# Issue #77 — Create `docs/SWARM-WORKFLOW.md`
+## Issue #77 — Create `docs/SWARM-WORKFLOW.md`
 
 **Title:** `docs: add SWARM-WORKFLOW.md`
 
@@ -411,7 +411,7 @@ This is the one place the single-worker assumption is relaxed. It touches a NON-
 
 ---
 
-# Issue #78 — Wire `/swarm` into `CLAUDE.md` and `README.md`
+## Issue #78 — Wire `/swarm` into `CLAUDE.md` and `README.md`
 
 **Title:** `docs: wire /swarm into CLAUDE.md and README.md`
 
