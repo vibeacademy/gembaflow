@@ -21,8 +21,8 @@ issues you own). Use it for problems that exist in the upstream framework files.
 
 ## Instructions
 
-1. **Verify `.agile-flow-meta/upstream` exists**. If the file is missing, run `/upgrade`
-   first to initialise the metadata directory.
+1. **Verify `.agile-flow-version` exists**. If the file is missing, run `/upgrade`
+   first to initialise the metadata file.
 
 2. **Gather context before running the script**. Before invoking, note:
    - What went wrong (be specific)
@@ -37,7 +37,7 @@ issues you own). Use it for problems that exist in the upstream framework files.
    ```
 
    The script will:
-   - Read .agile-flow-meta/upstream to identify the target repo
+   - Read .agile-flow-version to identify the target repo and version
    - Capture fork_commit (current HEAD) and upstream_version automatically
    - Prompt for severity, component, and title
    - Open your $EDITOR (or use inline input) for the description
@@ -61,7 +61,7 @@ issues you own). Use it for problems that exist in the upstream framework files.
 
 6. **If gh access is denied** (fallback path):
 
-   The script will save the report to .agile-flow-meta/reports/report-<timestamp>.md,
+   The script will save the report to .agile-flow-reports/report-<timestamp>.md,
    copy the body to clipboard if available, and print a pre-filled GitHub issue URL.
 
    Tell the user:
@@ -80,7 +80,7 @@ bash scripts/report-issue.sh \
 
 ## Report format reference
 
-The script generates a YAML front-matter Markdown file in .agile-flow-meta/reports/:
+The script generates a YAML front-matter Markdown file in .agile-flow-reports/:
 
 ```
 ---
@@ -94,7 +94,7 @@ title: "Provision script fails when roster has special characters"
 ---
 ```
 
-The upstream field is written automatically from .agile-flow-meta/upstream.
+The upstream field is read automatically from .agile-flow-version.
 
 ## Output Format
 
@@ -107,7 +107,7 @@ End your response with a Result Block:
 URL: https://github.com/vibeacademy/agile-flow/issues/42
 Severity: p2
 Component: provisioning
-Report: .agile-flow-meta/reports/report-20260508-143022.md
+Report: .agile-flow-reports/report-20260508-143022.md
 ```
 
 Or if fallback was used:
@@ -116,7 +116,7 @@ Or if fallback was used:
 ---
 
 **Result:** Report saved (manual submission required)
-Report: .agile-flow-meta/reports/report-20260508-143022.md
+Report: .agile-flow-reports/report-20260508-143022.md
 Browser URL: https://github.com/vibeacademy/agile-flow/issues/new?...
 ```
 
@@ -126,5 +126,5 @@ Or on error:
 ---
 
 **Result:** Error
-Reason: .agile-flow-meta/upstream not found - run /upgrade first
+Reason: .agile-flow-version not found - run /upgrade first
 ```

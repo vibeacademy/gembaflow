@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-META_DIR=".agile-flow-meta"
-REPORTS_DIR="$META_DIR/reports"
+VERSION_FILE=".agile-flow-version"
+REPORTS_DIR=".agile-flow-reports"
 
 # ── Parse flags ───────────────────────────────────────────────────────────────
 
@@ -32,28 +32,31 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ── Verify .agile-flow-meta/ exists ──────────────────────────────────────────
+# ── Verify .agile-flow-version exists ──────────────────────────────────────────
 
-if [ ! -d "$META_DIR" ]; then
-  echo "ERROR: .agile-flow-meta/ directory not found." >&2
+if [ ! -f "$VERSION_FILE" ]; then
+  echo "ERROR: .agile-flow-version file not found." >&2
   echo "This fork does not have upstream metadata. Run /upgrade to initialise." >&2
   exit 1
 fi
 
-if [ ! -f "$META_DIR/upstream" ]; then
-  echo "ERROR: .agile-flow-meta/upstream not found." >&2
+# ── Read upstream URL and version from .agile-flow-version ────────────────────
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "ERROR: jq is required to parse .agile-flow-version but is not installed." >&2
+  exit 1
+fi
+
+UPSTREAM_URL=$(jq -r '.upstream' "$VERSION_FILE" 2>/dev/null || echo "null")
+if [ "$UPSTREAM_URL" = "null" ] || [ -z "$UPSTREAM_URL" ]; then
+  echo "ERROR: .agile-flow-version does not contain 'upstream' field." >&2
   echo "Run /upgrade to record this fork's upstream URL." >&2
   exit 1
 fi
 
-# ── Read upstream URL and derive repo slug ────────────────────────────────────
-
-UPSTREAM_URL=$(cat "$META_DIR/upstream")
-UPSTREAM_URL="${UPSTREAM_URL%$'\n'}"  # strip trailing newline if any
-
-if [ -z "$UPSTREAM_URL" ]; then
-  echo "ERROR: .agile-flow-meta/upstream is empty." >&2
-  exit 1
+UPSTREAM_VERSION=$(jq -r '.version' "$VERSION_FILE" 2>/dev/null || echo "unknown")
+if [ "$UPSTREAM_VERSION" = "null" ] || [ -z "$UPSTREAM_VERSION" ]; then
+  UPSTREAM_VERSION="unknown"
 fi
 
 # Extract org/repo from https or git@ GitHub URLs
@@ -71,12 +74,6 @@ fi
 # ── Gather git metadata ───────────────────────────────────────────────────────
 
 FORK_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
-
-UPSTREAM_VERSION="unknown"
-if [ -f "$META_DIR/version" ]; then
-  UPSTREAM_VERSION=$(cat "$META_DIR/version")
-  UPSTREAM_VERSION="${UPSTREAM_VERSION%$'\n'}"
-fi
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Report Issue to Upstream"

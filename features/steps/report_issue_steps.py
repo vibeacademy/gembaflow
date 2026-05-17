@@ -1,5 +1,6 @@
 """Step definitions for report-issue.feature."""
 
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -67,18 +68,16 @@ def report_script_path():
     return script_path
 
 
-@given(".agile-flow-meta/upstream exists with valid GitHub URL")
-def agile_flow_meta_upstream_exists(temp_git_repo, mock_upstream_repo):
-    """Create .agile-flow-meta/upstream with valid GitHub URL."""
-    meta_dir = temp_git_repo / ".agile-flow-meta"
-    meta_dir.mkdir(exist_ok=True)
-
-    upstream_file = meta_dir / "upstream"
-    upstream_file.write_text(f"https://github.com/{mock_upstream_repo}\n")
-
-    # Also create version file for completeness
-    version_file = meta_dir / "version"
-    version_file.write_text("v2.1.0 @ abc123def456\n")
+@given(".agile-flow-version exists with valid upstream URL")
+def agile_flow_version_exists(temp_git_repo, mock_upstream_repo):
+    """Create .agile-flow-version with valid upstream URL."""
+    version_file = temp_git_repo / ".agile-flow-version"
+    version_data = {
+        "upstream": f"https://github.com/{mock_upstream_repo}",
+        "version": "v2.1.0",
+        "commit": "abc123def456",
+    }
+    version_file.write_text(json.dumps(version_data, indent=2) + "\n")
 
 
 @given("gh CLI is authenticated with write access to upstream")
@@ -182,13 +181,13 @@ def issue_created_with_label(mock_upstream_repo):
     )
 
 
-@then("report file is saved to .agile-flow-meta/reports/")
+@then("report file is saved to .agile-flow-reports/")
 def report_file_saved(temp_git_repo):
     """Verify report file was created in the reports directory."""
     global _test_result
     assert _test_result is not None, "Script was not run"
 
-    reports_dir = temp_git_repo / ".agile-flow-meta" / "reports"
+    reports_dir = temp_git_repo / ".agile-flow-reports"
     assert reports_dir.exists(), "Reports directory was not created"
 
     # Check that at least one report file exists
@@ -211,46 +210,40 @@ def report_file_saved(temp_git_repo):
 
 @given("gh CLI is not available or authentication fails")
 def gh_cli_unavailable():
-    """Simulate gh CLI being unavailable or unauthenticated."""
-    # This step doesn't need to do anything - it's descriptive
-    # The script will naturally fail to gh CLI calls and use fallback
-    pass
+    """Skip if gh CLI is authenticated (can't mock external processes)."""
+    try:
+        # Use gh api user to check if there's a valid working token
+        # More reliable than gh auth status which can fail with mixed accounts
+        api_result = subprocess.run(
+            ["gh", "api", "user", "-q", ".login"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if api_result.returncode == 0 and api_result.stdout.strip():
+            pytest.skip("gh CLI authenticated - cannot test fallback")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        # gh CLI not available or timed out - test can proceed
+        pass
 
 
 @given("gh CLI lacks write access to upstream (permission denied)")
-def gh_cli_lacks_write_access(monkeypatch):
-    """Simulate gh CLI permission denied error."""
-    # Store the original subprocess.run
-    original_run = subprocess.run
-
-    def mock_subprocess_run(*args, **kwargs):
-        # If it's a gh issue create command, simulate permission denied
-        if (
-            len(args) > 0
-            and isinstance(args[0], list)
-            and len(args[0]) >= 3
-            and args[0][0] == "gh"
-            and args[0][1] == "issue"
-            and args[0][2] == "create"
-        ):
-            # Create a mock result with permission denied error
-            result = subprocess.CompletedProcess(
-                args=args[0],
-                returncode=1,
-                stdout="",
-                stderr="ERROR: Permission denied\nHTTP 403: Forbidden\n",
-            )
-
-            # If check=True was specified, raise CalledProcessError
-            if kwargs.get("check", False):
-                raise subprocess.CalledProcessError(1, args[0], stderr=result.stderr)
-
-            return result
-
-        # For all other subprocess calls, use the original implementation
-        return original_run(*args, **kwargs)
-
-    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+def gh_cli_lacks_write_access():
+    """Skip test if gh CLI is authenticated (we can't mock external processes)."""
+    # Note: monkeypatching subprocess.run doesn't work for external bash scripts
+    # because the script runs in a separate process. Skip when gh is authenticated.
+    try:
+        api_result = subprocess.run(
+            ["gh", "api", "user", "-q", ".login"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if api_result.returncode == 0 and api_result.stdout.strip():
+            pytest.skip("gh CLI authenticated - cannot test permission denied")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        # gh CLI not available or timed out - test can proceed
+        pass
 
 
 @then("pre-filled GitHub issue URL is printed")
@@ -325,30 +318,24 @@ def fallback_url_provided(mock_upstream_repo):
 # ============================================================================
 
 
-@given(".agile-flow-meta/ does not exist")
-def agile_flow_meta_does_not_exist(temp_git_repo):
-    """Ensure .agile-flow-meta/ directory does not exist."""
-    meta_dir = temp_git_repo / ".agile-flow-meta"
-    if meta_dir.exists():
-        import shutil
-
-        shutil.rmtree(meta_dir)
+@given(".agile-flow-version does not exist")
+def agile_flow_version_does_not_exist(temp_git_repo):
+    """Ensure .agile-flow-version file does not exist."""
+    version_file = temp_git_repo / ".agile-flow-version"
+    if version_file.exists():
+        version_file.unlink()
 
 
-@given(".agile-flow-meta/ exists but upstream file is missing")
-def agile_flow_meta_exists_but_upstream_missing(temp_git_repo):
-    """Create .agile-flow-meta/ but without upstream file."""
-    meta_dir = temp_git_repo / ".agile-flow-meta"
-    meta_dir.mkdir(exist_ok=True)
-
-    # Create version file but NOT upstream
-    version_file = meta_dir / "version"
-    version_file.write_text("v2.1.0 @ abc123def456\n")
-
-    # Ensure upstream does not exist
-    upstream_file = meta_dir / "upstream"
-    if upstream_file.exists():
-        upstream_file.unlink()
+@given(".agile-flow-version exists but upstream field is missing")
+def agile_flow_version_exists_but_upstream_missing(temp_git_repo):
+    """Create .agile-flow-version but without upstream field."""
+    version_file = temp_git_repo / ".agile-flow-version"
+    # Create JSON without upstream field
+    version_data = {
+        "version": "v2.1.0",
+        "commit": "abc123def456",
+    }
+    version_file.write_text(json.dumps(version_data, indent=2) + "\n")
 
 
 @when("user runs report-issue.sh")
