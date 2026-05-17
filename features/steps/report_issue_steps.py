@@ -142,7 +142,7 @@ def user_runs_report_issue_with_valid_inputs(
             "--title",
             "Test issue for BDD verification",
             "--body",
-            "This is a test issue created by the BDD test suite to verify functionality.",
+            "Test issue created by BDD test suite to verify functionality.",
         ],
         cwd=temp_git_repo,
         capture_output=True,
