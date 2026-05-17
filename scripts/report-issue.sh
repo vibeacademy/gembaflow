@@ -98,8 +98,16 @@ if [ "$UPSTREAM_URL" = "null" ] || [ -z "$UPSTREAM_URL" ]; then
 fi
 
 UPSTREAM_VERSION=$(jq -r '.version' "$VERSION_FILE" 2>/dev/null || echo "unknown")
+
+# Handle empty, null, whitespace-only, or missing version field
 if [ "$UPSTREAM_VERSION" = "null" ] || [ -z "$UPSTREAM_VERSION" ]; then
   UPSTREAM_VERSION="unknown"
+else
+  # Strip leading and trailing whitespace, then check if empty
+  UPSTREAM_VERSION=$(echo "$UPSTREAM_VERSION" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  if [ -z "$UPSTREAM_VERSION" ]; then
+    UPSTREAM_VERSION="unknown"
+  fi
 fi
 
 # Extract org/repo from https or git@ GitHub URLs

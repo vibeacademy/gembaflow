@@ -812,3 +812,85 @@ def error_indicates_body_required_in_non_interactive_mode():
     assert all(phrase in output.lower() for phrase in expected_phrases), (
         f"Expected error about missing body in non-interactive mode. Output: {output}"
     )
+
+
+# ============================================================================
+# Empty version field step definitions
+# ============================================================================
+
+
+@given(".agile-flow-version exists with empty string version field")
+def agile_flow_version_exists_with_empty_string_version(
+    temp_git_repo, mock_upstream_repo
+):
+    """Create .agile-flow-version with empty string version field."""
+    version_file = temp_git_repo / ".agile-flow-version"
+    version_data = {
+        "upstream": f"https://github.com/{mock_upstream_repo}",
+        "version": "",  # empty string version
+        "commit": "abc123def456",
+    }
+    version_file.write_text(json.dumps(version_data, indent=2) + "\n")
+
+
+@given(".agile-flow-version exists with whitespace-only version field")
+def agile_flow_version_exists_with_whitespace_version(
+    temp_git_repo, mock_upstream_repo
+):
+    """Create .agile-flow-version with whitespace-only version field."""
+    version_file = temp_git_repo / ".agile-flow-version"
+    version_data = {
+        "upstream": f"https://github.com/{mock_upstream_repo}",
+        "version": "   ",  # whitespace-only version
+        "commit": "abc123def456",
+    }
+    version_file.write_text(json.dumps(version_data, indent=2) + "\n")
+
+
+@given(".agile-flow-version exists with null version field")
+def agile_flow_version_exists_with_null_version(temp_git_repo, mock_upstream_repo):
+    """Create .agile-flow-version with null version field."""
+    version_file = temp_git_repo / ".agile-flow-version"
+    version_data = {
+        "upstream": f"https://github.com/{mock_upstream_repo}",
+        "version": None,
+        "commit": "abc123def456",
+    }
+    version_file.write_text(json.dumps(version_data, indent=2) + "\n")
+
+
+@then("report file contains upstream_version unknown")
+def report_file_contains_upstream_version_unknown(temp_git_repo):
+    """Verify report file contains upstream_version: unknown."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    reports_dir = temp_git_repo / ".agile-flow-reports"
+    assert reports_dir.exists(), "Reports directory was not created"
+
+    report_files = list(reports_dir.glob("report-*.md"))
+    assert len(report_files) > 0, "No report file was created"
+
+    report_file = report_files[-1]  # Get the most recent report
+    content = report_file.read_text()
+
+    # Check for the exact YAML line - no trailing whitespace
+    assert "upstream_version: unknown" in content, (
+        f"Expected 'upstream_version: unknown' in report: {content}"
+    )
+
+    # Also verify that there's no trailing whitespace after the colon
+    lines = content.split("\n")
+    upstream_version_line = None
+    for line in lines:
+        if line.startswith("upstream_version:"):
+            upstream_version_line = line
+            break
+
+    assert upstream_version_line is not None, "upstream_version line not found"
+
+    # Ensure the line is exactly "upstream_version: unknown" (no trailing spaces)
+    assert upstream_version_line == "upstream_version: unknown", (
+        f"Expected 'upstream_version: unknown', got '{upstream_version_line}' "
+        f"(line ends with: {repr(upstream_version_line[-10:])})"
+    )
