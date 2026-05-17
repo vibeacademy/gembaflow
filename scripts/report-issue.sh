@@ -5,6 +5,8 @@
 #   bash scripts/report-issue.sh
 #   bash scripts/report-issue.sh --severity p2 --component provisioning --title "short title"
 #   bash scripts/report-issue.sh --non-interactive --severity p3 --component docs --title "typo in guide"
+#   bash scripts/report-issue.sh --non-interactive --severity p2 --component docs --title "bug fix" --body-file issue-body.txt
+#   bash scripts/report-issue.sh --non-interactive --severity p1 --component ci --title "build failure" --body "The CI pipeline fails consistently."
 #
 # Exit codes:
 #   0  — report filed successfully (or saved for manual submission via fallback)
@@ -21,6 +23,44 @@ SEVERITY=""
 COMPONENT=""
 TITLE=""
 NON_INTERACTIVE=false
+BODY_FILE=""
+BODY=""
+
+show_help() {
+  cat <<'HELP'
+report-issue.sh — Report a downstream issue to the upstream Agile Flow repo.
+
+Usage:
+  bash scripts/report-issue.sh [FLAGS]
+
+Flags:
+  --severity LEVEL       Issue severity: p1 (critical), p2 (high), p3 (low)
+  --component COMP       Component: provisioning, ci, claude-commands, patterns, docs, other
+  --title "TITLE"        Issue title (required)
+  --non-interactive      Run without prompts (requires all flags)
+  --body-file FILE       Read issue body from file (non-interactive only)
+  --body "TEXT"          Provide issue body as text (non-interactive only)
+  --help, -h             Show this help message
+
+Examples:
+  # Interactive mode (prompts for inputs)
+  bash scripts/report-issue.sh
+  
+  # Non-interactive with inline body
+  bash scripts/report-issue.sh --non-interactive \
+    --severity p2 --component docs --title "Fix typo in README" \
+    --body "The README file has a spelling error on line 42."
+  
+  # Non-interactive with body from file
+  bash scripts/report-issue.sh --non-interactive \
+    --severity p1 --component ci --title "Build pipeline broken" \
+    --body-file issue-description.md
+
+Exit codes:
+  0  — Report filed successfully (or saved for manual submission via fallback)
+  1  — Error (missing config, invalid inputs)
+HELP
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -28,6 +68,9 @@ while [[ $# -gt 0 ]]; do
     --component)       COMPONENT="$2";      shift 2 ;;
     --title)           TITLE="$2";          shift 2 ;;
     --non-interactive) NON_INTERACTIVE=true; shift ;;
+    --body-file)       BODY_FILE="$2";      shift 2 ;;
+    --body)            BODY="$2";           shift 2 ;;
+    --help|-h)         show_help; exit 0 ;;
     *) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
   esac
 done
@@ -154,16 +197,57 @@ fi
 
 # Sanitise the title for safe interpolation into a YAML double-quoted scalar:
 # backslashes first, then double quotes. YAML's double-quoted form allows
-# \\ and \" as escapes, so this round-trips correctly for any title text.
+# \\\\ and \\\" as escapes, so this round-trips correctly for any title text.
 SAFE_TITLE="${TITLE//\\/\\\\}"
 SAFE_TITLE="${SAFE_TITLE//\"/\\\"}"
+
+# ── Validate body input for non-interactive mode ─────────────────────────────
+
+if $NON_INTERACTIVE; then
+  # Check that exactly one body source is provided
+  if [ -n "$BODY_FILE" ] && [ -n "$BODY" ]; then
+    echo "ERROR: Cannot specify both --body-file and --body. Choose one." >&2
+    exit 1
+  fi
+  
+  if [ -z "$BODY_FILE" ] && [ -z "$BODY" ]; then
+    echo "ERROR: --body-file or --body required in non-interactive mode." >&2
+    exit 1
+  fi
+  
+  # Validate body file if provided
+  if [ -n "$BODY_FILE" ]; then
+    if [ ! -f "$BODY_FILE" ]; then
+      echo "ERROR: Body file not found: $BODY_FILE" >&2
+      exit 1
+    fi
+    
+    if [ ! -r "$BODY_FILE" ]; then
+      echo "ERROR: Cannot read body file: $BODY_FILE" >&2
+      exit 1
+    fi
+  fi
+fi
 
 # ── Build description ─────────────────────────────────────────────────────────
 
 DESCRIPTION_FILE=$(mktemp /tmp/agile-flow-report-XXXXXX.md)
 trap 'rm -f "$DESCRIPTION_FILE"' EXIT
 
-cat > "$DESCRIPTION_FILE" <<'TEMPLATE'
+# Handle body content based on flags or interactive mode
+if [ -n "$BODY_FILE" ]; then
+  # Use provided body file
+  cp "$BODY_FILE" "$DESCRIPTION_FILE"
+elif [ -n "$BODY" ]; then
+  # Use provided body text
+  printf '%s\n' "$BODY" > "$DESCRIPTION_FILE"
+elif $NON_INTERACTIVE; then
+  # This should not happen due to earlier validation, but fail-safe
+  echo "ERROR: No body content provided in non-interactive mode." >&2
+  exit 1
+else
+  # Interactive mode: create template and let user edit
+  cat > "$DESCRIPTION_FILE" <<'TEMPLATE'
 ## Description
 
 <!-- What is the problem? Be specific. -->
@@ -194,7 +278,6 @@ cat > "$DESCRIPTION_FILE" <<'TEMPLATE'
 - Track:
 TEMPLATE
 
-if ! $NON_INTERACTIVE; then
   EDITOR="${EDITOR:-}"
   if [ -n "$EDITOR" ] && command -v "$EDITOR" >/dev/null 2>&1; then
     echo ""
