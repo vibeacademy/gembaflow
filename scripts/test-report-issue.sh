@@ -442,6 +442,192 @@ fi
 popd >/dev/null
 echo ""
 
+# ── Test 13: Custom label via --label flag ─────────────────────────────────────
+
+echo "Test 13: Custom label via --label flag"
+
+TEST_DIR="$WORK_DIR/test13"
+mkdir -p "$TEST_DIR/.agile-flow-meta"
+echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "1.0.0" > "$TEST_DIR/.agile-flow-meta/version"
+pushd "$TEST_DIR" >/dev/null
+git init --quiet
+git commit --allow-empty -m "init" --quiet
+
+# Create a mock gh that logs its args to stderr so we can verify them
+mkdir -p "$TEST_DIR/gh-bin"
+cat > "$TEST_DIR/gh-bin/gh" <<'SH'
+#!/usr/bin/env bash
+echo "GH_ARGS:$*" >&2
+if [[ "${1:-}" == "issue" && "${2:-}" == "create" ]]; then
+  echo "https://github.com/vibeacademy/agile-flow/issues/999"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$TEST_DIR/gh-bin/gh"
+
+if PATH="$TEST_DIR/gh-bin:$PATH" bash "$REPO_ROOT/scripts/report-issue.sh" --non-interactive --severity p2 --component docs --title "Custom label" --label "my-custom-label" > "$WORK_DIR/test13.log" 2>&1; then
+  if grep -q "GH_ARGS:.*--label my-custom-label" "$WORK_DIR/test13.log"; then
+    pass "custom label passed to gh issue create"
+  else
+    fail "expected --label my-custom-label in gh args"
+    cat "$WORK_DIR/test13.log"
+  fi
+  if grep -q "GH_ARGS:.*--title \[my-custom-label\]" "$WORK_DIR/test13.log"; then
+    pass "custom label in issue title"
+  else
+    fail "expected [my-custom-label] in title"
+    cat "$WORK_DIR/test13.log"
+  fi
+else
+  fail "custom label test should exit 0"
+  cat "$WORK_DIR/test13.log"
+fi
+
+popd >/dev/null
+echo ""
+
+# ── Test 14: Empty label via --label "" — no label prefix, no --label flag ─────
+
+echo "Test 14: Skip label when --label \"\" is passed"
+
+TEST_DIR="$WORK_DIR/test14"
+mkdir -p "$TEST_DIR/.agile-flow-meta"
+echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "1.0.0" > "$TEST_DIR/.agile-flow-meta/version"
+pushd "$TEST_DIR" >/dev/null
+git init --quiet
+git commit --allow-empty -m "init" --quiet
+
+if bash "$REPO_ROOT/scripts/report-issue.sh" --non-interactive --severity p2 --component ci --title "No label test" --label "" > "$WORK_DIR/test14.log" 2>&1; then
+  # Check browser URL has the correct title but NO labels=
+  if grep -q "title=No%20label%20test" "$WORK_DIR/test14.log"; then
+    pass "title is correct in browser URL"
+  else
+    fail "expected title in URL"
+    cat "$WORK_DIR/test14.log"
+  fi
+
+  # Check title does NOT have a label prefix
+  if grep -q "\[downstream-report\]" "$WORK_DIR/test14.log"; then
+    fail "title should not contain [downstream-report] when label is empty"
+  else
+    pass "title has no label prefix when --label \"\" is passed"
+  fi
+
+  # Check browser URL does NOT have &labels=
+  if grep -q "labels=" "$WORK_DIR/test14.log"; then
+    fail "browser URL should not contain labels= when label is empty"
+  else
+    pass "browser URL has no labels= when --label \"\" is passed"
+  fi
+else
+  fail "empty label test should exit 0"
+  cat "$WORK_DIR/test14.log"
+fi
+
+popd >/dev/null
+echo ""
+
+# ── Test 15: REPORT_LABEL env var ──────────────────────────────────────────────
+
+echo "Test 15: REPORT_LABEL env var"
+
+TEST_DIR="$WORK_DIR/test15"
+mkdir -p "$TEST_DIR/.agile-flow-meta"
+echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "1.0.0" > "$TEST_DIR/.agile-flow-meta/version"
+pushd "$TEST_DIR" >/dev/null
+git init --quiet
+git commit --allow-empty -m "init" --quiet
+
+# Use same logging mock
+mkdir -p "$TEST_DIR/gh-bin"
+cat > "$TEST_DIR/gh-bin/gh" <<'SH'
+#!/usr/bin/env bash
+echo "GH_ARGS:$*" >&2
+if [[ "${1:-}" == "issue" && "${2:-}" == "create" ]]; then
+  echo "https://github.com/vibeacademy/agile-flow/issues/999"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$TEST_DIR/gh-bin/gh"
+
+if PATH="$TEST_DIR/gh-bin:$PATH" REPORT_LABEL="env-label" bash "$REPO_ROOT/scripts/report-issue.sh" --non-interactive --severity p3 --component docs --title "Env label test" > "$WORK_DIR/test15.log" 2>&1; then
+  if grep -q "GH_ARGS:.*--label env-label" "$WORK_DIR/test15.log"; then
+    pass "REPORT_LABEL env var is used as label"
+  else
+    fail "expected --label env-label in gh args"
+    cat "$WORK_DIR/test15.log"
+  fi
+  if grep -q "GH_ARGS:.*--title \[env-label\]" "$WORK_DIR/test15.log"; then
+    pass "env label in issue title"
+  else
+    fail "expected [env-label] in title"
+    cat "$WORK_DIR/test15.log"
+  fi
+else
+  fail "REPORT_LABEL env var test should exit 0"
+  cat "$WORK_DIR/test15.log"
+fi
+
+popd >/dev/null
+echo ""
+
+# ── Test 16: --label flag overrides REPORT_LABEL env var ───────────────────────
+
+echo "Test 16: --label flag overrides REPORT_LABEL env var"
+
+TEST_DIR="$WORK_DIR/test16"
+mkdir -p "$TEST_DIR/.agile-flow-meta"
+echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "1.0.0" > "$TEST_DIR/.agile-flow-meta/version"
+pushd "$TEST_DIR" >/dev/null
+git init --quiet
+git commit --allow-empty -m "init" --quiet
+
+# Use same logging mock
+mkdir -p "$TEST_DIR/gh-bin"
+cat > "$TEST_DIR/gh-bin/gh" <<'SH'
+#!/usr/bin/env bash
+echo "GH_ARGS:$*" >&2
+if [[ "${1:-}" == "issue" && "${2:-}" == "create" ]]; then
+  echo "https://github.com/vibeacademy/agile-flow/issues/999"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$TEST_DIR/gh-bin/gh"
+
+if PATH="$TEST_DIR/gh-bin:$PATH" REPORT_LABEL="env-label" bash "$REPO_ROOT/scripts/report-issue.sh" --non-interactive --severity p3 --component docs --title "Override test" --label "flag-label" > "$WORK_DIR/test16.log" 2>&1; then
+  if grep -q "GH_ARGS:.*--label flag-label" "$WORK_DIR/test16.log"; then
+    pass "--label flag overrides REPORT_LABEL env var"
+  else
+    fail "expected --label flag-label (not env-label) in gh args"
+    cat "$WORK_DIR/test16.log"
+  fi
+  if grep -q "GH_ARGS:.*--title \[flag-label\]" "$WORK_DIR/test16.log"; then
+    pass "flag label in issue title"
+  else
+    fail "expected [flag-label] in title"
+    cat "$WORK_DIR/test16.log"
+  fi
+  # Also verify env label is NOT present
+  if grep -q "env-label" "$WORK_DIR/test16.log"; then
+    fail "env-label should NOT appear when overridden by --label flag"
+  else
+    pass "env-label not present in output (overridden by flag)"
+  fi
+else
+  fail "--label override test should exit 0"
+  cat "$WORK_DIR/test16.log"
+fi
+
+popd >/dev/null
+echo ""
+
 # ── Results ───────────────────────────────────────────────────────────────────
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -5,6 +5,8 @@
 #   bash scripts/report-issue.sh
 #   bash scripts/report-issue.sh --severity p2 --component provisioning --title "short title"
 #   bash scripts/report-issue.sh --non-interactive --severity p3 --component docs --title "typo in guide"
+#   bash scripts/report-issue.sh --label "custom-label" --severity p1 --component ci --title "urgent"
+#   bash scripts/report-issue.sh --label "" --severity p2 --component docs --title "no label"
 #
 # Exit codes:
 #   0  — report filed successfully (or saved for manual submission via fallback)
@@ -20,6 +22,8 @@ REPORTS_DIR="$META_DIR/reports"
 SEVERITY=""
 COMPONENT=""
 TITLE=""
+LABEL=""
+LABEL_SET=false
 NON_INTERACTIVE=false
 
 while [[ $# -gt 0 ]]; do
@@ -27,10 +31,23 @@ while [[ $# -gt 0 ]]; do
     --severity)        SEVERITY="$2";       shift 2 ;;
     --component)       COMPONENT="$2";      shift 2 ;;
     --title)           TITLE="$2";          shift 2 ;;
+    --label)           LABEL="$2"; LABEL_SET=true; shift 2 ;;
     --non-interactive) NON_INTERACTIVE=true; shift ;;
     *) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
   esac
 done
+
+# ── Resolve label ──────────────────────────────────────────────────────────────
+# Precedence: --label arg > REPORT_LABEL env > default "downstream-report"
+# Pass --label "" to skip label entirely.
+
+if [ "$LABEL_SET" = true ]; then
+  REPORT_LABEL="$LABEL"
+elif [ -n "${REPORT_LABEL:-}" ]; then
+  REPORT_LABEL="$REPORT_LABEL"
+else
+  REPORT_LABEL="downstream-report"
+fi
 
 # ── Verify .agile-flow-meta/ exists ──────────────────────────────────────────
 
@@ -245,16 +262,24 @@ echo ""
 
 # ── Deliver via gh issue create ───────────────────────────────────────────────
 
-ISSUE_TITLE="[downstream-report] $TITLE"
+if [ -n "$REPORT_LABEL" ]; then
+  ISSUE_TITLE="[$REPORT_LABEL] $TITLE"
+else
+  ISSUE_TITLE="$TITLE"
+fi
 GH_FAILED=false
 
 if command -v gh >/dev/null 2>&1; then
   echo "Submitting to $UPSTREAM_REPO..."
-  if gh issue create \
-      --repo "$UPSTREAM_REPO" \
-      --title "$ISSUE_TITLE" \
-      --label "downstream-report" \
-      --body-file "$REPORT_FILE"; then
+  GH_ARGS=(
+    --repo "$UPSTREAM_REPO"
+    --title "$ISSUE_TITLE"
+    --body-file "$REPORT_FILE"
+  )
+  if [ -n "$REPORT_LABEL" ]; then
+    GH_ARGS+=(--label "$REPORT_LABEL")
+  fi
+  if gh issue create "${GH_ARGS[@]}"; then
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "Issue filed successfully."
@@ -280,7 +305,10 @@ if command -v python3 >/dev/null 2>&1; then
   ENCODED_BODY=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(open(sys.argv[1]).read()))" "$REPORT_FILE" 2>/dev/null || echo "")
 fi
 
-BROWSER_URL="https://github.com/${UPSTREAM_REPO}/issues/new?title=${ENCODED_TITLE}&body=${ENCODED_BODY}&labels=downstream-report"
+BROWSER_URL="https://github.com/${UPSTREAM_REPO}/issues/new?title=${ENCODED_TITLE}&body=${ENCODED_BODY}"
+if [ -n "$REPORT_LABEL" ]; then
+  BROWSER_URL="${BROWSER_URL}&labels=${REPORT_LABEL}"
+fi
 
 # Try clipboard
 CLIPBOARD_CMD=""
