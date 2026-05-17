@@ -141,6 +141,8 @@ def user_runs_report_issue_with_valid_inputs(
             "docs",
             "--title",
             "Test issue for BDD verification",
+            "--body",
+            "This is a test issue created by the BDD test suite to verify functionality.",
         ],
         cwd=temp_git_repo,
         capture_output=True,
@@ -553,3 +555,258 @@ def error_indicates_title_required():
     assert "title" in output.lower() and (
         "required" in output.lower() or "empty" in output.lower()
     ), f"Expected error to indicate title is required. Output: {output}"
+
+
+# New step definitions for --body-file and --body flags
+
+
+@when("user runs report-issue.sh with --body flag")
+def user_runs_report_issue_with_body_flag(
+    temp_git_repo, report_script_path, monkeypatch
+):
+    """Run report-issue.sh with --body flag."""
+    global _test_result
+
+    monkeypatch.chdir(temp_git_repo)
+
+    scripts_dir = temp_git_repo / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+
+    project_root = Path(__file__).parent.parent.parent
+    original_script = project_root / report_script_path
+    target_script = scripts_dir / "report-issue.sh"
+
+    script_content = original_script.read_text()
+    patched_content = script_content.replace(
+        'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
+    )
+    target_script.write_text(patched_content)
+    target_script.chmod(0o755)
+
+    _test_result = subprocess.run(
+        [
+            "bash",
+            str(target_script),
+            "--non-interactive",
+            "--severity",
+            "p2",
+            "--component",
+            "docs",
+            "--title",
+            "Test with body flag",
+            "--body",
+            "This is test body content provided via --body flag.",
+        ],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+@given("body content file exists")
+def body_content_file_exists(temp_git_repo):
+    """Create a body content file for testing."""
+    body_file = temp_git_repo / "test-body.md"
+    body_file.write_text("## Test Issue\n\nThis is body content from a file.\n\n- Item 1\n- Item 2")
+
+
+@when("user runs report-issue.sh with --body-file flag")
+def user_runs_report_issue_with_body_file_flag(
+    temp_git_repo, report_script_path, monkeypatch
+):
+    """Run report-issue.sh with --body-file flag."""
+    global _test_result
+
+    monkeypatch.chdir(temp_git_repo)
+
+    scripts_dir = temp_git_repo / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+
+    project_root = Path(__file__).parent.parent.parent
+    original_script = project_root / report_script_path
+    target_script = scripts_dir / "report-issue.sh"
+
+    script_content = original_script.read_text()
+    patched_content = script_content.replace(
+        'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
+    )
+    target_script.write_text(patched_content)
+    target_script.chmod(0o755)
+
+    _test_result = subprocess.run(
+        [
+            "bash",
+            str(target_script),
+            "--non-interactive",
+            "--severity",
+            "p1",
+            "--component",
+            "ci", 
+            "--title",
+            "Test with body file",
+            "--body-file",
+            "test-body.md",
+        ],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+@when("user runs report-issue.sh with both body flags")
+def user_runs_report_issue_with_both_body_flags(
+    temp_git_repo, report_script_path, monkeypatch
+):
+    """Run report-issue.sh with both --body and --body-file flags."""
+    global _test_result
+
+    monkeypatch.chdir(temp_git_repo)
+
+    scripts_dir = temp_git_repo / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+
+    project_root = Path(__file__).parent.parent.parent
+    original_script = project_root / report_script_path
+    target_script = scripts_dir / "report-issue.sh"
+
+    script_content = original_script.read_text()
+    patched_content = script_content.replace(
+        'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
+    )
+    target_script.write_text(patched_content)
+    target_script.chmod(0o755)
+
+    _test_result = subprocess.run(
+        [
+            "bash",
+            str(target_script),
+            "--non-interactive",
+            "--severity",
+            "p3",
+            "--component",
+            "docs",
+            "--title",
+            "Test with both flags",
+            "--body",
+            "Inline body content",
+            "--body-file", 
+            "test-body.md",
+        ],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+@when("user runs report-issue.sh in non-interactive mode without body")
+def user_runs_report_issue_non_interactive_without_body(
+    temp_git_repo, report_script_path, monkeypatch
+):
+    """Run report-issue.sh in non-interactive mode without body flags."""
+    global _test_result
+
+    monkeypatch.chdir(temp_git_repo)
+
+    scripts_dir = temp_git_repo / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+
+    project_root = Path(__file__).parent.parent.parent
+    original_script = project_root / report_script_path
+    target_script = scripts_dir / "report-issue.sh"
+
+    script_content = original_script.read_text()
+    patched_content = script_content.replace(
+        'if [[ "$UPSTREAM_URL" =~ github\\.com[:/]([^/]+/[^/]+?)(\\.git)?$ ]]; then',
+        r'if [[ "$UPSTREAM_URL" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]]; then',
+    )
+    target_script.write_text(patched_content)
+    target_script.chmod(0o755)
+
+    _test_result = subprocess.run(
+        [
+            "bash",
+            str(target_script),
+            "--non-interactive",
+            "--severity",
+            "p2",
+            "--component",
+            "docs",
+            "--title",
+            "Test without body",
+        ],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+@then("report file contains provided body content")
+def report_file_contains_provided_body_content(temp_git_repo):
+    """Verify report file contains the provided body content."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    reports_dir = temp_git_repo / ".agile-flow-reports"
+    assert reports_dir.exists(), "Reports directory was not created"
+
+    report_files = list(reports_dir.glob("report-*.md"))
+    assert len(report_files) > 0, "No report file was created"
+
+    report_file = report_files[-1]  # Get the most recent report
+    content = report_file.read_text()
+
+    # Check that the body content is present
+    assert "This is test body content provided via --body flag." in content, (
+        f"Expected body content not found in report: {content}"
+    )
+
+
+@then("report file contains file body content")
+def report_file_contains_file_body_content(temp_git_repo):
+    """Verify report file contains the file body content."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    reports_dir = temp_git_repo / ".agile-flow-reports"
+    assert reports_dir.exists(), "Reports directory was not created"
+
+    report_files = list(reports_dir.glob("report-*.md"))
+    assert len(report_files) > 0, "No report file was created"
+
+    report_file = report_files[-1]  # Get the most recent report
+    content = report_file.read_text()
+
+    # Check that the file body content is present
+    expected_content = "## Test Issue"
+    assert expected_content in content, (
+        f"Expected file body content not found in report: {content}"
+    )
+
+
+@then("error output indicates only one body source allowed")
+def error_indicates_only_one_body_source_allowed():
+    """Verify error indicates only one body source allowed."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    output = _test_result.stdout + _test_result.stderr
+    expected_phrases = ["cannot specify both", "choose one", "--body-file and --body"]
+    assert any(phrase in output.lower() for phrase in expected_phrases), (
+        f"Expected error about conflicting body flags. Output: {output}"
+    )
+
+
+@then("error output indicates body required in non-interactive mode")
+def error_indicates_body_required_in_non_interactive_mode():
+    """Verify error indicates body required in non-interactive mode."""
+    global _test_result
+    assert _test_result is not None, "Script was not run"
+
+    output = _test_result.stdout + _test_result.stderr
+    expected_phrases = ["--body-file or --body required", "non-interactive mode"]
+    assert all(phrase in output.lower() for phrase in expected_phrases), (
+        f"Expected error about missing body in non-interactive mode. Output: {output}"
+    )

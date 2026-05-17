@@ -59,3 +59,28 @@ Feature: Report Issue to Upstream
     When user runs report-issue.sh with empty title
     Then exit code is 1
     And error output indicates title is required
+
+  Scenario: Non-interactive mode with --body flag
+    Given .agile-flow-version exists with valid upstream URL
+    When user runs report-issue.sh with --body flag
+    Then exit code is 0
+    And report file contains provided body content
+
+  Scenario: Non-interactive mode with --body-file flag
+    Given .agile-flow-version exists with valid upstream URL
+    And body content file exists
+    When user runs report-issue.sh with --body-file flag
+    Then exit code is 0
+    And report file contains file body content
+
+  Scenario: Non-interactive mode with both --body and --body-file
+    Given .agile-flow-version exists with valid upstream URL
+    When user runs report-issue.sh with both body flags
+    Then exit code is 1
+    And error output indicates only one body source allowed
+
+  Scenario: Non-interactive mode with missing body
+    Given .agile-flow-version exists with valid upstream URL
+    When user runs report-issue.sh in non-interactive mode without body
+    Then exit code is 1
+    And error output indicates body required in non-interactive mode
