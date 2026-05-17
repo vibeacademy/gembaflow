@@ -608,7 +608,9 @@ def user_runs_report_issue_with_body_flag(
 def body_content_file_exists(temp_git_repo):
     """Create a body content file for testing."""
     body_file = temp_git_repo / "test-body.md"
-    body_file.write_text("## Test Issue\n\nThis is body content from a file.\n\n- Item 1\n- Item 2")
+    body_file.write_text(
+        "## Test Issue\n\nThis is body content from a file.\n\n- Item 1\n- Item 2"
+    )
 
 
 @when("user runs report-issue.sh with --body-file flag")
@@ -643,7 +645,7 @@ def user_runs_report_issue_with_body_file_flag(
             "--severity",
             "p1",
             "--component",
-            "ci", 
+            "ci",
             "--title",
             "Test with body file",
             "--body-file",
@@ -692,7 +694,7 @@ def user_runs_report_issue_with_both_body_flags(
             "Test with both flags",
             "--body",
             "Inline body content",
-            "--body-file", 
+            "--body-file",
             "test-body.md",
         ],
         cwd=temp_git_repo,
