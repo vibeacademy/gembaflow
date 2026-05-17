@@ -393,27 +393,61 @@ echo ""
 
 ISSUE_TITLE="[downstream-report] $TITLE"
 
+# ── Check if downstream-report label exists ────────────────────────────────────
+
+check_downstream_label() {
+  if command -v gh >/dev/null 2>&1; then
+    # Check if the downstream-report label exists in the target repo
+    if gh label list --repo "$UPSTREAM_REPO" 2>/dev/null | grep -q "downstream-report"; then
+      return 0  # Label exists
+    else
+      return 1  # Label does not exist
+    fi
+  else
+    return 1  # gh CLI not available, assume label doesn't exist
+  fi
+}
 
 if command -v gh >/dev/null 2>&1; then
   echo "Submitting to $UPSTREAM_REPO..."
-  if gh issue create \
-      --repo "$UPSTREAM_REPO" \
-      --title "$ISSUE_TITLE" \
-      --label "downstream-report" \
-      --body-file "$REPORT_FILE"; then
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Issue filed successfully."
-    echo "Report saved: $REPORT_FILE"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    exit 0
+  
+  # Check if downstream-report label exists and create issue accordingly
+  if check_downstream_label; then
+    # Create issue with label
+    if gh issue create \
+        --repo "$UPSTREAM_REPO" \
+        --title "$ISSUE_TITLE" \
+        --label "downstream-report" \
+        --body-file "$REPORT_FILE"; then
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "Issue filed successfully."
+      echo "Report saved: $REPORT_FILE"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 0
+    else
+      echo "" >&2
+      echo "WARNING: gh issue create failed. Falling back to manual submission." >&2
+    fi
   else
-    GH_FAILED=true
-    echo "" >&2
-    echo "WARNING: gh issue create failed. Falling back to manual submission." >&2
+    # Create issue without label
+    echo "Warning: 'downstream-report' label not found, creating issue without label" >&2
+    if gh issue create \
+        --repo "$UPSTREAM_REPO" \
+        --title "$ISSUE_TITLE" \
+        --body-file "$REPORT_FILE"; then
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "Issue filed successfully."
+      echo "Report saved: $REPORT_FILE"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 0
+    else
+      echo "" >&2
+      echo "WARNING: gh issue create failed. Falling back to manual submission." >&2
+    fi
   fi
 else
-  GH_FAILED=true
   echo "gh CLI not found. Falling back to manual submission." >&2
 fi
 
@@ -426,7 +460,11 @@ if command -v python3 >/dev/null 2>&1; then
   ENCODED_BODY=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(open(sys.argv[1]).read()))" "$REPORT_FILE" 2>/dev/null || echo "")
 fi
 
-BROWSER_URL="https://github.com/${UPSTREAM_REPO}/issues/new?title=${ENCODED_TITLE}&body=${ENCODED_BODY}&labels=downstream-report"
+# Build URL with conditional label parameter
+BROWSER_URL="https://github.com/${UPSTREAM_REPO}/issues/new?title=${ENCODED_TITLE}&body=${ENCODED_BODY}"
+if check_downstream_label; then
+  BROWSER_URL="${BROWSER_URL}&labels=downstream-report"
+fi
 
 # Try clipboard
 CLIPBOARD_CMD=""
