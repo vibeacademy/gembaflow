@@ -267,7 +267,7 @@ def pre_filled_github_issue_url_printed(mock_upstream_repo):
         assert pattern in output, (
             f"Expected pattern '{pattern}' not found in output: {output}"
         )
-    
+
     # Label is optional - only check if it's supposed to be there
     # In this test scenario (gh CLI lacks write access), the label check will fail
     # so the label parameter should NOT be in the URL
