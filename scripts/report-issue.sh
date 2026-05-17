@@ -25,6 +25,7 @@ TITLE=""
 NON_INTERACTIVE=false
 BODY_FILE=""
 BODY=""
+FORCE_CODESPACES_TOKEN=false
 
 show_help() {
   cat <<'HELP'
@@ -40,6 +41,7 @@ Flags:
   --non-interactive      Run without prompts (requires all flags)
   --body-file FILE       Read issue body from file (non-interactive only)
   --body "TEXT"          Provide issue body as text (non-interactive only)
+  --force-codespaces-token  Continue despite Codespaces token limitations
   --help, -h             Show this help message
 
 Examples:
@@ -70,6 +72,7 @@ while [[ $# -gt 0 ]]; do
     --non-interactive) NON_INTERACTIVE=true; shift ;;
     --body-file)       BODY_FILE="$2";      shift 2 ;;
     --body)            BODY="$2";           shift 2 ;;
+    --force-codespaces-token) FORCE_CODESPACES_TOKEN=true; shift ;;
     --help|-h)         show_help; exit 0 ;;
     *) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
   esac
@@ -121,6 +124,61 @@ else
   echo "Expected format: https://github.com/org/repo" >&2
   exit 1
 fi
+
+# ── Check for Codespaces token limitations ────────────────────────────────────
+
+check_codespaces_token() {
+  local is_codespaces=false
+  local has_ghu_token=false
+  
+  # Check if we're running in GitHub Codespaces
+  if [ "${CODESPACES:-}" = "true" ]; then
+    is_codespaces=true
+  fi
+  
+  # Check for ghu_* token pattern in gh auth status or GH_TOKEN
+  if command -v gh >/dev/null 2>&1; then
+    local auth_status
+    auth_status=$(gh auth status 2>&1 || true)
+    if echo "$auth_status" | grep -q "ghu_"; then
+      has_ghu_token=true
+    fi
+  fi
+  
+  # Also check GH_TOKEN environment variable for ghu_* pattern
+  if [ -n "${GH_TOKEN:-}" ] && [[ "${GH_TOKEN:-}" =~ ^ghu_ ]]; then
+    has_ghu_token=true
+  fi
+  
+  # Warn if both conditions are met and user hasn't forced through
+  if $is_codespaces && $has_ghu_token && ! $FORCE_CODESPACES_TOKEN; then
+    echo "⚠️  WARNING: Codespaces Token Limitation Detected" >&2
+    echo "" >&2
+    echo "You are running in GitHub Codespaces with a default ghu_* token." >&2
+    echo "This token cannot create issues on upstream repositories." >&2
+    echo "" >&2
+    echo "To resolve this issue:" >&2
+    echo "1. Create a Personal Access Token (PAT) at:" >&2
+    echo "   https://github.com/settings/tokens/new" >&2
+    echo "" >&2
+    echo "2. Grant these scopes:" >&2
+    echo "   • repo (Full control of private repositories)" >&2
+    echo "   • write:org (Write org and team membership)" >&2
+    echo "" >&2
+    echo "3. Set the token in your Codespace:" >&2
+    echo "   export GH_TOKEN=ghp_your_token_here" >&2
+    echo "   gh auth login --with-token <<<\"\$GH_TOKEN\"" >&2
+    echo "" >&2
+    echo "4. Re-run this script" >&2
+    echo "" >&2
+    echo "To continue anyway (advanced users only):" >&2
+    echo "   $0 --force-codespaces-token [other flags]" >&2
+    echo "" >&2
+    exit 1
+  fi
+}
+
+check_codespaces_token
 
 # ── Gather git metadata ───────────────────────────────────────────────────────
 
@@ -334,7 +392,7 @@ echo ""
 # ── Deliver via gh issue create ───────────────────────────────────────────────
 
 ISSUE_TITLE="[downstream-report] $TITLE"
-GH_FAILED=false
+
 
 if command -v gh >/dev/null 2>&1; then
   echo "Submitting to $UPSTREAM_REPO..."
