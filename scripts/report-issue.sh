@@ -448,12 +448,16 @@ if command -v gh >/dev/null 2>&1; then
   
   # Check if downstream-report label exists and create issue accordingly
   if check_downstream_label; then
-    # Create issue with label
-    if gh issue create \
+    # Create issue with label - capture stderr for better error reporting
+    set +e  # Temporarily disable exit on error to capture output
+    error_output=$(gh issue create \
         --repo "$UPSTREAM_REPO" \
         --title "$ISSUE_TITLE" \
         --label "downstream-report" \
-        --body-file "$REPORT_FILE"; then
+        --body-file "$REPORT_FILE" 2>&1)
+    gh_exit_code=$?
+    set -e  # Re-enable exit on error
+    if [ $gh_exit_code -eq 0 ]; then
       echo ""
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo "Issue filed successfully."
@@ -462,15 +466,23 @@ if command -v gh >/dev/null 2>&1; then
       exit 0
     else
       echo "" >&2
-      echo "WARNING: gh issue create failed. Falling back to manual submission." >&2
+      if [ -n "$error_output" ]; then
+        echo "WARNING: Issue creation failed: $error_output. Falling back to manual submission." >&2
+      else
+        echo "WARNING: Issue creation failed. Falling back to manual submission." >&2
+      fi
     fi
   else
-    # Create issue without label
+    # Create issue without label - capture stderr for better error reporting
     echo "Warning: 'downstream-report' label not found, creating issue without label" >&2
-    if gh issue create \
+    set +e  # Temporarily disable exit on error to capture output
+    error_output=$(gh issue create \
         --repo "$UPSTREAM_REPO" \
         --title "$ISSUE_TITLE" \
-        --body-file "$REPORT_FILE"; then
+        --body-file "$REPORT_FILE" 2>&1)
+    gh_exit_code=$?
+    set -e  # Re-enable exit on error
+    if [ $gh_exit_code -eq 0 ]; then
       echo ""
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo "Issue filed successfully."
@@ -479,7 +491,11 @@ if command -v gh >/dev/null 2>&1; then
       exit 0
     else
       echo "" >&2
-      echo "WARNING: gh issue create failed. Falling back to manual submission." >&2
+      if [ -n "$error_output" ]; then
+        echo "WARNING: Issue creation failed: $error_output. Falling back to manual submission." >&2
+      else
+        echo "WARNING: Issue creation failed. Falling back to manual submission." >&2
+      fi
     fi
   fi
 else
