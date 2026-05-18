@@ -311,6 +311,19 @@ This phase also updates CLAUDE.md with project-specific configuration:
 - Build and test commands
 - Definition of Ready/Done refinements
 
+## Finish Up
+
+The following files were created:
+- docs/TECHNICAL-ARCHITECTURE.md
+- .claude/PROJECT.md (platform selection)
+
+Would you like me to commit these to a feature branch? (Recommended to keep `main` clean)
+
+If yes, I will:
+1. Create branch `docs/bootstrap-architecture`
+2. Commit with message `docs: add technical architecture and platform config`
+3. Push and offer to create a PR
+
 ## What Gets Unlocked
 
 After Phase 2 is complete:
