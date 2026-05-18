@@ -47,6 +47,28 @@ Flags:
   --force-codespaces-token  Continue despite Codespaces token limitations
   --help, -h             Show this help message
 
+Description Entry Modes:
+  The script supports three ways to provide the issue description:
+  
+  1. EDITOR mode (interactive, EDITOR set):
+     - When $EDITOR is set and the command is available
+     - Opens your configured editor with a template
+     - Save and close the file when done
+  
+  2. File mode (non-interactive, --body-file):
+     - Read description from an existing file
+     - Use with --body-file path/to/description.md
+     - File must exist and be readable
+  
+  3. Stdin mode (interactive, EDITOR unset/unavailable):
+     - Paste or type description directly into terminal
+     - End with a line containing only '.' (dot) to finish
+     - Example:
+       > Enter issue description (end with '.' on its own line):
+       > This is my issue description.
+       > It can span multiple lines.
+       > .
+
 Examples:
   # Interactive mode (prompts for inputs)
   bash scripts/report-issue.sh
@@ -391,9 +413,7 @@ TEMPLATE
     "$EDITOR" "$DESCRIPTION_FILE"
   else
     echo ""
-    echo "Paste your description below."
-    echo "Include: what happened, steps to reproduce, expected vs actual behaviour."
-    echo "Enter a line with just '.' when done:"
+    echo "Enter issue description (end with '.' on its own line):"
     echo ""
     DESC_LINES=""
     while IFS= read -r line; do
