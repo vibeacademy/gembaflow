@@ -229,16 +229,49 @@ if [ -z "$COMPONENT" ]; then
     echo "ERROR: --component required in non-interactive mode." >&2
     exit 1
   fi
-  echo ""
-  echo "Component:"
-  echo "  provisioning    setup, roster, env provisioning scripts"
-  echo "  ci              GitHub Actions, CI/CD workflows"
-  echo "  claude-commands /slash commands"
-  echo "  patterns        architectural patterns and practices"
-  echo "  docs            documentation"
-  echo "  other           anything else"
-  printf "> "
-  read -r COMPONENT
+  
+  # Two-tier component selection to handle AskUserQuestion 4-option limit
+  while true; do
+    echo ""
+    echo "Component (select main components or see more):"
+    echo "  provisioning    setup, roster, env provisioning scripts"
+    echo "  ci              GitHub Actions, CI/CD workflows"
+    echo "  claude-commands /slash commands"
+    echo "  docs            documentation"
+    echo "  more            see additional components"
+    printf "> "
+    read -r COMPONENT
+    
+    case "$COMPONENT" in
+      provisioning|ci|claude-commands|docs)
+        break
+        ;;
+      more)
+        echo ""
+        echo "Additional components:"
+        echo "  patterns        architectural patterns and practices"
+        echo "  other           anything else"
+        echo "  back            return to main components"
+        printf "> "
+        read -r COMPONENT
+        
+        case "$COMPONENT" in
+          patterns|other)
+            break
+            ;;
+          back)
+            continue  # Go back to main component selection
+            ;;
+          *)
+            echo "ERROR: Please select 'patterns', 'other', or 'back'." >&2
+            ;;
+        esac
+        ;;
+      *)
+        echo "ERROR: Please select a valid component or 'more' for additional options." >&2
+        ;;
+    esac
+  done
 fi
 
 case "$COMPONENT" in

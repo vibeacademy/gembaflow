@@ -28,7 +28,7 @@ issues you own). Use it for problems that exist in the upstream framework files.
    - What went wrong (be specific)
    - Severity: p1 (critical, blocks everyone), p2 (significant, workaround exists),
      p3 (minor or improvement)
-   - Component: provisioning, ci, claude-commands, patterns, docs, or other
+   - Component: You'll be prompted to select from available components in a two-step process
 
 3. **Validate severity input**. Before running the script, ensure the severity is one of the valid values: p1, p2, or p3. If invalid, return error: "Invalid severity. Valid options: p1, p2, p3"
 
