@@ -185,7 +185,11 @@ fi
 if CLAUDE_CMD=$(resolve_cmd claude); then
     pass "CLI Tools" "claude found at $CLAUDE_CMD"
 else
-    fail "CLI Tools" "claude not found" "npm install -g @anthropic-ai/claude-code"
+    if [[ "${CODESPACES:-}" == "true" ]] || [[ "${TERM_PROGRAM:-}" == "vscode" ]]; then
+        pass "CLI Tools" "claude CLI (IDE-provided via Claude Code extension)"
+    else
+        fail "CLI Tools" "claude not found" "npm install -g @anthropic-ai/claude-code"
+    fi
 fi
 
 # jq (FAIL)
