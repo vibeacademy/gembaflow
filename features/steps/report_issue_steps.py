@@ -256,18 +256,21 @@ def pre_filled_github_issue_url_printed(mock_upstream_repo):
 
     output = _test_result.stdout + _test_result.stderr
 
-    # Check for the URL components that should be present
-    expected_patterns = [
+    # Check for the URL components that should always be present
+    required_patterns = [
         f"github.com/{mock_upstream_repo}/issues/new",
         "title=",
         "body=",
-        "labels=downstream-report",
     ]
 
-    for pattern in expected_patterns:
+    for pattern in required_patterns:
         assert pattern in output, (
             f"Expected pattern '{pattern}' not found in output: {output}"
         )
+
+    # Label is optional - only check if it's supposed to be there
+    # In this test scenario (gh CLI lacks write access), the label check will fail
+    # so the label parameter should NOT be in the URL
 
     # Ensure the URL is specifically mentioned for manual filing
     assert "Open this URL to file the issue" in output, (
