@@ -101,6 +101,32 @@ path_allowed_for_bootstrap_reentry() {
   return 1
 }
 
+is_user_content_path() {
+  local path="$1"
+  local normalized_path
+  normalized_path="$(normalize_rel_path "$path")"
+  
+  # Paths that are explicitly user-content per docs/DISTRIBUTION.md
+  # Check exact paths first
+  case "$normalized_path" in
+    "CHANGELOG.md"|"package-lock.json"|"render.yaml"|"eslint.config.mjs"|"tsconfig.json"|"tsconfig.tsbuildinfo"|"next.config.ts"|"next-env.d.ts"|"vitest.config.ts"|"vitest.setup.ts"|".claude/settings.local.json")
+      return 0
+      ;;
+    "docs/PRODUCT-REQUIREMENTS.md"|"docs/PRODUCT-ROADMAP.md")
+      return 0
+      ;;
+  esac
+  
+  # Check directory prefixes for user-content areas
+  case "$normalized_path" in
+    app/*|__tests__/*|reports/*)
+      return 0
+      ;;
+  esac
+  
+  return 1
+}
+
 bootstrap_reentry_dirty_tree_is_safe() {
   local status_line
   local changed_path
@@ -111,9 +137,19 @@ bootstrap_reentry_dirty_tree_is_safe() {
     if [[ "$changed_path" == *" -> "* ]]; then
       changed_path="${changed_path##* -> }"
     fi
-    if ! path_allowed_for_bootstrap_reentry "$changed_path"; then
-      return 1
+    
+    # Allow framework-controlled files (original logic)
+    if path_allowed_for_bootstrap_reentry "$changed_path"; then
+      continue
     fi
+    
+    # Allow user-content files (new logic) - they don't block framework operations
+    if is_user_content_path "$changed_path"; then
+      continue
+    fi
+    
+    # All other changes (hybrid files without proper framework markers, etc.) still block
+    return 1
   done < <(git status --porcelain)
 
   return 0
@@ -194,8 +230,9 @@ if ! git diff-index --quiet HEAD -- 2>/dev/null; then
     BOOTSTRAP_REENTRY_MODE=1
     echo "WARNING: detected bootstrap re-entry with staged sync-target files; reusing staged payload."
   else
-    echo "ERROR: working tree has uncommitted changes — refusing to upgrade without a clean rollback point."
-    echo "Commit or stash your changes, then retry."
+    echo "ERROR: working tree has uncommitted changes in framework-controlled or hybrid files — refusing to upgrade without a clean rollback point."
+    echo "User-content files (docs/PRODUCT-*.md, app/, etc.) don't block upgrades, but framework files do."
+    echo "Commit or stash your framework file changes, then retry."
     exit 1
   fi
 fi
