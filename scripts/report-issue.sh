@@ -4,6 +4,7 @@
 # Usage:
 #   bash scripts/report-issue.sh
 #   bash scripts/report-issue.sh --severity p2 --component provisioning --title "short title"
+#   bash scripts/report-issue.sh --dry-run --severity p2 --component docs --title "preview test" --body "Sample body"
 #   bash scripts/report-issue.sh --non-interactive --severity p3 --component docs --title "typo in guide"
 #   bash scripts/report-issue.sh --non-interactive --severity p2 --component docs --title "bug fix" --body-file issue-body.txt
 #   bash scripts/report-issue.sh --non-interactive --severity p1 --component ci --title "build failure" --body "The CI pipeline fails consistently."
@@ -26,6 +27,7 @@ NON_INTERACTIVE=false
 BODY_FILE=""
 BODY=""
 FORCE_CODESPACES_TOKEN=false
+DRY_RUN=false
 
 show_help() {
   cat <<'HELP'
@@ -41,12 +43,16 @@ Flags:
   --non-interactive      Run without prompts (requires all flags)
   --body-file FILE       Read issue body from file (non-interactive only)
   --body "TEXT"          Provide issue body as text (non-interactive only)
+  --dry-run              Preview what would be created without submitting
   --force-codespaces-token  Continue despite Codespaces token limitations
   --help, -h             Show this help message
 
 Examples:
   # Interactive mode (prompts for inputs)
   bash scripts/report-issue.sh
+  
+  # Preview mode (shows what would be created)
+  bash scripts/report-issue.sh --dry-run --severity p2 --component docs --title "Fix typo" --body "Sample body"
   
   # Non-interactive with inline body
   bash scripts/report-issue.sh --non-interactive \
@@ -72,6 +78,7 @@ while [[ $# -gt 0 ]]; do
     --non-interactive) NON_INTERACTIVE=true; shift ;;
     --body-file)       BODY_FILE="$2";      shift 2 ;;
     --body)            BODY="$2";           shift 2 ;;
+    --dry-run)         DRY_RUN=true;        shift ;;
     --force-codespaces-token) FORCE_CODESPACES_TOKEN=true; shift ;;
     --help|-h)         show_help; exit 0 ;;
     *) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
@@ -150,8 +157,8 @@ check_codespaces_token() {
     has_ghu_token=true
   fi
   
-  # Warn if both conditions are met and user hasn't forced through
-  if $is_codespaces && $has_ghu_token && ! $FORCE_CODESPACES_TOKEN; then
+  # Warn if both conditions are met and user hasn't forced through (skip check in dry-run mode)
+  if $is_codespaces && $has_ghu_token && ! $FORCE_CODESPACES_TOKEN && ! $DRY_RUN; then
     echo "⚠️  WARNING: Codespaces Token Limitation Detected" >&2
     echo "" >&2
     echo "You are running in GitHub Codespaces with a default ghu_* token." >&2
@@ -389,10 +396,6 @@ REPORT
 echo "Report   : $REPORT_FILE"
 echo ""
 
-# ── Deliver via gh issue create ───────────────────────────────────────────────
-
-ISSUE_TITLE="[downstream-report] $TITLE"
-
 # ── Check if downstream-report label exists ────────────────────────────────────
 
 check_downstream_label() {
@@ -407,6 +410,38 @@ check_downstream_label() {
     return 1  # gh CLI not available, assume label doesn't exist
   fi
 }
+
+# ── Dry-run preview ────────────────────────────────────────────────────────────
+
+if $DRY_RUN; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "=== DRY RUN PREVIEW ==="
+  echo "Issue would be created as:"
+  echo ""
+  echo "Repository: $UPSTREAM_REPO"
+  echo "Title: [downstream-report] $TITLE"
+  
+  # Check if downstream-report label exists and show what labels would be applied
+  if check_downstream_label; then
+    echo "Labels: downstream-report"
+  else
+    echo "Labels: (none - downstream-report label not found in target repo)"
+  fi
+  
+  echo ""
+  echo "Body:"
+  echo "────────────────────────────────────────────────────────"
+  cat "$REPORT_FILE"
+  echo "────────────────────────────────────────────────────────"
+  echo ""
+  echo "DRY RUN - No issue created"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 0
+fi
+
+# ── Deliver via gh issue create ───────────────────────────────────────────────
+
+ISSUE_TITLE="[downstream-report] $TITLE"
 
 if command -v gh >/dev/null 2>&1; then
   echo "Submitting to $UPSTREAM_REPO..."
