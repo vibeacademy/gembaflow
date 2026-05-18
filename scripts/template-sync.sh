@@ -377,9 +377,13 @@ with open('$VERSION_FILE', 'r') as f:
 data['version'] = '$LATEST_VERSION'
 with open('$VERSION_FILE', 'w') as f:
     json.dump(data, f, indent=2)
-    f.write('\n')
+    f.write('\\n')
 "
 git add "$VERSION_FILE"
+
+# Create .agile-flow-meta directory and write version file
+mkdir -p .agile-flow-meta
+echo "$LATEST_VERSION" > .agile-flow-meta/version
 
 COMMIT_MSG="chore(sync): update Agile Flow framework to v${LATEST_VERSION}"
 # Scope the bot identity to this single commit using -c so running locally
