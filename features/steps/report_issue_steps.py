@@ -273,7 +273,7 @@ def pre_filled_github_issue_url_printed(mock_upstream_repo):
     # so the label parameter should NOT be in the URL
 
     # Ensure the URL is specifically mentioned for manual filing
-    assert "Open this URL to file the issue" in output, (
+    assert "Open this link to submit" in output, (
         f"Manual filing instruction not found in output: {output}"
     )
 
@@ -309,7 +309,7 @@ def fallback_url_provided(mock_upstream_repo):
 
     fallback_indicators = [
         "manual submission required",
-        "Open this URL to file the issue",
+        "Open this link to submit",
         f"github.com/{mock_upstream_repo}/issues/new",
     ]
 
