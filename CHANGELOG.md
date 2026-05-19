@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-05-19
+
+### Fixed
+
+- **fix(sync):** `template-sync.sh` now properly `git add`s `.agile-flow-meta/version` after writing, preventing dirty working tree after `/upgrade` (#298)
+- **fix(report-issue):** Added browser fallback URL when gh CLI lacks permissions - generates pre-filled GitHub issue URL for manual submission (#290)
+- **fix(doctor):** Remote checks now show confidence levels to distinguish "no resource" from "no token scope" (#288)
+- **fix(upgrade):** Tolerates uncommitted user-content files during upgrade instead of blocking (#287)
+- **fix(sync):** Write version to `.agile-flow-meta/version` after template sync so `report-issue.sh` can read upstream metadata (#285)
+- **fix(doctor):** Detect IDE context for `claude` CLI availability in Codespaces (#284)
+
+### Added
+
+- **feat(bootstrap):** Skills now offer to commit outputs to a feature branch instead of leaving files uncommitted on main (#286)
+
 ## [0.9.0] - 2025-12-07
 
 Pre-upgrade baseline — the first tagged release of Agile Flow.
