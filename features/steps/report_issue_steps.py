@@ -290,7 +290,8 @@ def report_body_copied_to_clipboard():
     # 1. Successfully copy to clipboard and show success message
     # 2. Silently fail (acceptable - clipboard may not be available in test env)
     # Check that the clipboard logic was attempted by looking for report file
-    assert "Report saved:" in output, (
+    # Note: Script may output "Report saved:" or "Report saved locally:" depending on path
+    assert "Report saved" in output, (
         f"No indication that report was processed for clipboard: {output}"
     )
 
