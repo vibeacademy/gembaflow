@@ -179,35 +179,103 @@ check_codespaces_token() {
     has_ghu_token=true
   fi
   
-  # Warn if both conditions are met and user hasn't forced through (skip check in dry-run mode)
-  if $is_codespaces && $has_ghu_token && ! $FORCE_CODESPACES_TOKEN && ! $DRY_RUN; then
-    echo "⚠️  WARNING: Codespaces Token Limitation Detected" >&2
-    echo "" >&2
-    echo "You are running in GitHub Codespaces with a default ghu_* token." >&2
-    echo "This token cannot create issues on upstream repositories." >&2
-    echo "" >&2
-    echo "To resolve this issue:" >&2
-    echo "1. Create a Personal Access Token (PAT) at:" >&2
-    echo "   https://github.com/settings/tokens/new" >&2
-    echo "" >&2
-    echo "2. Grant these scopes:" >&2
-    echo "   • repo (Full control of private repositories)" >&2
-    echo "   • write:org (Write org and team membership)" >&2
-    echo "" >&2
-    echo "3. Set the token in your Codespace:" >&2
-    echo "   export GH_TOKEN=ghp_your_token_here" >&2
-    echo "   gh auth login --with-token <<<\"\$GH_TOKEN\"" >&2
-    echo "" >&2
-    echo "4. Re-run this script" >&2
-    echo "" >&2
-    echo "To continue anyway (advanced users only):" >&2
-    echo "   $0 --force-codespaces-token [other flags]" >&2
-    echo "" >&2
-    exit 1
+  # Return status: 0 if we should use fallback, 1 if we can proceed normally
+  if $is_codespaces && $has_ghu_token && ! $FORCE_CODESPACES_TOKEN; then
+    return 0  # Use fallback
+  else
+    return 1  # Proceed normally
   fi
 }
 
-check_codespaces_token
+# ── Generate browser fallback URL ─────────────────────────────────────────────
+
+generate_browser_fallback_url() {
+  local issue_title="$1"
+  local report_file="$2"
+  
+  # URL encode function using python3 if available, otherwise basic sed fallback
+  url_encode() {
+    local text="$1"
+    if command -v python3 >/dev/null 2>&1; then
+      python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$text" 2>/dev/null || echo "$text"
+    else
+      # Basic fallback encoding for common characters
+      echo "$text" | sed 's/ /%20/g; s/&/%26/g; s/#/%23/g; s/?/%3F/g; s/=/%3D/g'
+    fi
+  }
+  
+  # Read and potentially truncate body content
+  local body_content
+  body_content=$(cat "$report_file")
+  
+  # Check if body exceeds ~8000 characters (leaving room for URL overhead)
+  local body_limit=7500
+  if [ ${#body_content} -gt $body_limit ]; then
+    body_content="${body_content:0:$body_limit}
+
+... (truncated - paste full report from above)"
+  fi
+  
+  # URL encode title and body
+  local encoded_title
+  local encoded_body
+  encoded_title=$(url_encode "$issue_title")
+  encoded_body=$(url_encode "$body_content")
+  
+  # Build URL with conditional label parameter
+  local browser_url="https://github.com/${UPSTREAM_REPO}/issues/new?title=${encoded_title}&body=${encoded_body}"
+  if check_downstream_label; then
+    browser_url="${browser_url}&labels=downstream-report"
+  fi
+  
+  echo "$browser_url"
+}
+
+# ── Show browser fallback instructions ────────────────────────────────────────
+
+show_browser_fallback() {
+  local browser_url="$1"
+  local report_file="$2"
+  local reason="$3"
+  
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+  if [ "$reason" = "ghu_token" ]; then
+    echo "⚠️  Codespaces Token Limitation Detected" >&2
+    echo "" >&2
+    echo "You are running in GitHub Codespaces with a default ghu_* token." >&2
+    echo "This token cannot create issues on upstream repositories." >&2
+  else
+    echo "GitHub CLI Access Failed" >&2
+    echo "" >&2
+    echo "Unable to create issue via gh CLI (auth or permission error)." >&2
+  fi
+  
+  echo "" >&2
+  echo "📋 Issue report generated! Open this link to submit:" >&2
+  echo "" >&2
+  echo "$browser_url" >&2
+  echo "" >&2
+  echo "(Cmd+click or copy/paste into browser)" >&2
+  echo "" >&2
+  echo "Report saved locally: $report_file" >&2
+  
+  if [ "$reason" = "ghu_token" ]; then
+    echo "" >&2
+    echo "To avoid this in future, create a Personal Access Token:" >&2
+    echo "1. Visit: https://github.com/settings/tokens/new" >&2
+    echo "2. Grant 'repo' and 'write:org' scopes" >&2
+    echo "3. Set: export GH_TOKEN=ghp_your_token_here" >&2
+    echo "4. Run: gh auth login --with-token <<<\"\$GH_TOKEN\"" >&2
+  fi
+  
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+}
+
+# Check if we should use browser fallback due to ghu_* token limitation
+USE_BROWSER_FALLBACK=false
+if ! $DRY_RUN && check_codespaces_token; then
+  USE_BROWSER_FALLBACK=true
+fi
 
 # ── Gather git metadata ───────────────────────────────────────────────────────
 
@@ -492,10 +560,18 @@ if $DRY_RUN; then
   exit 0
 fi
 
-# ── Deliver via gh issue create ───────────────────────────────────────────────
+# ── Deliver via gh issue create or browser fallback ───────────────────────────
 
 ISSUE_TITLE="[downstream-report] $TITLE"
 
+# If we determined we should use browser fallback due to ghu_* token, skip gh CLI
+if $USE_BROWSER_FALLBACK; then
+  BROWSER_URL=$(generate_browser_fallback_url "$ISSUE_TITLE" "$REPORT_FILE")
+  show_browser_fallback "$BROWSER_URL" "$REPORT_FILE" "ghu_token"
+  exit 0
+fi
+
+# Try gh CLI first
 if command -v gh >/dev/null 2>&1; then
   echo "Submitting to $UPSTREAM_REPO..."
   
@@ -503,11 +579,11 @@ if command -v gh >/dev/null 2>&1; then
   if check_downstream_label; then
     # Create issue with label - capture stderr for better error reporting
     set +e  # Temporarily disable exit on error to capture output
-    error_output=$(gh issue create \
+    gh issue create \
         --repo "$UPSTREAM_REPO" \
         --title "$ISSUE_TITLE" \
         --label "downstream-report" \
-        --body-file "$REPORT_FILE" 2>&1)
+        --body-file "$REPORT_FILE" 2>/dev/null
     gh_exit_code=$?
     set -e  # Re-enable exit on error
     if [ $gh_exit_code -eq 0 ]; then
@@ -517,22 +593,15 @@ if command -v gh >/dev/null 2>&1; then
       echo "Report saved: $REPORT_FILE"
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       exit 0
-    else
-      echo "" >&2
-      if [ -n "$error_output" ]; then
-        echo "WARNING: Issue creation failed: $error_output. Falling back to manual submission." >&2
-      else
-        echo "WARNING: Issue creation failed. Falling back to manual submission." >&2
-      fi
     fi
   else
     # Create issue without label - capture stderr for better error reporting
     echo "Warning: 'downstream-report' label not found, creating issue without label" >&2
     set +e  # Temporarily disable exit on error to capture output
-    error_output=$(gh issue create \
+    gh issue create \
         --repo "$UPSTREAM_REPO" \
         --title "$ISSUE_TITLE" \
-        --body-file "$REPORT_FILE" 2>&1)
+        --body-file "$REPORT_FILE" 2>/dev/null
     gh_exit_code=$?
     set -e  # Re-enable exit on error
     if [ $gh_exit_code -eq 0 ]; then
@@ -542,58 +611,16 @@ if command -v gh >/dev/null 2>&1; then
       echo "Report saved: $REPORT_FILE"
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       exit 0
-    else
-      echo "" >&2
-      if [ -n "$error_output" ]; then
-        echo "WARNING: Issue creation failed: $error_output. Falling back to manual submission." >&2
-      else
-        echo "WARNING: Issue creation failed. Falling back to manual submission." >&2
-      fi
     fi
   fi
+  
+  # If we get here, gh issue create failed - use browser fallback
+  BROWSER_URL=$(generate_browser_fallback_url "$ISSUE_TITLE" "$REPORT_FILE")
+  show_browser_fallback "$BROWSER_URL" "$REPORT_FILE" "gh_failed"
+  exit 0
 else
-  echo "gh CLI not found. Falling back to manual submission." >&2
+  # gh CLI not available - use browser fallback
+  BROWSER_URL=$(generate_browser_fallback_url "$ISSUE_TITLE" "$REPORT_FILE")
+  show_browser_fallback "$BROWSER_URL" "$REPORT_FILE" "gh_failed"
+  exit 0
 fi
-
-# ── Fallback: clipboard + browser URL ────────────────────────────────────────
-
-ENCODED_TITLE=""
-ENCODED_BODY=""
-if command -v python3 >/dev/null 2>&1; then
-  ENCODED_TITLE=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$ISSUE_TITLE" 2>/dev/null || echo "")
-  ENCODED_BODY=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(open(sys.argv[1]).read()))" "$REPORT_FILE" 2>/dev/null || echo "")
-fi
-
-# Build URL with conditional label parameter
-BROWSER_URL="https://github.com/${UPSTREAM_REPO}/issues/new?title=${ENCODED_TITLE}&body=${ENCODED_BODY}"
-if check_downstream_label; then
-  BROWSER_URL="${BROWSER_URL}&labels=downstream-report"
-fi
-
-# Try clipboard
-CLIPBOARD_CMD=""
-if command -v pbcopy >/dev/null 2>&1; then
-  CLIPBOARD_CMD="pbcopy"
-elif command -v xclip >/dev/null 2>&1; then
-  CLIPBOARD_CMD="xclip -selection clipboard"
-elif command -v xsel >/dev/null 2>&1; then
-  CLIPBOARD_CMD="xsel --clipboard --input"
-fi
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "GitHub access unavailable — manual submission required."
-echo ""
-echo "Report saved: $REPORT_FILE"
-echo ""
-
-if [ -n "$CLIPBOARD_CMD" ]; then
-  if $CLIPBOARD_CMD < "$REPORT_FILE" 2>/dev/null; then
-    echo "Report body copied to clipboard."
-    echo ""
-  fi
-fi
-
-echo "Open this URL to file the issue in your browser:"
-echo "$BROWSER_URL"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-exit 0

@@ -273,7 +273,7 @@ def pre_filled_github_issue_url_printed(mock_upstream_repo):
     # so the label parameter should NOT be in the URL
 
     # Ensure the URL is specifically mentioned for manual filing
-    assert "Open this URL to file the issue" in output, (
+    assert "Open this link to submit" in output, (
         f"Manual filing instruction not found in output: {output}"
     )
 
@@ -290,7 +290,8 @@ def report_body_copied_to_clipboard():
     # 1. Successfully copy to clipboard and show success message
     # 2. Silently fail (acceptable - clipboard may not be available in test env)
     # Check that the clipboard logic was attempted by looking for report file
-    assert "Report saved:" in output, (
+    # Note: Script may output "Report saved:" or "Report saved locally:"
+    assert "Report saved" in output, (
         f"No indication that report was processed for clipboard: {output}"
     )
 
@@ -309,7 +310,7 @@ def fallback_url_provided(mock_upstream_repo):
 
     fallback_indicators = [
         "manual submission required",
-        "Open this URL to file the issue",
+        "Open this link to submit",
         f"github.com/{mock_upstream_repo}/issues/new",
     ]
 
