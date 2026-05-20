@@ -41,8 +41,9 @@
     }
   },
 
-  // Run solo-mode bootstrap and install Python deps.
-  "postCreateCommand": "bash scripts/setup-solo-mode.sh; uv sync --extra dev",
+  // Install Python deps. Solo mode is set via containerEnv above.
+  // If setup-solo-mode.sh exists, run it; otherwise just sync deps.
+  "postCreateCommand": "[ -f scripts/setup-solo-mode.sh ] && bash scripts/setup-solo-mode.sh; uv sync --extra dev || true",
 
   // Next.js dev server (default starter).
   "forwardPorts": [3000],
