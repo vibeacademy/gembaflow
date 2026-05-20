@@ -1,0 +1,61 @@
+{
+  // GitHub Codespace devcontainer — recommended setup path for workshops.
+  //
+  // Eliminates Windows shell incompatibility, tool-version drift, and
+  // env-var propagation gotchas. Works for founders on any platform
+  // (Render, Vercel, Railway, etc.) — no cloud-provider lock-in.
+  "name": "agile-flow",
+
+  // Lean Ubuntu base — features below add Python / Node / gh.
+  // Pinned to noble (24.04 LTS) so the underlying OS doesn't drift.
+  "image": "mcr.microsoft.com/devcontainers/base:noble",
+
+  // Tool versions match what the project expects (see CLAUDE.md).
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    },
+    "ghcr.io/va-h/devcontainers-features/uv:1": {
+      "version": "latest"
+    }
+  },
+
+  // Solo mode is the default for Codespaces — no bot accounts, single
+  // personal account plays all roles.
+  "containerEnv": {
+    "AGILE_FLOW_SOLO_MODE": "true"
+  },
+
+  // Preinstall Claude Code extension — provides `claude` CLI and sidebar UI.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code"
+      ]
+    }
+  },
+
+  // Run solo-mode bootstrap and install Python deps.
+  "postCreateCommand": "bash scripts/setup-solo-mode.sh; uv sync --extra dev",
+
+  // Next.js dev server (default starter).
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // Cap at 2-core to keep workshop costs predictable.
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "4gb"
+  }
+}
