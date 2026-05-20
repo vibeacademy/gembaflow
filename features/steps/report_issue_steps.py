@@ -283,7 +283,7 @@ def pre_filled_github_issue_url_printed(context):
     has_labels = "labels=downstream-report" in output
     has_warning = "label not found" in output.lower()
     assert has_labels or has_warning, (
-        f"Expected either 'labels=downstream-report' or label warning in output: {output}"
+        f"Expected labels=downstream-report or label warning in output: {output}"
     )
 
     # Ensure the URL is specifically mentioned for manual filing
