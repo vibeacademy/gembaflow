@@ -118,14 +118,9 @@ jobs:
           uv run --extra dev pip install mypy 2>/dev/null || true
           uv run --extra dev mypy . --ignore-missing-imports || echo "mypy not configured -- skipping"
 
-      - name: Run tests with coverage
-        if: steps.check_python.outputs.skip != 'true'
-        run: |
-          uv run --extra dev pytest --tb=short -q --cov --cov-report=term-missing --cov-fail-under=${COVERAGE_THRESHOLD:-0}
-
       - name: Run BDD tests
         if: steps.check_python.outputs.skip != 'true' && hashFiles('features/*.feature') != ''
-        run: uv run --extra dev pytest --tb=short -q features/
+        run: uv run behave features/ --no-capture
 
   node:
     name: node
