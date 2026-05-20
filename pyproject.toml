@@ -8,8 +8,7 @@ version = "0.1.0"
 description = "Agile Flow Framework"
 requires-python = ">=3.9"
 dependencies = [
-    "pytest>=8.0",
-    "pytest-bdd>=7.0",
+    "behave>=1.2.6",
 ]
 
 [tool.setuptools.packages.find]
@@ -19,25 +18,19 @@ exclude = ["app*", "reports*", "starters*", "node_modules*"]
 [project.optional-dependencies]
 dev = [
     "ruff>=0.6.0",
+    "pytest>=8.0",
     "pytest-cov>=5.0",
 ]
 
-[tool.pytest.ini_options]
-testpaths = ["features"]
-python_files = ["test_*.py", "*_test.py"]
-addopts = [
-    "--tb=short",
-    "--strict-markers",
-]
-
 [tool.coverage.run]
-source = ["features/steps"]
+source = ["."]
 omit = [
     "scripts/*", 
     "node_modules/*",
     ".git/*",
     "*.egg-info/*",
-    "*/__pycache__/*"
+    "*/__pycache__/*",
+    "features/environment.py"
 ]
 
 [tool.coverage.report]

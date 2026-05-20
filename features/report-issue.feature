@@ -84,3 +84,26 @@ Feature: Report Issue to Upstream
     When user runs report-issue.sh in non-interactive mode without body
     Then exit code is 1
     And error output indicates body required in non-interactive mode
+
+  # Empty version field cases
+
+  Scenario: .agile-flow-version file with empty string version
+    Given .agile-flow-version exists with empty string version field
+    And gh CLI is not available or authentication fails
+    When user runs report-issue.sh with valid inputs
+    Then exit code is 0
+    And report file contains upstream_version unknown
+
+  Scenario: .agile-flow-version file with whitespace-only version
+    Given .agile-flow-version exists with whitespace-only version field
+    And gh CLI is not available or authentication fails
+    When user runs report-issue.sh with valid inputs
+    Then exit code is 0
+    And report file contains upstream_version unknown
+
+  Scenario: .agile-flow-version file with null version
+    Given .agile-flow-version exists with null version field
+    And gh CLI is not available or authentication fails
+    When user runs report-issue.sh with valid inputs
+    Then exit code is 0
+    And report file contains upstream_version unknown
