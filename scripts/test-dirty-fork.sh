@@ -161,13 +161,15 @@ scenario_modified_agents() {
   
   if [ -f ".claude/agents/github-ticket-worker.md" ]; then
     # Add custom section to worker
-    echo "" >> .claude/agents/github-ticket-worker.md
-    echo "## Custom Team Guidelines" >> .claude/agents/github-ticket-worker.md
-    echo "" >> .claude/agents/github-ticket-worker.md
-    echo "- Always use TypeScript strict mode" >> .claude/agents/github-ticket-worker.md
-    echo "- Prefer functional components over class components" >> .claude/agents/github-ticket-worker.md
-    echo "- Use Tailwind CSS for styling" >> .claude/agents/github-ticket-worker.md
-    echo "- All API routes must have Zod validation" >> .claude/agents/github-ticket-worker.md
+    {
+      echo ""
+      echo "## Custom Team Guidelines"
+      echo ""
+      echo "- Always use TypeScript strict mode"
+      echo "- Prefer functional components over class components"
+      echo "- Use Tailwind CSS for styling"
+      echo "- All API routes must have Zod validation"
+    } >> .claude/agents/github-ticket-worker.md
     
     git add .claude/agents/github-ticket-worker.md 2>/dev/null || true
     log_info "Modified github-ticket-worker.md with custom guidelines"
@@ -183,13 +185,15 @@ scenario_modified_commands() {
   
   if [ -f ".claude/commands/work-ticket.md" ]; then
     # Add custom section
-    echo "" >> .claude/commands/work-ticket.md
-    echo "## Team-Specific Workflow" >> .claude/commands/work-ticket.md
-    echo "" >> .claude/commands/work-ticket.md
-    echo "Before starting work:" >> .claude/commands/work-ticket.md
-    echo "1. Check #dev-standup Slack for blockers" >> .claude/commands/work-ticket.md
-    echo "2. Verify Figma designs are approved" >> .claude/commands/work-ticket.md
-    echo "3. Update ticket status in Linear" >> .claude/commands/work-ticket.md
+    {
+      echo ""
+      echo "## Team-Specific Workflow"
+      echo ""
+      echo "Before starting work:"
+      echo "1. Check #dev-standup Slack for blockers"
+      echo "2. Verify Figma designs are approved"
+      echo "3. Update ticket status in Linear"
+    } >> .claude/commands/work-ticket.md
     
     git add .claude/commands/work-ticket.md 2>/dev/null || true
     log_info "Modified work-ticket.md with custom workflow"

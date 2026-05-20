@@ -51,7 +51,7 @@ init_test_fork() {
   rsync -a --exclude='.git' --exclude='node_modules' --exclude='.venv' \
     "$REPO_ROOT/" "$test_dir/"
   
-  cd "$test_dir"
+  cd "$test_dir" || exit
   git init -q
   git add -A
   git commit -q -m "Initial fork state"
@@ -149,7 +149,7 @@ run_upgrade() {
   local output_file="$test_dir/.upgrade-output.txt"
   local exit_code
   
-  cd "$test_dir"
+  cd "$test_dir" || exit
   
   # Run template-sync.sh and capture output
   if [ -f "scripts/template-sync.sh" ]; then
@@ -233,7 +233,7 @@ run_test_case() {
   test_dir=$(init_test_fork "$test_name")
   
   # Apply scenario
-  cd "$test_dir"
+  cd "$test_dir" || exit
   apply_scenario "$scenario"
   
   # Run upgrade
@@ -376,7 +376,7 @@ run_test_case_compound() {
   local test_dir
   test_dir=$(init_test_fork "$test_name")
   
-  cd "$test_dir"
+  cd "$test_dir" || exit
   apply_scenario "$scenario1"
   apply_scenario "$scenario2"
   
@@ -455,7 +455,7 @@ run_single_test() {
   local test_dir
   test_dir=$(init_test_fork "single-$scenario")
   
-  cd "$test_dir"
+  cd "$test_dir" || exit
   apply_scenario "$scenario"
   
   log_info "Test fork ready at: $test_dir"
