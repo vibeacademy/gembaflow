@@ -28,9 +28,11 @@ issues you own). Use it for problems that exist in the upstream framework files.
    - What went wrong (be specific)
    - Severity: p1 (critical, blocks everyone), p2 (significant, workaround exists),
      p3 (minor or improvement)
-   - Component: provisioning, ci, claude-commands, patterns, docs, or other
+   - Component: You'll be prompted to select from available components in a two-step process
 
-3. **Run the report script**:
+3. **Validate severity input**. Before running the script, ensure the severity is one of the valid values: p1, p2, or p3. If invalid, return error: "Invalid severity. Valid options: p1, p2, p3"
+
+4. **Run the report script**:
 
    ```bash
    bash scripts/report-issue.sh
@@ -44,7 +46,7 @@ issues you own). Use it for problems that exist in the upstream framework files.
    - Submit via gh issue create with label downstream-report
    - Fall back to clipboard copy + pre-filled browser URL if gh access is denied
 
-4. **Fill in the description**. Provide:
+5. **Fill in the description**. Provide:
    - Description: what is happening and why it is a problem
    - Steps to Reproduce: numbered list, minimal and specific
    - Expected Behaviour: what should happen
@@ -52,14 +54,14 @@ issues you own). Use it for problems that exist in the upstream framework files.
    - Error Output: paste relevant terminal output
    - Context: workshop date, participant count, track
 
-5. **Handle the exit code**:
+6. **Handle the exit code**:
 
    | Code | Meaning | Action |
    |------|---------|--------|
    | 0 | Success - issue filed or fallback URL provided | Report the issue URL to the user |
    | 1 | Error - missing config or invalid input | Show the error message and fix the root cause |
 
-6. **If gh access is denied** (fallback path):
+7. **If gh access is denied** (fallback path):
 
    The script will save the report to .agile-flow-reports/report-<timestamp>.md,
    copy the body to clipboard if available, and print a pre-filled GitHub issue URL.

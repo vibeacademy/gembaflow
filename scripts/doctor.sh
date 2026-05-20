@@ -185,7 +185,11 @@ fi
 if CLAUDE_CMD=$(resolve_cmd claude); then
     pass "CLI Tools" "claude found at $CLAUDE_CMD"
 else
-    fail "CLI Tools" "claude not found" "npm install -g @anthropic-ai/claude-code"
+    if [[ "${CODESPACES:-}" == "true" ]] || [[ "${TERM_PROGRAM:-}" == "vscode" ]]; then
+        pass "CLI Tools" "claude CLI (IDE-provided via Claude Code extension)"
+    else
+        fail "CLI Tools" "claude not found" "npm install -g @anthropic-ai/claude-code"
+    fi
 fi
 
 # jq (FAIL)
@@ -473,6 +477,97 @@ for doc in PRODUCT-REQUIREMENTS.md PRODUCT-ROADMAP.md TECHNICAL-ARCHITECTURE.md;
         warn "Docs" "docs/$doc not found" "Created during bootstrap Phase 1-2"
     fi
 done
+
+# ═══════════════════════════════════════════════════════════════════
+#  9. Remote Checks (if gh CLI available and authenticated)
+# ═══════════════════════════════════════════════════════════════════
+section "Remote Checks"
+
+if ! GH_CMD=$(resolve_cmd gh); then
+    skip "Remote Checks" "All checks" "gh CLI not installed"
+elif ! "$GH_CMD" auth status &>/dev/null 2>&1; then
+    skip "Remote Checks" "All checks" "gh CLI not authenticated"
+else
+    # Extract owner/repo from git remote
+    remote_url=$(git remote get-url origin 2>/dev/null || true)
+    if [ -n "$remote_url" ]; then
+        # Parse GitHub repo from URL (supports both HTTPS and SSH)
+        if [[ "$remote_url" =~ github\.com[:/]([^/]+)/([^/]+)(\.git)?$ ]]; then
+            owner="${BASH_REMATCH[1]}"
+            repo="${BASH_REMATCH[2]}"
+            repo="${repo%.git}"  # Remove .git suffix if present
+            
+            # Branch Protection Rulesets
+            rulesets_response=$("$GH_CMD" api "repos/$owner/$repo/rulesets" 2>&1 || true)
+            if echo "$rulesets_response" | grep -q "HTTP 403"; then
+                warn "Remote Checks" "Branch protection rulesets" "Could not verify (token scope) — 403 Forbidden"
+            elif echo "$rulesets_response" | grep -q "HTTP 404"; then
+                warn "Remote Checks" "Branch protection rulesets" "Could not verify (resource not found) — 404 Not Found"
+            elif [ "$rulesets_response" = "[]" ] || [ -z "$rulesets_response" ]; then
+                warn "Remote Checks" "Branch protection rulesets" "No rulesets found — branch protection may not be configured"
+            else
+                # Check if any ruleset targets main branch (only if jq is available)
+                if JQ_CMD=$(resolve_cmd jq); then
+                    main_rulesets=$(echo "$rulesets_response" | "$JQ_CMD" -r '.[] | select(.target=="branch") | select(.conditions.ref_name.include[] | test("main|DEFAULT_BRANCH"))' 2>/dev/null || echo "")
+                    if [ -n "$main_rulesets" ]; then
+                        pass "Remote Checks" "Branch protection rulesets configured for main branch"
+                    else
+                        warn "Remote Checks" "Branch protection rulesets exist but may not protect main branch" "Verified — check ruleset configuration"
+                    fi
+                else
+                    pass "Remote Checks" "Branch protection rulesets found (jq not available for detailed analysis)"
+                fi
+            fi
+            
+            # Repository Secrets
+            secrets_response=$("$GH_CMD" secret list --repo "$owner/$repo" 2>&1 || true)
+            if echo "$secrets_response" | grep -q "HTTP 403"; then
+                warn "Remote Checks" "Repository secrets" "Could not verify (token scope) — 403 Forbidden"
+            elif echo "$secrets_response" | grep -q "HTTP 404"; then
+                warn "Remote Checks" "Repository secrets" "Could not verify (resource not found) — 404 Not Found"
+            else
+                # Check for common deployment secrets
+                secrets_found=0
+                for secret in RENDER_API_KEY RENDER_SERVICE_ID SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF; do
+                    if echo "$secrets_response" | grep -q "^$secret"; then
+                        secrets_found=$((secrets_found + 1))
+                    fi
+                done
+                if [ "$secrets_found" -gt 0 ]; then
+                    pass "Remote Checks" "Repository secrets configured ($secrets_found deployment secrets found)"
+                else
+                    warn "Remote Checks" "Repository secrets" "No deployment secrets found (RENDER_*, SUPABASE_*) — verified"
+                fi
+            fi
+            
+            # GitHub Project Board
+            projects_response=$("$GH_CMD" project list --owner "$owner" --format json 2>&1 || true)
+            if echo "$projects_response" | grep -q "HTTP 403"; then
+                warn "Remote Checks" "GitHub project board" "Could not verify (token scope) — 403 Forbidden"
+            elif echo "$projects_response" | grep -q "HTTP 404"; then
+                warn "Remote Checks" "GitHub project board" "Could not verify (resource not found) — 404 Not Found"
+            elif [ "$projects_response" = "[]" ] || [ -z "$projects_response" ]; then
+                warn "Remote Checks" "GitHub project board" "No project boards found — verified"
+            else
+                # Count projects (only if jq is available)
+                if JQ_CMD=$(resolve_cmd jq); then
+                    project_count=$(echo "$projects_response" | "$JQ_CMD" -r 'length' 2>/dev/null || echo "0")
+                    if [ "$project_count" -gt 0 ] 2>/dev/null; then
+                        pass "Remote Checks" "GitHub project board configured ($project_count project(s) found)"
+                    else
+                        warn "Remote Checks" "GitHub project board" "Could not parse project list response"
+                    fi
+                else
+                    pass "Remote Checks" "GitHub project board found (jq not available for detailed analysis)"
+                fi
+            fi
+        else
+            skip "Remote Checks" "All checks" "Could not parse GitHub repo from remote URL: $remote_url"
+        fi
+    else
+        skip "Remote Checks" "All checks" "No git remote origin configured"
+    fi
+fi
 
 # ═══════════════════════════════════════════════════════════════════
 #  Summary

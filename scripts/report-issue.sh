@@ -4,6 +4,7 @@
 # Usage:
 #   bash scripts/report-issue.sh
 #   bash scripts/report-issue.sh --severity p2 --component provisioning --title "short title"
+#   bash scripts/report-issue.sh --dry-run --severity p2 --component docs --title "preview test" --body "Sample body"
 #   bash scripts/report-issue.sh --non-interactive --severity p3 --component docs --title "typo in guide"
 #   bash scripts/report-issue.sh --non-interactive --severity p2 --component docs --title "bug fix" --body-file issue-body.txt
 #   bash scripts/report-issue.sh --non-interactive --severity p1 --component ci --title "build failure" --body "The CI pipeline fails consistently."
@@ -25,6 +26,8 @@ TITLE=""
 NON_INTERACTIVE=false
 BODY_FILE=""
 BODY=""
+FORCE_CODESPACES_TOKEN=false
+DRY_RUN=false
 
 show_help() {
   cat <<'HELP'
@@ -40,11 +43,38 @@ Flags:
   --non-interactive      Run without prompts (requires all flags)
   --body-file FILE       Read issue body from file (non-interactive only)
   --body "TEXT"          Provide issue body as text (non-interactive only)
+  --dry-run              Preview what would be created without submitting
+  --force-codespaces-token  Continue despite Codespaces token limitations
   --help, -h             Show this help message
+
+Description Entry Modes:
+  The script supports three ways to provide the issue description:
+  
+  1. EDITOR mode (interactive, EDITOR set):
+     - When $EDITOR is set and the command is available
+     - Opens your configured editor with a template
+     - Save and close the file when done
+  
+  2. File mode (non-interactive, --body-file):
+     - Read description from an existing file
+     - Use with --body-file path/to/description.md
+     - File must exist and be readable
+  
+  3. Stdin mode (interactive, EDITOR unset/unavailable):
+     - Paste or type description directly into terminal
+     - End with a line containing only '.' (dot) to finish
+     - Example:
+       > Enter issue description (end with '.' on its own line):
+       > This is my issue description.
+       > It can span multiple lines.
+       > .
 
 Examples:
   # Interactive mode (prompts for inputs)
   bash scripts/report-issue.sh
+  
+  # Preview mode (shows what would be created)
+  bash scripts/report-issue.sh --dry-run --severity p2 --component docs --title "Fix typo" --body "Sample body"
   
   # Non-interactive with inline body
   bash scripts/report-issue.sh --non-interactive \
@@ -70,6 +100,8 @@ while [[ $# -gt 0 ]]; do
     --non-interactive) NON_INTERACTIVE=true; shift ;;
     --body-file)       BODY_FILE="$2";      shift 2 ;;
     --body)            BODY="$2";           shift 2 ;;
+    --dry-run)         DRY_RUN=true;        shift ;;
+    --force-codespaces-token) FORCE_CODESPACES_TOKEN=true; shift ;;
     --help|-h)         show_help; exit 0 ;;
     *) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
   esac
@@ -98,8 +130,16 @@ if [ "$UPSTREAM_URL" = "null" ] || [ -z "$UPSTREAM_URL" ]; then
 fi
 
 UPSTREAM_VERSION=$(jq -r '.version' "$VERSION_FILE" 2>/dev/null || echo "unknown")
+
+# Handle empty, null, whitespace-only, or missing version field
 if [ "$UPSTREAM_VERSION" = "null" ] || [ -z "$UPSTREAM_VERSION" ]; then
   UPSTREAM_VERSION="unknown"
+else
+  # Strip leading and trailing whitespace, then check if empty
+  UPSTREAM_VERSION=$(echo "$UPSTREAM_VERSION" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  if [ -z "$UPSTREAM_VERSION" ]; then
+    UPSTREAM_VERSION="unknown"
+  fi
 fi
 
 # Extract org/repo from https or git@ GitHub URLs
@@ -112,6 +152,129 @@ else
   echo "ERROR: Cannot parse GitHub repo from: $UPSTREAM_URL" >&2
   echo "Expected format: https://github.com/org/repo" >&2
   exit 1
+fi
+
+# ── Check for Codespaces token limitations ────────────────────────────────────
+
+check_codespaces_token() {
+  local is_codespaces=false
+  local has_ghu_token=false
+  
+  # Check if we're running in GitHub Codespaces
+  if [ "${CODESPACES:-}" = "true" ]; then
+    is_codespaces=true
+  fi
+  
+  # Check for ghu_* token pattern in gh auth status or GH_TOKEN
+  if command -v gh >/dev/null 2>&1; then
+    local auth_status
+    auth_status=$(gh auth status 2>&1 || true)
+    if echo "$auth_status" | grep -q "ghu_"; then
+      has_ghu_token=true
+    fi
+  fi
+  
+  # Also check GH_TOKEN environment variable for ghu_* pattern
+  if [ -n "${GH_TOKEN:-}" ] && [[ "${GH_TOKEN:-}" =~ ^ghu_ ]]; then
+    has_ghu_token=true
+  fi
+  
+  # Return status: 0 if we should use fallback, 1 if we can proceed normally
+  if $is_codespaces && $has_ghu_token && ! $FORCE_CODESPACES_TOKEN; then
+    return 0  # Use fallback
+  else
+    return 1  # Proceed normally
+  fi
+}
+
+# ── Generate browser fallback URL ─────────────────────────────────────────────
+
+generate_browser_fallback_url() {
+  local issue_title="$1"
+  local report_file="$2"
+  
+  # URL encode function using python3 if available, otherwise basic sed fallback
+  url_encode() {
+    local text="$1"
+    if command -v python3 >/dev/null 2>&1; then
+      python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$text" 2>/dev/null || echo "$text"
+    else
+      # Basic fallback encoding for common characters
+      echo "$text" | sed 's/ /%20/g; s/&/%26/g; s/#/%23/g; s/?/%3F/g; s/=/%3D/g'
+    fi
+  }
+  
+  # Read and potentially truncate body content
+  local body_content
+  body_content=$(cat "$report_file")
+  
+  # Check if body exceeds ~8000 characters (leaving room for URL overhead)
+  local body_limit=7500
+  if [ ${#body_content} -gt $body_limit ]; then
+    body_content="${body_content:0:$body_limit}
+
+... (truncated - paste full report from above)"
+  fi
+  
+  # URL encode title and body
+  local encoded_title
+  local encoded_body
+  encoded_title=$(url_encode "$issue_title")
+  encoded_body=$(url_encode "$body_content")
+  
+  # Build URL with conditional label parameter
+  local browser_url="https://github.com/${UPSTREAM_REPO}/issues/new?title=${encoded_title}&body=${encoded_body}"
+  if check_downstream_label; then
+    browser_url="${browser_url}&labels=downstream-report"
+  fi
+  
+  echo "$browser_url"
+}
+
+# ── Show browser fallback instructions ────────────────────────────────────────
+
+show_browser_fallback() {
+  local browser_url="$1"
+  local report_file="$2"
+  local reason="$3"
+  
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+  if [ "$reason" = "ghu_token" ]; then
+    echo "⚠️  Codespaces Token Limitation Detected" >&2
+    echo "" >&2
+    echo "You are running in GitHub Codespaces with a default ghu_* token." >&2
+    echo "This token cannot create issues on upstream repositories." >&2
+  else
+    echo "GitHub CLI Access Failed" >&2
+    echo "" >&2
+    echo "Unable to create issue via gh CLI (auth or permission error)." >&2
+  fi
+  
+  echo "" >&2
+  echo "📋 Issue report generated! Open this link to submit:" >&2
+  echo "" >&2
+  echo "$browser_url" >&2
+  echo "" >&2
+  echo "(Cmd+click or copy/paste into browser)" >&2
+  echo "" >&2
+  echo "Report saved locally: $report_file" >&2
+  
+  if [ "$reason" = "ghu_token" ]; then
+    echo "" >&2
+    echo "To avoid this in future, create a Personal Access Token:" >&2
+    echo "1. Visit: https://github.com/settings/tokens/new" >&2
+    echo "2. Grant 'repo' and 'write:org' scopes" >&2
+    echo "3. Set: export GH_TOKEN=ghp_your_token_here" >&2
+    echo "4. Run: gh auth login --with-token <<<\"\$GH_TOKEN\"" >&2
+  fi
+  
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+}
+
+# Check if we should use browser fallback due to ghu_* token limitation
+USE_BROWSER_FALLBACK=false
+if ! $DRY_RUN && check_codespaces_token; then
+  USE_BROWSER_FALLBACK=true
 fi
 
 # ── Gather git metadata ───────────────────────────────────────────────────────
@@ -156,16 +319,49 @@ if [ -z "$COMPONENT" ]; then
     echo "ERROR: --component required in non-interactive mode." >&2
     exit 1
   fi
-  echo ""
-  echo "Component:"
-  echo "  provisioning    setup, roster, env provisioning scripts"
-  echo "  ci              GitHub Actions, CI/CD workflows"
-  echo "  claude-commands /slash commands"
-  echo "  patterns        architectural patterns and practices"
-  echo "  docs            documentation"
-  echo "  other           anything else"
-  printf "> "
-  read -r COMPONENT
+  
+  # Two-tier component selection to handle AskUserQuestion 4-option limit
+  while true; do
+    echo ""
+    echo "Component (select main components or see more):"
+    echo "  provisioning    setup, roster, env provisioning scripts"
+    echo "  ci              GitHub Actions, CI/CD workflows"
+    echo "  claude-commands /slash commands"
+    echo "  docs            documentation"
+    echo "  more            see additional components"
+    printf "> "
+    read -r COMPONENT
+    
+    case "$COMPONENT" in
+      provisioning|ci|claude-commands|docs)
+        break
+        ;;
+      more)
+        echo ""
+        echo "Additional components:"
+        echo "  patterns        architectural patterns and practices"
+        echo "  other           anything else"
+        echo "  back            return to main components"
+        printf "> "
+        read -r COMPONENT
+        
+        case "$COMPONENT" in
+          patterns|other)
+            break
+            ;;
+          back)
+            continue  # Go back to main component selection
+            ;;
+          *)
+            echo "ERROR: Please select 'patterns', 'other', or 'back'." >&2
+            ;;
+        esac
+        ;;
+      *)
+        echo "ERROR: Please select a valid component or 'more' for additional options." >&2
+        ;;
+    esac
+  done
 fi
 
 case "$COMPONENT" in
@@ -285,9 +481,7 @@ TEMPLATE
     "$EDITOR" "$DESCRIPTION_FILE"
   else
     echo ""
-    echo "Paste your description below."
-    echo "Include: what happened, steps to reproduce, expected vs actual behaviour."
-    echo "Enter a line with just '.' when done:"
+    echo "Enter issue description (end with '.' on its own line):"
     echo ""
     DESC_LINES=""
     while IFS= read -r line; do
@@ -323,69 +517,110 @@ REPORT
 echo "Report   : $REPORT_FILE"
 echo ""
 
-# ── Deliver via gh issue create ───────────────────────────────────────────────
+# ── Check if downstream-report label exists ────────────────────────────────────
+
+check_downstream_label() {
+  if command -v gh >/dev/null 2>&1; then
+    # Check if the downstream-report label exists in the target repo
+    if gh label list --repo "$UPSTREAM_REPO" 2>/dev/null | grep -q "downstream-report"; then
+      return 0  # Label exists
+    else
+      return 1  # Label does not exist
+    fi
+  else
+    return 1  # gh CLI not available, assume label doesn't exist
+  fi
+}
+
+# ── Dry-run preview ────────────────────────────────────────────────────────────
+
+if $DRY_RUN; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "=== DRY RUN PREVIEW ==="
+  echo "Issue would be created as:"
+  echo ""
+  echo "Repository: $UPSTREAM_REPO"
+  echo "Title: [downstream-report] $TITLE"
+  
+  # Check if downstream-report label exists and show what labels would be applied
+  if check_downstream_label; then
+    echo "Labels: downstream-report"
+  else
+    echo "Labels: (none - downstream-report label not found in target repo)"
+  fi
+  
+  echo ""
+  echo "Body:"
+  echo "────────────────────────────────────────────────────────"
+  cat "$REPORT_FILE"
+  echo "────────────────────────────────────────────────────────"
+  echo ""
+  echo "DRY RUN - No issue created"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 0
+fi
+
+# ── Deliver via gh issue create or browser fallback ───────────────────────────
 
 ISSUE_TITLE="[downstream-report] $TITLE"
-GH_FAILED=false
 
+# If we determined we should use browser fallback due to ghu_* token, skip gh CLI
+if $USE_BROWSER_FALLBACK; then
+  BROWSER_URL=$(generate_browser_fallback_url "$ISSUE_TITLE" "$REPORT_FILE")
+  show_browser_fallback "$BROWSER_URL" "$REPORT_FILE" "ghu_token"
+  exit 0
+fi
+
+# Try gh CLI first
 if command -v gh >/dev/null 2>&1; then
   echo "Submitting to $UPSTREAM_REPO..."
-  if gh issue create \
-      --repo "$UPSTREAM_REPO" \
-      --title "$ISSUE_TITLE" \
-      --label "downstream-report" \
-      --body-file "$REPORT_FILE"; then
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Issue filed successfully."
-    echo "Report saved: $REPORT_FILE"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    exit 0
+  
+  # Check if downstream-report label exists and create issue accordingly
+  if check_downstream_label; then
+    # Create issue with label - capture stderr for better error reporting
+    set +e  # Temporarily disable exit on error to capture output
+    gh issue create \
+        --repo "$UPSTREAM_REPO" \
+        --title "$ISSUE_TITLE" \
+        --label "downstream-report" \
+        --body-file "$REPORT_FILE" 2>/dev/null
+    gh_exit_code=$?
+    set -e  # Re-enable exit on error
+    if [ $gh_exit_code -eq 0 ]; then
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "Issue filed successfully."
+      echo "Report saved: $REPORT_FILE"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 0
+    fi
   else
-    GH_FAILED=true
-    echo "" >&2
-    echo "WARNING: gh issue create failed. Falling back to manual submission." >&2
+    # Create issue without label - capture stderr for better error reporting
+    echo "Warning: 'downstream-report' label not found, creating issue without label" >&2
+    set +e  # Temporarily disable exit on error to capture output
+    gh issue create \
+        --repo "$UPSTREAM_REPO" \
+        --title "$ISSUE_TITLE" \
+        --body-file "$REPORT_FILE" 2>/dev/null
+    gh_exit_code=$?
+    set -e  # Re-enable exit on error
+    if [ $gh_exit_code -eq 0 ]; then
+      echo ""
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "Issue filed successfully."
+      echo "Report saved: $REPORT_FILE"
+      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      exit 0
+    fi
   fi
+  
+  # If we get here, gh issue create failed - use browser fallback
+  BROWSER_URL=$(generate_browser_fallback_url "$ISSUE_TITLE" "$REPORT_FILE")
+  show_browser_fallback "$BROWSER_URL" "$REPORT_FILE" "gh_failed"
+  exit 0
 else
-  GH_FAILED=true
-  echo "gh CLI not found. Falling back to manual submission." >&2
+  # gh CLI not available - use browser fallback
+  BROWSER_URL=$(generate_browser_fallback_url "$ISSUE_TITLE" "$REPORT_FILE")
+  show_browser_fallback "$BROWSER_URL" "$REPORT_FILE" "gh_failed"
+  exit 0
 fi
-
-# ── Fallback: clipboard + browser URL ────────────────────────────────────────
-
-ENCODED_TITLE=""
-ENCODED_BODY=""
-if command -v python3 >/dev/null 2>&1; then
-  ENCODED_TITLE=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$ISSUE_TITLE" 2>/dev/null || echo "")
-  ENCODED_BODY=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(open(sys.argv[1]).read()))" "$REPORT_FILE" 2>/dev/null || echo "")
-fi
-
-BROWSER_URL="https://github.com/${UPSTREAM_REPO}/issues/new?title=${ENCODED_TITLE}&body=${ENCODED_BODY}&labels=downstream-report"
-
-# Try clipboard
-CLIPBOARD_CMD=""
-if command -v pbcopy >/dev/null 2>&1; then
-  CLIPBOARD_CMD="pbcopy"
-elif command -v xclip >/dev/null 2>&1; then
-  CLIPBOARD_CMD="xclip -selection clipboard"
-elif command -v xsel >/dev/null 2>&1; then
-  CLIPBOARD_CMD="xsel --clipboard --input"
-fi
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "GitHub access unavailable — manual submission required."
-echo ""
-echo "Report saved: $REPORT_FILE"
-echo ""
-
-if [ -n "$CLIPBOARD_CMD" ]; then
-  if $CLIPBOARD_CMD < "$REPORT_FILE" 2>/dev/null; then
-    echo "Report body copied to clipboard."
-    echo ""
-  fi
-fi
-
-echo "Open this URL to file the issue in your browser:"
-echo "$BROWSER_URL"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-exit 0
