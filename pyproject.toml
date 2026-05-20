@@ -22,8 +22,16 @@ dev = [
     "pytest-cov>=5.0",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["features"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = [
+    "--tb=short",
+    "--strict-markers",
+]
+
 [tool.coverage.run]
-source = ["."]
+source = ["features/steps"]
 omit = [
     "scripts/*", 
     "node_modules/*",
