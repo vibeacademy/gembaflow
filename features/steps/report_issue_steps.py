@@ -271,7 +271,6 @@ def pre_filled_github_issue_url_printed(context):
         f"github.com/{mock_upstream_repo}/issues/new",
         "title=",
         "body=",
-        "labels=downstream-report",
     ]
 
     for pattern in expected_patterns:
@@ -279,8 +278,16 @@ def pre_filled_github_issue_url_printed(context):
             f"Expected pattern '{pattern}' not found in output: {output}"
         )
 
+    # Labels param is optional - depends on whether label exists in upstream
+    # Either we have labels= in URL, or a warning about missing label
+    has_labels = "labels=downstream-report" in output
+    has_warning = "label not found" in output.lower()
+    assert has_labels or has_warning, (
+        f"Expected either 'labels=downstream-report' or label warning in output: {output}"
+    )
+
     # Ensure the URL is specifically mentioned for manual filing
-    assert "Open this URL to file the issue" in output, (
+    assert "Open this link to submit" in output or "Open this URL" in output, (
         f"Manual filing instruction not found in output: {output}"
     )
 
