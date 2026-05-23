@@ -1141,6 +1141,12 @@ own token table) to Neon Auth, developers often try to preserve their existing
 internally — your app only needs to: (1) redirect users to Neon's auth URL, and
 (2) handle the callback with the session token Neon provides.
 
+> **Endpoint paths shown below are illustrative.** Neon Auth is built on Stack
+> Auth, and the exact endpoint shape may differ in your project (e.g.
+> `/handler/authorize` rather than `/authorize`). Verify the current paths
+> against the [Neon Auth documentation](https://neon.tech/docs/neon-auth) for
+> your project version before copy-pasting.
+
 **Pattern:**
 
 Neon Auth manages magic links, email delivery, and token verification. Your app
@@ -1176,6 +1182,7 @@ from urllib.parse import urlencode
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_session
@@ -1187,17 +1194,14 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 @router.get("/login")
-def login(request: Request, settings: SettingsDep) -> RedirectResponse:
+def login(settings: SettingsDep) -> RedirectResponse:
     """Redirect to Neon Auth for magic-link sign-in."""
-    
-    # Generate state for CSRF protection
+
+    # One-time state for CSRF protection on the /auth/callback round-trip
     state = secrets.token_urlsafe(32)
-    
-    # Store state in session/cookie for verification on callback
-    # (implementation depends on your session middleware)
-    
+
     callback_url = f"{settings.app_base_url}/auth/callback"
-    
+
     params = {
         "client_id": settings.neon_auth_client_id,
         "redirect_uri": callback_url,
@@ -1205,22 +1209,38 @@ def login(request: Request, settings: SettingsDep) -> RedirectResponse:
         "scope": "openid email",
         "state": state,
     }
-    
+
     auth_url = f"{settings.neon_auth_url}/authorize?{urlencode(params)}"
-    return RedirectResponse(url=auth_url)
+    response = RedirectResponse(url=auth_url)
+    # Persist the state in a short-lived, HttpOnly cookie so /auth/callback can
+    # verify it. samesite="lax" allows the cookie to survive the OAuth redirect.
+    response.set_cookie(
+        key="auth_state",
+        value=state,
+        max_age=600,  # 10 minutes — the auth flow should complete quickly
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    return response
 
 
 @router.get("/auth/callback")
 async def auth_callback(
+    request: Request,
     code: str,
     state: str,
     settings: SettingsDep,
     db: Session = Depends(get_session),
 ) -> RedirectResponse:
     """Handle Neon Auth callback, exchange code for tokens, create session."""
-    
-    # TODO: Verify state matches what we stored (CSRF protection)
-    
+
+    # Verify state matches what we set at /login (CSRF protection).
+    # secrets.compare_digest is constant-time to defeat timing side-channels.
+    expected_state = request.cookies.get("auth_state")
+    if not expected_state or not secrets.compare_digest(state, expected_state):
+        raise HTTPException(status_code=400, detail="Invalid state — possible CSRF")
+
     # Exchange authorization code for tokens
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
@@ -1272,6 +1292,8 @@ async def auth_callback(
         secure=True,
         samesite="lax",
     )
+    # Clear the one-time auth_state cookie — the CSRF round-trip is complete
+    response.delete_cookie(key="auth_state")
     return response
 
 
