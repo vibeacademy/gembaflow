@@ -32,6 +32,9 @@
 22. [Python: HTML Form Empty Values vs Defaults](#22-python-html-form-empty-values-vs-defaults)
 23. [Server-Side URLs: Never Hardcode Origins](#23-server-side-urls-never-hardcode-origins)
 24. [Magic Link Auth: Complete Implementation (Next.js)](#24-magic-link-auth-complete-implementation-nextjs)
+25. [Neon Auth: Magic Link Implementation (FastAPI)](#25-neon-auth-magic-link-implementation-fastapi)
+26. [Neon Auth: Trusted Domains for Preview Environments](#26-neon-auth-trusted-domains-for-preview-environments)
+27. [Neon Auth: Migration from Custom Magic Links](#27-neon-auth-migration-from-custom-magic-links)
 
 ---
 
@@ -1127,6 +1130,358 @@ export default function CheckEmailPage() {
 | Missing `<Suspense>` around `useSearchParams()` | Build fails with prerendering error | Wrap component in `<Suspense>` |
 | Auth routes not in middleware allowlist | Infinite redirect loop on `/login` | Add all auth paths to `AUTH_ROUTES` array |
 | Supabase env vars missing in local dev | Middleware crashes on startup | Add graceful skip when vars not set |
+
+---
+
+## 25. Neon Auth: Magic Link Implementation (FastAPI)
+
+**Gotcha:** When migrating from a custom magic-link system (e.g., Resend + your
+own token table) to Neon Auth, developers often try to preserve their existing
+`/login` and `/auth/verify` routes. Neon Auth handles the entire magic-link flow
+internally — your app only needs to: (1) redirect users to Neon's auth URL, and
+(2) handle the callback with the session token Neon provides.
+
+> **Endpoint paths shown below are illustrative.** Neon Auth is built on Stack
+> Auth, and the exact endpoint shape may differ in your project (e.g.
+> `/handler/authorize` rather than `/authorize`). Verify the current paths
+> against the [Neon Auth documentation](https://neon.tech/docs/neon-auth) for
+> your project version before copy-pasting.
+
+**Pattern:**
+
+Neon Auth manages magic links, email delivery, and token verification. Your app
+delegates to Neon and consumes the result.
+
+### Step 1: Environment Variables
+
+```bash
+# .env
+NEON_AUTH_URL=https://auth.neon.tech          # Neon Auth endpoint
+NEON_PROJECT_ID=your-project-id               # From Neon Console
+NEON_AUTH_CLIENT_ID=your-client-id            # From Neon Console → Auth
+NEON_AUTH_CLIENT_SECRET=your-client-secret    # From Neon Console → Auth
+APP_BASE_URL=https://your-app.com             # Your app's base URL
+SESSION_SECRET=your-session-signing-secret    # For signing session cookies
+```
+
+### Step 2: Auth Routes (FastAPI)
+
+```python
+# app/api/auth.py
+"""Neon Auth integration.
+
+Neon handles magic-link generation, email sending, and token verification.
+We redirect to Neon for sign-in and handle the callback to create our session.
+"""
+
+import secrets
+from datetime import UTC, datetime
+from typing import Annotated
+from urllib.parse import urlencode
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+
+from app.config import Settings, get_settings
+from app.db import get_session
+from app.models.user import User
+from app.services.session import SESSION_COOKIE_NAME, sign_session
+
+router = APIRouter()
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+@router.get("/login")
+def login(settings: SettingsDep) -> RedirectResponse:
+    """Redirect to Neon Auth for magic-link sign-in."""
+
+    # One-time state for CSRF protection on the /auth/callback round-trip
+    state = secrets.token_urlsafe(32)
+
+    callback_url = f"{settings.app_base_url}/auth/callback"
+
+    params = {
+        "client_id": settings.neon_auth_client_id,
+        "redirect_uri": callback_url,
+        "response_type": "code",
+        "scope": "openid email",
+        "state": state,
+    }
+
+    auth_url = f"{settings.neon_auth_url}/authorize?{urlencode(params)}"
+    response = RedirectResponse(url=auth_url)
+    # Persist the state in a short-lived, HttpOnly cookie so /auth/callback can
+    # verify it. samesite="lax" allows the cookie to survive the OAuth redirect.
+    response.set_cookie(
+        key="auth_state",
+        value=state,
+        max_age=600,  # 10 minutes — the auth flow should complete quickly
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    return response
+
+
+@router.get("/auth/callback")
+async def auth_callback(
+    request: Request,
+    code: str,
+    state: str,
+    settings: SettingsDep,
+    db: Session = Depends(get_session),
+) -> RedirectResponse:
+    """Handle Neon Auth callback, exchange code for tokens, create session."""
+
+    # Verify state matches what we set at /login (CSRF protection).
+    # secrets.compare_digest is constant-time to defeat timing side-channels.
+    expected_state = request.cookies.get("auth_state")
+    if not expected_state or not secrets.compare_digest(state, expected_state):
+        raise HTTPException(status_code=400, detail="Invalid state — possible CSRF")
+
+    # Exchange authorization code for tokens
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(
+            f"{settings.neon_auth_url}/oauth/token",
+            data={
+                "grant_type": "authorization_code",
+                "client_id": settings.neon_auth_client_id,
+                "client_secret": settings.neon_auth_client_secret,
+                "code": code,
+                "redirect_uri": f"{settings.app_base_url}/auth/callback",
+            },
+        )
+    
+    if token_response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Authentication failed")
+    
+    tokens = token_response.json()
+    
+    # Get user info from Neon
+    async with httpx.AsyncClient() as client:
+        userinfo_response = await client.get(
+            f"{settings.neon_auth_url}/userinfo",
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+    
+    if userinfo_response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Failed to get user info")
+    
+    userinfo = userinfo_response.json()
+    email = userinfo["email"]
+    
+    # Find or create user in your database
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(email=email, created_at=datetime.now(UTC))
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    # Create session cookie
+    cookie_value = sign_session(user_id=user.id, secret=settings.session_secret)
+    
+    response = RedirectResponse(url="/dashboard", status_code=303)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=cookie_value,
+        max_age=settings.session_ttl_days * 86400,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    # Clear the one-time auth_state cookie — the CSRF round-trip is complete
+    response.delete_cookie(key="auth_state")
+    return response
+
+
+@router.get("/logout")
+def logout() -> RedirectResponse:
+    """Clear session cookie and redirect to home."""
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie(key=SESSION_COOKIE_NAME)
+    return response
+```
+
+### Key Differences from Custom Magic Links
+
+| Custom (Resend) | Neon Auth |
+|-----------------|-----------|
+| You generate tokens | Neon generates tokens |
+| You store token hashes | Neon stores tokens |
+| You send emails via Resend API | Neon sends emails |
+| You verify tokens on `/auth/verify` | You exchange auth code on callback |
+| You need `magic_link_token` table | No token table needed |
+| You manage TTL and single-use logic | Neon handles it |
+
+### Common Mistakes
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| Keeping old `/login` POST route | Form submits fail | Change to GET redirect to Neon |
+| Not removing token table migration | Dead code, confusion | Drop table after migration complete |
+| Missing `state` parameter | CSRF vulnerability | Always generate and verify state |
+| Hardcoded callback URL | Works in prod, fails in preview | Use env var `APP_BASE_URL` |
+
+---
+
+## 26. Neon Auth: Trusted Domains for Preview Environments
+
+**Gotcha:** Neon Auth validates redirect URIs against a whitelist of "trusted
+domains" configured in the Neon Console. Preview environments (e.g., Cloud Run
+`https://myapp-abc123-us-central1.run.app`) need their URLs added or auth
+callbacks will fail with "untrusted redirect" errors.
+
+**Pattern:**
+
+Neon Auth supports **wildcard trusted domains** (shipped May 2026). Use them
+to cover all preview URLs with a single entry.
+
+### Step 1: Identify Your Preview URL Pattern
+
+```bash
+# Cloud Run pattern (example):
+https://myapp-pr-{sha}-us-central1.run.app
+
+# Render pattern (example):
+https://myapp-pr-{number}.onrender.com
+
+# Vercel pattern (example):
+https://myapp-git-{branch}-{team}.vercel.app
+```
+
+### Step 2: Add Wildcard in Neon Console
+
+Navigate to: **Neon Console → Project → Auth → Trusted Domains**
+
+```
+# For Cloud Run:
+https://myapp-pr-*.us-central1.run.app
+
+# For Render:
+https://myapp-pr-*.onrender.com
+
+# For Vercel:
+https://myapp-git-*.vercel.app
+```
+
+**Critical:** Use the most specific wildcard possible. `https://*.run.app` is
+too broad — it would trust ANY Cloud Run service.
+
+### Step 3: Verify in Preview Deploy Workflow
+
+```yaml
+# .github/workflows/preview-deploy.yml
+- name: Verify Neon Auth accepts preview URL
+  run: |
+    # The wildcard should already cover this URL
+    echo "Preview URL: ${{ env.PREVIEW_URL }}"
+    echo "Ensure Neon Console has wildcard: https://myapp-pr-*.us-central1.run.app"
+```
+
+### If Wildcards Don't Work (Fallback)
+
+If your URL pattern doesn't match Neon's wildcard syntax, add entries per PR:
+
+```yaml
+- name: Add preview URL to Neon trusted domains
+  run: |
+    curl -X POST \
+      "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/auth/trusted_domains" \
+      -H "Authorization: Bearer $NEON_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"domain": "'$PREVIEW_URL'"}'
+```
+
+And clean up on PR close:
+
+```yaml
+# preview-cleanup.yml
+- name: Remove preview URL from Neon trusted domains
+  run: |
+    # Fetch domain ID first, then DELETE
+```
+
+---
+
+## 27. Neon Auth: Migration from Custom Magic Links
+
+**Gotcha:** Migrating from a custom magic-link implementation (token table +
+email service like Resend) to Neon Auth requires a careful, phased rollout.
+Going straight to "delete the old code" risks breaking auth for active users
+with unexpired magic-link tokens in flight.
+
+**Pattern:**
+
+Use a feature flag to run both auth paths in parallel during migration.
+
+### Phase 1: Add Neon Auth Alongside Existing
+
+```python
+# app/config.py
+class Settings:
+    auth_provider: str = "resend"  # "resend" | "neon" | "both"
+```
+
+```python
+# app/api/auth.py
+@router.get("/login")
+def login(settings: SettingsDep):
+    if settings.auth_provider in ("neon", "both"):
+        return neon_login_redirect(settings)
+    else:
+        return show_email_form()  # Old Resend flow
+
+
+@router.post("/login")
+def login_post(email: str, settings: SettingsDep):
+    """Old Resend-based flow — only active when auth_provider != 'neon'."""
+    if settings.auth_provider == "neon":
+        raise HTTPException(status_code=410, detail="Use GET /login")
+    # ... existing Resend magic-link logic
+```
+
+### Phase 2: Parallel Testing
+
+```yaml
+# For 1-2 weeks, run both:
+AUTH_PROVIDER=both
+
+# New users get Neon Auth (GET /login redirects to Neon)
+# Old tokens still work (POST /login and /auth/verify still active)
+```
+
+### Phase 3: Full Cutover
+
+```yaml
+AUTH_PROVIDER=neon
+```
+
+### Phase 4: Cleanup (After 2 Weeks Clean)
+
+Only after `AUTH_PROVIDER=neon` has been stable in production for 2+ weeks:
+
+1. **Remove Resend code path** — delete `POST /login`, old `/auth/verify`
+2. **Drop `magic_link_token` table** — Alembic migration
+3. **Remove `RESEND_API_KEY` secret** — from CI/CD and hosting platform
+4. **Remove `resend` dependency** — from `pyproject.toml`
+5. **Remove `AUTH_PROVIDER` flag** — simplify config
+
+### Migration Checklist
+
+- [ ] Neon Auth enabled in Neon Console
+- [ ] Trusted domains configured (including wildcards for previews)
+- [ ] `AUTH_PROVIDER=both` deployed to staging
+- [ ] Manual test: new sign-in flow works via Neon
+- [ ] Manual test: old magic-link tokens still verify
+- [ ] `AUTH_PROVIDER=both` deployed to production
+- [ ] Monitor for 1 week — check error rates, support tickets
+- [ ] `AUTH_PROVIDER=neon` deployed to production
+- [ ] Monitor for 2 weeks — no fallback to old flow
+- [ ] Cleanup PRs: remove Resend code, drop table, remove secrets
+- [ ] Remove feature flag
 
 ---
 
