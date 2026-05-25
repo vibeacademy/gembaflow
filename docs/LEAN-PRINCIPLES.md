@@ -19,7 +19,7 @@ is a way that code generation decouples from value delivery.
 | Overproduction | Extra Features | PM/PO gate, scope lock, feature evaluation |
 | Extra Processing | Relearning | Memory MCP, 4 Power Sections, session journals |
 | Transportation | Handoffs | Structured interfaces, review templates, account hooks |
-| Waiting | Delays | Pull-based Ready column, CI auto-fix, bot accounts |
+| Waiting | Delays | Pull-based Ready column, pre-push lint hooks, bot accounts |
 | Motion | Task Switching | Single-piece flow, focused agent sessions |
 | Defects | Defects | Shift-left testing, red flags, CI gates, pre-push hooks |
 
@@ -151,7 +151,7 @@ human review bandwidth.
 | Practice | How it helps |
 |----------|-------------|
 | Ready column always stocked (2-5 items) | Worker never waits for work to be defined |
-| CI auto-fix protocol (up to 3 retries) | Agent does not wait for human to fix lint errors |
+| Pre-push lint hooks (`scripts/hooks/`) | Lint errors caught locally before push; no CI round-trip |
 | Bot accounts | No waiting for human to switch contexts to do routine GitHub operations |
 | PR reviewer agent | Review starts immediately, not when a human has time |
 | `/sprint-status` wait detection | Surfaces items stuck in review too long |

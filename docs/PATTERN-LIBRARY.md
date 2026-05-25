@@ -35,6 +35,7 @@
 25. [Neon Auth: Magic Link Implementation (FastAPI)](#25-neon-auth-magic-link-implementation-fastapi)
 26. [Neon Auth: Trusted Domains for Preview Environments](#26-neon-auth-trusted-domains-for-preview-environments)
 27. [Neon Auth: Migration from Custom Magic Links](#27-neon-auth-migration-from-custom-magic-links)
+28. [GitHub Actions: Workflow Pushes With GITHUB_TOKEN Don't Re-Trigger CI](#28-github-actions-workflow-pushes-with-github_token-dont-re-trigger-ci)
 
 ---
 
@@ -1482,6 +1483,67 @@ Only after `AUTH_PROVIDER=neon` has been stable in production for 2+ weeks:
 - [ ] Monitor for 2 weeks — no fallback to old flow
 - [ ] Cleanup PRs: remove Resend code, drop table, remove secrets
 - [ ] Remove feature flag
+
+---
+
+## 28. GitHub Actions: Workflow Pushes With GITHUB_TOKEN Don't Re-Trigger CI
+
+**Gotcha:** A workflow that runs an auto-fixer (ruff, eslint, prettier, etc.)
+and pushes the result back to the PR branch using the default `GITHUB_TOKEN`
+will **never re-trigger CI** on that push. GitHub deliberately suppresses
+workflow runs for events created by `GITHUB_TOKEN` to prevent infinite loops.
+
+The PR sits at `mergeStateStatus=BLOCKED` because required checks were never
+re-run against the auto-fix commit — even though the lint failure that
+motivated the fix is now resolved. A human has to push a no-op commit (or
+close/reopen the PR) to wake CI up.
+
+**Symptom:**
+
+- PR opened, lint fails
+- Auto-fix workflow runs, commits "style: auto-fix lint issues", pushes
+- No new CI run appears for that commit
+- PR status: BLOCKED, "Required check `lint` has not run"
+- Human pushes `git commit --allow-empty -m "chore: retrigger CI"` → CI runs → green
+
+**Root cause:** From GitHub Actions docs:
+
+> When you use the repository's `GITHUB_TOKEN` to perform tasks, events
+> triggered by the `GITHUB_TOKEN` will not create a new workflow run.
+
+This is intentional, infinite-loop prevention — without it, an auto-fix
+workflow could push, retrigger itself, push again, forever.
+
+**Resolution: prefer lint-as-CI-check over lint-as-auto-fix.**
+
+Make lint a **failing** CI check in `ci.yml` (fail-loud, fail-fast) and rely
+on local pre-push hooks (`scripts/hooks/`) for the auto-fix UX. The
+contributor sees the failure locally before pushing — no CI round-trip
+required, no token-signing dance.
+
+```yaml
+# ci.yml — the correct pattern
+jobs:
+  python:
+    steps:
+      - name: Lint with ruff
+        run: uv run --extra dev ruff check .   # FAILS the job if violations
+```
+
+**Escape hatch (if you genuinely need an auto-fix workflow):** Use a PAT
+(personal access token) belonging to a bot account instead of `GITHUB_TOKEN`.
+Commits signed by a PAT do re-trigger workflows. The trade-off is secret
+provisioning (PAT storage, rotation, scope minimization) and the risk of
+infinite loops, which you must explicitly prevent (e.g., `if:
+github.actor != 'your-bot'` on the auto-fix job).
+
+For most repos, the simpler answer is: don't auto-fix in CI. Lint locally.
+
+**References:**
+
+- [GitHub Actions: events from GITHUB_TOKEN don't trigger workflows](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow)
+- cubrox session journal `2026-05-25` §9.3 (downstream fork that surfaced this in production)
+- Agile Flow issue [#327](https://github.com/vibeacademy/agile-flow/issues/327) — deletion of `auto-fix.yml` from this template
 
 ---
 
