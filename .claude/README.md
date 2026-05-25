@@ -70,13 +70,37 @@ operations and skip this section.
 
 Create two bot accounts for your organization:
 
+### Canonical PAT Scope Set
+
+Both bot accounts MUST be provisioned with the same classic-PAT scope set:
+
+```
+repo, workflow, project, gist, read:org
+```
+
+Rationale for each scope:
+
+- `repo` — branches, PRs, issues
+- `workflow` — required to push commits that touch `.github/workflows/*`
+- `project` — board column moves and follow-up-ticket placement via `gh project item-*` / GraphQL `updateProjectV2ItemFieldValue`
+- `gist` — used by some doctor/diagnostic scripts when capturing transcripts
+- `read:org` — required for `gh auth status` to display org membership and for `gh api orgs/...` calls used by `verify-bot-permissions.sh`
+
+The reviewer bot needs `project` even though it does not author PRs, because
+when `/review-pr` files a follow-up issue, it also adds the issue to the
+project board. Without `project` scope the `gh project item-add` call
+returns 403 and the reviewer must hand off the board move to the worker.
+
 #### Worker Bot (e.g., `{org}-worker`)
 
 **Purpose:** Creates code changes, branches, and pull requests
 
 **Recommended Permissions (Classic PAT):**
 - `repo` — full repository access (branches, PRs, issues)
+- `workflow` — push commits that touch `.github/workflows/*`
 - `project` — project board access (moving tickets between columns)
+- `gist` — diagnostic transcript capture
+- `read:org` — org membership lookups
 
 **Recommended Permissions (Fine-Grained PAT):**
 - Contents: Read and write (for branches)
@@ -103,7 +127,10 @@ Create two bot accounts for your organization:
 
 **Recommended Permissions (Classic PAT):**
 - `repo` — full repository access (PR reviews, approvals)
-- `project` — project board access (reading ticket status)
+- `workflow` — symmetry with worker for review comments on workflow files
+- `project` — required to file follow-up tickets to the board after a review (`gh project item-add`); without this the call returns 403
+- `gist` — diagnostic transcript capture
+- `read:org` — org membership lookups
 
 **Recommended Permissions (Fine-Grained PAT):**
 - Contents: Read-only
@@ -166,6 +193,32 @@ gh auth status
 - NEVER log PATs in console output
 - Set PAT expiration and rotate regularly
 - If compromised, revoke immediately at https://github.com/settings/tokens
+
+### Remediation: Existing reviewer PATs missing `project` scope
+
+Reviewer PATs provisioned before this change were issued with
+`gist, read:org, repo, workflow` (no `project`). Symptom: after `/review-pr`,
+`gh project item-add` returns 403 and the operator has to manually
+`gh auth switch --user {org}-worker` before every board-move.
+
+To upgrade an existing reviewer PAT in-place without re-issuing:
+
+```bash
+gh auth refresh --user {org}-reviewer --scopes repo,workflow,project,gist,read:org
+```
+
+This re-runs the OAuth device flow for the existing token and adds the
+missing scope. Verify with:
+
+```bash
+gh auth status --user {org}-reviewer
+# Token scopes line should list: gist, project, read:org, repo, workflow
+```
+
+After remediation, the account-switch hook
+(`.claude/hooks/ensure-github-account.sh`) will route `gh project item-*`,
+`gh issue create`, `gh issue comment`, and `gh pr comment` to the reviewer
+automatically — no manual switch required.
 
 ## Agent Policies
 

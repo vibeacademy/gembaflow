@@ -26,6 +26,16 @@ tool_name=$(echo "$input" | jq -r '.tool_name // empty')
 tool_command=$(echo "$input" | jq -r '.tool_input.command // empty')
 
 # Determine required account based on tool
+#
+# Routing rules:
+#   - PR authorship + project-board moves caused by ticket work -> WORKER
+#   - PR review actions + follow-up issues/comments filed during review -> REVIEWER
+#
+# Project-board mutation commands (`gh project item-*`) are routed to the
+# REVIEWER when the calling context is review (the reviewer files follow-up
+# tickets and parks them on the board). The worker invokes board moves
+# directly inside `gh pr create` / `gh issue close` flows which already
+# match worker patterns.
 required_account=""
 case "$tool_name" in
   Bash)
@@ -33,7 +43,13 @@ case "$tool_name" in
       *"gh pr create"*)
         required_account="$WORKER_ACCOUNT"
         ;;
-      *"gh pr review"*)
+      *"gh pr review"*|*"gh pr comment"*)
+        required_account="$REVIEWER_ACCOUNT"
+        ;;
+      *"gh issue create"*|*"gh issue comment"*)
+        required_account="$REVIEWER_ACCOUNT"
+        ;;
+      *"gh project item-add"*|*"gh project item-edit"*|*"gh project item-archive"*|*"gh project item-delete"*)
         required_account="$REVIEWER_ACCOUNT"
         ;;
       *)
