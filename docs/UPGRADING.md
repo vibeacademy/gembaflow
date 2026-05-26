@@ -20,7 +20,7 @@ The `/doctor` command also checks for updates automatically and warns you if
 a newer version is available.
 
 To see all available releases, visit the
-[Agile Flow releases page](https://github.com/vibeacademy/agile-flow/releases).
+[Gemba Flow releases page](https://github.com/vibeacademy/gembaflow/releases).
 
 ---
 
@@ -51,7 +51,7 @@ The workflow runs the same sync script and opens a pull request.
 
 ## What Happens During an Upgrade
 
-1. The sync script fetches the latest release from `vibeacademy/agile-flow`.
+1. The sync script fetches the latest release from `vibeacademy/gembaflow`.
 2. It compares your local version (from `.agile-flow-version`) to the latest.
 3. If an update is available, it downloads the release and copies only the
    directories listed in `syncDirectories` (inside `.agile-flow-version`):
@@ -157,7 +157,7 @@ edited locally. To resolve:
 If the automated sync does not work for your setup, you can upgrade manually:
 
 1. Download the latest release from the
-   [releases page](https://github.com/vibeacademy/agile-flow/releases).
+   [releases page](https://github.com/vibeacademy/gembaflow/releases).
 2. Extract the archive.
 3. Copy the framework directories (`.claude/agents`, `.claude/commands`,
    `.claude/hooks`, `.claude/skills`, `scripts`, `starters`) into your

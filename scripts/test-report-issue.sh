@@ -136,7 +136,7 @@ echo "Test 4: Error on invalid severity value"
 
 TEST_DIR="$WORK_DIR/test4"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "https://github.com/vibeacademy/gembaflow" > "$TEST_DIR/.agile-flow-meta/upstream"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet
 git commit --allow-empty -m "init" --quiet
@@ -161,7 +161,7 @@ echo "Test 5: Error on invalid component value"
 
 TEST_DIR="$WORK_DIR/test5"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "https://github.com/vibeacademy/gembaflow" > "$TEST_DIR/.agile-flow-meta/upstream"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet
 git commit --allow-empty -m "init" --quiet
@@ -186,7 +186,7 @@ echo "Test 6: Error when title is empty"
 
 TEST_DIR="$WORK_DIR/test6"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "https://github.com/vibeacademy/gembaflow" > "$TEST_DIR/.agile-flow-meta/upstream"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet
 git commit --allow-empty -m "init" --quiet
@@ -213,7 +213,7 @@ echo "Test 7: Fallback to manual submission when gh CLI unavailable"
 
 TEST_DIR="$WORK_DIR/test7"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "https://github.com/vibeacademy/gembaflow" > "$TEST_DIR/.agile-flow-meta/upstream"
 echo "1.0.0" > "$TEST_DIR/.agile-flow-meta/version"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet
@@ -237,7 +237,7 @@ if PATH="$WORK_DIR/nogh-bin:$PATH" bash "$REPO_ROOT/scripts/report-issue.sh" --n
     cat "$WORK_DIR/test7.log"
   fi
   
-  if grep -q "github.com/vibeacademy/agile-flow/issues/new" "$WORK_DIR/test7.log"; then
+  if grep -q "github.com/vibeacademy/gembaflow/issues/new" "$WORK_DIR/test7.log"; then
     pass "pre-filled GitHub issue URL is provided"
   else
     fail "expected pre-filled GitHub issue URL"
@@ -276,7 +276,7 @@ echo "Test 8: Happy path with successful gh issue create"
 
 TEST_DIR="$WORK_DIR/test8"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "https://github.com/vibeacademy/gembaflow" > "$TEST_DIR/.agile-flow-meta/upstream"
 echo "1.0.0" > "$TEST_DIR/.agile-flow-meta/version"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet
@@ -288,7 +288,7 @@ cat > "$WORK_DIR/mock-gh-bin/gh" <<'SH'
 #!/usr/bin/env bash
 # Mock gh issue create
 if [[ "${1:-}" == "issue" && "${2:-}" == "create" ]]; then
-  echo "https://github.com/vibeacademy/agile-flow/issues/999"
+  echo "https://github.com/vibeacademy/gembaflow/issues/999"
   exit 0
 fi
 exit 1
@@ -335,7 +335,7 @@ echo "Test 9: Error on unknown flag"
 
 TEST_DIR="$WORK_DIR/test9"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "https://github.com/vibeacademy/gembaflow" > "$TEST_DIR/.agile-flow-meta/upstream"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet
 
@@ -360,7 +360,7 @@ echo "Test 10: Non-interactive mode requires --severity"
 
 TEST_DIR="$WORK_DIR/test10"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "https://github.com/vibeacademy/gembaflow" > "$TEST_DIR/.agile-flow-meta/upstream"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet
 git commit --allow-empty -m "init" --quiet
@@ -385,7 +385,7 @@ echo "Test 11: Parse git@ format upstream URL"
 
 TEST_DIR="$WORK_DIR/test11"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "git@github.com:vibeacademy/agile-flow.git" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "git@github.com:vibeacademy/gembaflow.git" > "$TEST_DIR/.agile-flow-meta/upstream"
 echo "1.0.0" > "$TEST_DIR/.agile-flow-meta/version"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet
@@ -393,7 +393,7 @@ git commit --allow-empty -m "init" --quiet
 
 # Use mock gh
 if PATH="$WORK_DIR/mock-gh-bin:$PATH" bash "$REPO_ROOT/scripts/report-issue.sh" --non-interactive --severity p3 --component docs --title "SSH URL test" > "$WORK_DIR/test11.log" 2>&1; then
-  if grep -q "vibeacademy/agile-flow" "$WORK_DIR/test11.log"; then
+  if grep -q "vibeacademy/gembaflow" "$WORK_DIR/test11.log"; then
     pass "git@ URL parsed to correct repo"
   else
     fail "git@ URL not parsed correctly"
@@ -413,7 +413,7 @@ echo "Test 12: Handle title with special characters"
 
 TEST_DIR="$WORK_DIR/test12"
 mkdir -p "$TEST_DIR/.agile-flow-meta"
-echo "https://github.com/vibeacademy/agile-flow" > "$TEST_DIR/.agile-flow-meta/upstream"
+echo "https://github.com/vibeacademy/gembaflow" > "$TEST_DIR/.agile-flow-meta/upstream"
 echo "1.0.0" > "$TEST_DIR/.agile-flow-meta/version"
 pushd "$TEST_DIR" >/dev/null
 git init --quiet

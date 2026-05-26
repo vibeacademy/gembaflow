@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Agile Flow Bootstrap Wizard
+# Gemba Flow Bootstrap Wizard
 # Guides users through progressive refinement of project context
 
 set -e
@@ -24,7 +24,7 @@ STATUS_FILE=".claude/.bootstrap-status"
 print_header() {
     echo ""
     echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║${NC}              ${BLUE}Agile Flow Bootstrap Wizard${NC}                   ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}              ${BLUE}Gemba Flow Bootstrap Wizard${NC}                   ${CYAN}║${NC}"
     echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -176,7 +176,7 @@ persist_env_var() {
     else
         {
             echo ""
-            echo "# Added by Agile Flow bootstrap"
+            echo "# Added by Gemba Flow bootstrap"
             echo "export ${var_name}=\"${var_value}\""
         } >> "$profile"
         print_info "Added ${var_name} to ${profile}"
@@ -190,7 +190,7 @@ phase0_environment() {
     print_phase "0" "Environment Setup"
 
     echo ""
-    echo "This phase ensures your local environment has everything Agile Flow"
+    echo "This phase ensures your local environment has everything Gemba Flow"
     echo "needs before we start defining your product. It covers:"
     echo "  - Required CLI tools (gh, claude)"
     echo "  - GitHub account authentication (human + bot accounts)"
@@ -239,7 +239,7 @@ phase0_environment() {
     else
         print_error "Claude Code CLI is not installed."
         echo ""
-        echo "  Claude Code is the AI coding agent that powers Agile Flow."
+        echo "  Claude Code is the AI coding agent that powers Gemba Flow."
         echo ""
         echo "  Install it with:"
         echo "    npm install -g @anthropic-ai/claude-code"
@@ -287,7 +287,7 @@ phase0_environment() {
     # -----------------------------------------------------------------------
     print_step 4 $total_steps "Authenticate worker bot account"
 
-    echo "  Agile Flow uses a separate GitHub bot account for automated work"
+    echo "  Gemba Flow uses a separate GitHub bot account for automated work"
     echo "  (creating branches, opening PRs, pushing code). This keeps the"
     echo "  human commit history clean and makes bot actions easy to audit."
     echo ""
@@ -503,7 +503,7 @@ phase0_environment() {
     # -----------------------------------------------------------------------
     print_step 8 $total_steps "Set up pre-push git hook"
 
-    echo "  Agile Flow ships a pre-push hook in scripts/hooks/ that enforces"
+    echo "  Gemba Flow ships a pre-push hook in scripts/hooks/ that enforces"
     echo "  agent policies before code reaches the remote. We point git at"
     echo "  that directory so the hook runs automatically."
     echo ""
@@ -632,7 +632,7 @@ phase0_environment() {
         if [ -f ".claude/settings.template.json" ]; then
             print_warning ".mcp.json not found or being reset."
             echo ""
-            echo "  Agile Flow uses MCP (Model Context Protocol) servers to give"
+            echo "  Gemba Flow uses MCP (Model Context Protocol) servers to give"
             echo "  Claude Code access to GitHub, memory, and other integrations."
             echo ""
             print_info "Creating .mcp.json with default MCP servers..."
@@ -930,7 +930,7 @@ show_completion() {
     echo -e "${GREEN}║${NC}            ${GREEN}Bootstrap Complete!${NC}                              ${GREEN}║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo "Your Agile Flow project is ready for development!"
+    echo "Your Gemba Flow project is ready for development!"
     echo ""
     echo -e "${CYAN}Next steps:${NC}"
     echo "  1. Start Claude Code: ${GREEN}claude${NC}"
@@ -955,7 +955,7 @@ show_completion() {
     if [ -f ".agile-flow-version" ]; then
         af_version=$(jq -r '.version // "unknown"' .agile-flow-version 2>/dev/null)
     fi
-    echo -e "Powered by ${CYAN}Agile Flow${NC} v${af_version} — https://github.com/vibeacademy/agile-flow"
+    echo -e "Powered by ${CYAN}Gemba Flow${NC} v${af_version} — https://github.com/vibeacademy/gembaflow"
     echo ""
 }
 

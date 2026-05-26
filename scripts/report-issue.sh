@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# report-issue.sh — Report a downstream issue to the upstream Agile Flow repo.
+# report-issue.sh — Report a downstream issue to the upstream Gemba Flow repo.
 #
 # Usage:
 #   bash scripts/report-issue.sh
@@ -31,7 +31,7 @@ DRY_RUN=false
 
 show_help() {
   cat <<'HELP'
-report-issue.sh — Report a downstream issue to the upstream Agile Flow repo.
+report-issue.sh — Report a downstream issue to the upstream Gemba Flow repo.
 
 Usage:
   bash scripts/report-issue.sh [FLAGS]

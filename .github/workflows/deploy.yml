@@ -8,7 +8,7 @@ jobs:
   deploy:
     name: Deploy to Render
     runs-on: ubuntu-latest
-    if: github.repository != 'vibeacademy/agile-flow'
+    if: github.repository != 'vibeacademy/gembaflow'
     permissions:
       contents: read
     steps:

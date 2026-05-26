@@ -35,7 +35,7 @@ talk to GitHub on your behalf. To create one:
 
 ## Step 1: Create Your Project from the Template
 
-Go to the [Agile Flow template](https://github.com/vibeacademy/agile-flow)
+Go to the [Gemba Flow template](https://github.com/vibeacademy/gembaflow)
 on GitHub and click **"Use this template" > "Create a new repository"**.
 
 - **Owner**: Choose your GitHub account or organization.
@@ -363,7 +363,7 @@ jq .version .agile-flow-version
 ```
 
 To see if a newer version is available, visit the
-[Agile Flow releases page](https://github.com/vibeacademy/agile-flow/releases).
+[Gemba Flow releases page](https://github.com/vibeacademy/gembaflow/releases).
 
 The `/doctor` command also checks for updates automatically and will warn
 you if a newer version is available.
