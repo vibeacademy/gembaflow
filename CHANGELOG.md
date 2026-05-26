@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Phase 4 of the agile-flow → Gemba Flow rebrand: dotfile rename.** The three repo-root dotfiles used by template-sync and report-issue have been renamed from `.agile-flow-*` to `.gembaflow-*`:
+  - `.agile-flow-version` → `.gembaflow-version`
+  - `.agile-flow-meta/` → `.gembaflow-meta/`
+  - `.agile-flow-overrides` → `.gembaflow-overrides`
+  The sync branch prefix is now `gembaflow-sync/v…` (was `agile-flow-sync/v…`). `scripts/template-sync.sh` performs a one-time `git mv` from old to new names on its next run, so forks see the rename as part of their next sync PR. All read paths in framework scripts (`template-sync.sh`, `report-issue.sh`, `doctor.sh`, `bootstrap.sh`, `validate-version-parity.sh`, `lib/overrides.sh`) now prefer the new name and fall back to the legacy name for one release cycle. Cleanup PR to drop the dual-read fallback follows in a separate ticket. (#335)
+
 ## [1.1.0] - 2026-05-26
 
 **Phase 0.5 of the agile-flow → Gemba Flow rebrand.** This release is the critical-path enabler for the upcoming repo rename. Active forks **must** run `/upgrade` against this release before the rename happens — without it, `/upgrade` will silently break the moment the rename's 301 redirect lands.

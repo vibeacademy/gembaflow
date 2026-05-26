@@ -9,14 +9,14 @@ Feature: Report Issue to Upstream
     When user runs report-issue.sh with valid inputs
     Then exit code is 0
     And issue is created in upstream repo with label downstream-report
-    And report file is saved to .agile-flow-reports/
+    And report file is saved to .gembaflow-reports/
 
   Scenario: Fallback to manual submission when gh CLI fails
     Given .agile-flow-version exists with valid upstream URL
     And gh CLI is not available or authentication fails
     When user runs report-issue.sh with valid inputs  
     Then exit code is 0
-    And report file is saved to .agile-flow-reports/
+    And report file is saved to .gembaflow-reports/
     And fallback URL is provided for manual submission
 
   Scenario: Fallback to manual submission when gh CLI lacks write access
@@ -24,7 +24,7 @@ Feature: Report Issue to Upstream
     And gh CLI lacks write access to upstream (permission denied)
     When user runs report-issue.sh with valid inputs
     Then exit code is 0
-    And report file is saved to .agile-flow-reports/
+    And report file is saved to .gembaflow-reports/
     And pre-filled GitHub issue URL is printed
     And report body is copied to clipboard (if available)
 

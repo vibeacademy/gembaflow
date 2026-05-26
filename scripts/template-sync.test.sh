@@ -30,7 +30,7 @@ cp scripts/template-sync.sh "$REPO_DIR/scripts/template-sync.sh"
 cp scripts/lib/overrides.sh "$REPO_DIR/scripts/lib/overrides.sh"
 chmod +x "$REPO_DIR/scripts/template-sync.sh"
 
-cat > "$REPO_DIR/.agile-flow-version" <<'JSON'
+cat > "$REPO_DIR/.gembaflow-version" <<'JSON'
 {
   "version": "0.1.0",
   "syncDirectories": [
@@ -39,7 +39,7 @@ cat > "$REPO_DIR/.agile-flow-version" <<'JSON'
 }
 JSON
 
-: > "$REPO_DIR/.agile-flow-overrides"
+: > "$REPO_DIR/.gembaflow-overrides"
 
 mkdir -p "$WORK_DIR/upstream/vibeacademy-agile-flow-release/scripts/lib"
 cp scripts/template-sync.sh "$WORK_DIR/upstream/vibeacademy-agile-flow-release/scripts/template-sync.sh"
@@ -109,7 +109,7 @@ echo "Scenario 2: bootstrap re-entry dirty state is allowed for sync-target path
 REENTRY_DIR="$WORK_DIR/reentry"
 mkdir -p "$REENTRY_DIR/scripts/lib"
 
-cat > "$REENTRY_DIR/.agile-flow-version" <<'JSON'
+cat > "$REENTRY_DIR/.gembaflow-version" <<'JSON'
 {
   "version": "0.0.1",
   "syncDirectories": [
@@ -181,7 +181,7 @@ git remote add origin "$WORK_DIR/reentry-origin.git"
 git push -u origin HEAD >/dev/null
 
 cp "$SCRIPT_SOURCE_DIR/template-sync.sh" scripts/template-sync.sh
-git add scripts/template-sync.sh .agile-flow-version
+git add scripts/template-sync.sh .gembaflow-version
 
 if TEST_REENTRY_TARBALL="$WORK_DIR/reentry-upstream.tar.gz" TEST_GH_LOG="$WORK_DIR/reentry-gh.log" PATH="$WORK_DIR/reentry-bin:$PATH" bash scripts/template-sync.sh > "$WORK_DIR/reentry.log" 2>&1; then
   pass "bootstrap re-entry run exits successfully"
@@ -198,13 +198,13 @@ if TEST_REENTRY_TARBALL="$WORK_DIR/reentry-upstream.tar.gz" TEST_GH_LOG="$WORK_D
     fail "expected no tarball download banner in re-entry path"
   fi
 
-  if git show-ref --verify --quiet refs/heads/agile-flow-sync/v1.0.4; then
+  if git show-ref --verify --quiet refs/heads/gembaflow-sync/v1.0.4; then
     pass "re-entry path creates local sync branch"
   else
-    fail "expected local sync branch agile-flow-sync/v1.0.4"
+    fail "expected local sync branch gembaflow-sync/v1.0.4"
   fi
 
-  if git --git-dir "$WORK_DIR/reentry-origin.git" show-ref --verify --quiet refs/heads/agile-flow-sync/v1.0.4; then
+  if git --git-dir "$WORK_DIR/reentry-origin.git" show-ref --verify --quiet refs/heads/gembaflow-sync/v1.0.4; then
     pass "re-entry path pushes sync branch to origin"
   else
     fail "expected sync branch pushed to origin"
@@ -290,10 +290,10 @@ run_upstream_scenario() {
   cp scripts/template-sync.sh "$scenario_dir/scripts/template-sync.sh"
   cp scripts/lib/overrides.sh "$scenario_dir/scripts/lib/overrides.sh"
   chmod +x "$scenario_dir/scripts/template-sync.sh"
-  : > "$scenario_dir/.agile-flow-overrides"
+  : > "$scenario_dir/.gembaflow-overrides"
 
   if [ -n "$upstream_field" ]; then
-    cat > "$scenario_dir/.agile-flow-version" <<JSON
+    cat > "$scenario_dir/.gembaflow-version" <<JSON
 {
   "version": "9.9.9",
   "upstream": "$upstream_field",
@@ -301,7 +301,7 @@ run_upstream_scenario() {
 }
 JSON
   else
-    cat > "$scenario_dir/.agile-flow-version" <<'JSON'
+    cat > "$scenario_dir/.gembaflow-version" <<'JSON'
 {
   "version": "9.9.9",
   "syncDirectories": ["./scripts"]
@@ -331,10 +331,10 @@ JSON
 }
 
 # (a) upstream field honored when present
-run_upstream_scenario "upstream-honored" "vibeacademy/agile-flow-gcp" "vibeacademy/agile-flow-gcp" ""
+run_upstream_scenario "upstream-honored" "vibeacademy/example-variant" "vibeacademy/example-variant" ""
 
 # (a2) upstream URL form normalized to owner/repo
-run_upstream_scenario "upstream-url-normalized" "https://github.com/vibeacademy/agile-flow-gcp" "vibeacademy/agile-flow-gcp" ""
+run_upstream_scenario "upstream-url-normalized" "https://github.com/vibeacademy/example-variant" "vibeacademy/example-variant" ""
 
 # (b) absent upstream falls back to hardcoded default
 run_upstream_scenario "upstream-absent" "" "vibeacademy/gembaflow" ""
@@ -346,8 +346,8 @@ mkdir -p "$SCEN_DIR/scripts/lib"
 cp scripts/template-sync.sh "$SCEN_DIR/scripts/template-sync.sh"
 cp scripts/lib/overrides.sh "$SCEN_DIR/scripts/lib/overrides.sh"
 chmod +x "$SCEN_DIR/scripts/template-sync.sh"
-: > "$SCEN_DIR/.agile-flow-overrides"
-cat > "$SCEN_DIR/.agile-flow-version" <<'JSON'
+: > "$SCEN_DIR/.gembaflow-overrides"
+cat > "$SCEN_DIR/.gembaflow-version" <<'JSON'
 {
   "version": "9.9.9",
   "syncDirectories": ["./scripts"]

@@ -138,9 +138,16 @@ fi
 # ═══════════════════════════════════════════════════════════════════
 section "Framework Version"
 
-if [ -f ".agile-flow-version" ]; then
+# Phase 4 dual-read (#335): prefer .gembaflow-version; fall back to legacy
+# .agile-flow-version for one release cycle.
+VERSION_MANIFEST=".gembaflow-version"
+if [ ! -f "$VERSION_MANIFEST" ] && [ -f ".agile-flow-version" ]; then
+    VERSION_MANIFEST=".agile-flow-version"
+fi
+
+if [ -f "$VERSION_MANIFEST" ]; then
     if JQ_CMD=$(resolve_cmd jq); then
-        local_version=$("$JQ_CMD" -r '.version' .agile-flow-version 2>/dev/null || echo "")
+        local_version=$("$JQ_CMD" -r '.version' "$VERSION_MANIFEST" 2>/dev/null || echo "")
         if [ -n "$local_version" ]; then
             # Fetch latest release from GitHub
             latest_json=$(curl -s --max-time 5 https://api.github.com/repos/vibeacademy/gembaflow/releases/latest 2>/dev/null || echo "")
@@ -160,13 +167,13 @@ if [ -f ".agile-flow-version" ]; then
                 warn "Framework Version" "Gemba Flow v${local_version} (could not check for updates)" "GitHub API unreachable"
             fi
         else
-            warn "Framework Version" "Version manifest unreadable" "Check .agile-flow-version format"
+            warn "Framework Version" "Version manifest unreadable" "Check $VERSION_MANIFEST format"
         fi
     else
         skip "Framework Version" "Version check" "jq not installed"
     fi
 else
-    warn "Framework Version" "Version manifest not found" "Run bootstrap.sh to create .agile-flow-version"
+    warn "Framework Version" "Version manifest not found" "Run bootstrap.sh to create .gembaflow-version"
 fi
 
 # ═══════════════════════════════════════════════════════════════════

@@ -1,7 +1,7 @@
 <!-- FRAMEWORK:START -->
 # Gemba Flow
 
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](.agile-flow-version) [![Use this template](https://img.shields.io/badge/Use_this-template-2ea44f)](https://github.com/vibeacademy/gembaflow/generate)
+[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](.gembaflow-version) [![Use this template](https://img.shields.io/badge/Use_this-template-2ea44f)](https://github.com/vibeacademy/gembaflow/generate)
 
 A Claude Code project template that bootstraps a complete agile development workflow with specialized AI agents.
 

@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
-# Validates that .agile-flow-version and package.json agree on the version field.
+# Validates that .gembaflow-version (or the legacy .agile-flow-version during
+# the Phase 4 dual-read cycle) and package.json agree on the version field.
 # Runs in CI to prevent version drift between the two files.
 
 set -euo pipefail
 
-MANIFEST=".agile-flow-version"
+# Phase 4 dual-read (#335): prefer .gembaflow-version; fall back to legacy
+# .agile-flow-version for one release cycle so unmigrated forks keep passing CI.
+MANIFEST=".gembaflow-version"
+if [ ! -f "$MANIFEST" ] && [ -f ".agile-flow-version" ]; then
+  MANIFEST=".agile-flow-version"
+fi
 PACKAGE="package.json"
 
 if [ ! -f "$MANIFEST" ]; then

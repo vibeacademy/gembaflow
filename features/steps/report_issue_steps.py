@@ -190,13 +190,13 @@ def issue_created_with_label(context):
     )
 
 
-@then("report file is saved to .agile-flow-reports/")
+@then("report file is saved to .gembaflow-reports/")
 def report_file_saved(context):
     """Verify report file was created in the reports directory."""
     global _test_result
     assert _test_result is not None, "Script was not run"
 
-    reports_dir = context.temp_git_repo / ".agile-flow-reports"
+    reports_dir = context.temp_git_repo / ".gembaflow-reports"
     assert reports_dir.exists(), "Reports directory was not created"
 
     # Check that at least one report file exists
@@ -799,7 +799,7 @@ def report_file_contains_provided_body_content(context):
     global _test_result
     assert _test_result is not None, "Script was not run"
 
-    reports_dir = context.temp_git_repo / ".agile-flow-reports"
+    reports_dir = context.temp_git_repo / ".gembaflow-reports"
     assert reports_dir.exists(), "Reports directory was not created"
 
     report_files = list(reports_dir.glob("report-*.md"))
@@ -820,7 +820,7 @@ def report_file_contains_file_body_content(context):
     global _test_result
     assert _test_result is not None, "Script was not run"
 
-    reports_dir = context.temp_git_repo / ".agile-flow-reports"
+    reports_dir = context.temp_git_repo / ".gembaflow-reports"
     assert reports_dir.exists(), "Reports directory was not created"
 
     report_files = list(reports_dir.glob("report-*.md"))
@@ -921,7 +921,7 @@ def report_file_contains_upstream_version_unknown(context):
     global _test_result
     assert _test_result is not None, "Script was not run"
 
-    reports_dir = context.temp_git_repo / ".agile-flow-reports"
+    reports_dir = context.temp_git_repo / ".gembaflow-reports"
     assert reports_dir.exists(), "Reports directory was not created"
 
     report_files = list(reports_dir.glob("report-*.md"))

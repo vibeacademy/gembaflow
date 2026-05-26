@@ -2,10 +2,12 @@
 # template-sync.sh -- Sync framework files from vibeacademy/gembaflow releases.
 # Called by .github/workflows/template-sync.yml (workflow_dispatch only).
 # Guardrails:
-#   - Only syncs directories/files listed in syncDirectories (.agile-flow-version)
-#   - Respects .agile-flow-overrides — fork-local paths/globs are never touched
+#   - Only syncs directories/files listed in syncDirectories (.gembaflow-version)
+#   - Respects .gembaflow-overrides — fork-local paths/globs are never touched
 #   - Does NOT auto-merge; PR requires human review
 #   - Uses unauthenticated GitHub API to fetch release metadata
+#   - Phase 4 rebrand (#335): legacy .agile-flow-* dotfiles are auto-migrated to
+#     .gembaflow-* on first run, with dual-read fallback for one release cycle.
 
 # If invoked via `sh scripts/template-sync.sh`, re-exec with bash so bash-only
 # features below (arrays/process substitution) do not crash at runtime.
@@ -37,8 +39,36 @@ UPSTREAM_REPO="vibeacademy/gembaflow"
 # legacy name and would only fire via GitHub's redirect if the gembaflow name
 # is ever changed again. Belt-and-suspenders — see #331 / #332.
 FALLBACK_REPO="vibeacademy/agile-flow"
-VERSION_FILE=".agile-flow-version"
-OVERRIDES_FILE=".agile-flow-overrides"
+
+# Phase 4 rebrand (#335): one-time migration of legacy .agile-flow-* dotfiles
+# to .gembaflow-*. Runs early so the rename appears as a normal diff in the
+# next sync PR. Idempotent: only renames when the new name does not yet exist.
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  if [ -f .agile-flow-version ] && [ ! -f .gembaflow-version ]; then
+    echo "INFO: migrating .agile-flow-version -> .gembaflow-version (one-time, Phase 4 rebrand)" >&2
+    git mv .agile-flow-version .gembaflow-version
+  fi
+  if [ -d .agile-flow-meta ] && [ ! -d .gembaflow-meta ]; then
+    echo "INFO: migrating .agile-flow-meta/ -> .gembaflow-meta/ (one-time, Phase 4 rebrand)" >&2
+    git mv .agile-flow-meta .gembaflow-meta
+  fi
+  if [ -f .agile-flow-overrides ] && [ ! -f .gembaflow-overrides ]; then
+    echo "INFO: migrating .agile-flow-overrides -> .gembaflow-overrides (one-time, Phase 4 rebrand)" >&2
+    git mv .agile-flow-overrides .gembaflow-overrides
+  fi
+fi
+
+# Dual-read for the dotfile rename. Prefer the new name; fall back to the
+# legacy name for one release cycle so forks that have not yet run the
+# migration above continue to function. Cleanup ticket follows in a later PR.
+VERSION_FILE=".gembaflow-version"
+if [ ! -f "$VERSION_FILE" ] && [ -f ".agile-flow-version" ]; then
+  VERSION_FILE=".agile-flow-version"
+fi
+OVERRIDES_FILE=".gembaflow-overrides"
+if [ ! -f "$OVERRIDES_FILE" ] && [ -f ".agile-flow-overrides" ]; then
+  OVERRIDES_FILE=".agile-flow-overrides"
+fi
 RUNNING_SCRIPT_REL=$(python3 -c "import os,sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.getcwd()))" "$0")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -175,11 +205,12 @@ dirs = json.load(open('$VERSION_FILE')).get('syncDirectories', [])
 print('\n'.join(dirs))
 ")
 
-# Read optional `upstream` field from .agile-flow-version. Accepts either a
+# Read optional `upstream` field from .gembaflow-version (or the legacy
+# .agile-flow-version during the Phase 4 dual-read cycle). Accepts either a
 # bare "owner/repo" string or a full GitHub URL; falls back to the hardcoded
 # UPSTREAM_REPO if the field is absent or empty. This lets downstream variant
-# forks (e.g. agile-flow-gcp) point /upgrade at their own upstream without
-# editing this script. See #331 (folds agile-flow-gcp#204).
+# forks point /upgrade at their own upstream without editing this script.
+# See #331.
 VERSION_UPSTREAM=$(python3 -c "
 import json, sys
 data = json.load(open('$VERSION_FILE'))
@@ -247,7 +278,7 @@ echo "Update available: $LOCAL_VERSION -> $LATEST_VERSION"
 ###############################################################################
 # 3a. Skip cleanly if the sync branch is already pushed (idempotent re-run)
 ###############################################################################
-SYNC_BRANCH="agile-flow-sync/v${LATEST_VERSION}"
+SYNC_BRANCH="gembaflow-sync/v${LATEST_VERSION}"
 
 if git ls-remote --exit-code --heads origin "$SYNC_BRANCH" >/dev/null 2>&1; then
   echo "Sync branch '$SYNC_BRANCH' already exists on remote — nothing to do."
@@ -450,7 +481,9 @@ fi
 
 git checkout -b "$SYNC_BRANCH"
 
-# Update .agile-flow-version with the new version
+# Update the version manifest ($VERSION_FILE may be .gembaflow-version or, in
+# the dual-read fallback window, the legacy .agile-flow-version) with the new
+# version.
 python3 -c "
 import json
 with open('$VERSION_FILE', 'r') as f:
@@ -462,10 +495,17 @@ with open('$VERSION_FILE', 'w') as f:
 "
 git add "$VERSION_FILE"
 
-# Create .agile-flow-meta directory and write version file
-mkdir -p .agile-flow-meta
-echo "$LATEST_VERSION" > .agile-flow-meta/version
-git add .agile-flow-meta/version
+# Write the meta-dir version stamp. Prefer the new .gembaflow-meta/ name; if
+# the legacy directory still exists alongside (shouldn't, given the migration
+# step above, but defensive), write to the new one and let the migration tidy
+# up on the next run.
+META_DIR=".gembaflow-meta"
+if [ ! -d "$META_DIR" ] && [ -d ".agile-flow-meta" ]; then
+  META_DIR=".agile-flow-meta"
+fi
+mkdir -p "$META_DIR"
+echo "$LATEST_VERSION" > "$META_DIR/version"
+git add "$META_DIR/version"
 
 COMMIT_MSG="chore(sync): update Gemba Flow framework to v${LATEST_VERSION}"
 # Scope the bot identity to this single commit using -c so running locally

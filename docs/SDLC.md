@@ -34,14 +34,14 @@ Variants pull changes on their own schedule using two sync paths:
 
 | Sync path | When used | Mechanism |
 |-----------|-----------|-----------|
-| `pull-upstream.sh` | Routine updates (new agents, updated docs, improved scripts) | File-level diff against `syncDirectories`; skips `.agile-flow-overrides` |
+| `pull-upstream.sh` | Routine updates (new agents, updated docs, improved scripts) | File-level diff against `syncDirectories`; skips `.gembaflow-overrides` |
 | `upgrade.sh` | Major version changes or restructuring | Three-way merge with conflict resolution modes |
 
 This means a framework PR has a **latency window** before downstream variants
 receive the change. The PR author must consider:
 
 1. **Will this change conflict with known overrides?**
-   Cloud variants protect platform-specific files in `.agile-flow-overrides`.
+   Cloud variants protect platform-specific files in `.gembaflow-overrides`.
    If the framework changes a file that a variant also overrides, the sync
    will skip it — variants must be manually notified.
 
@@ -53,7 +53,7 @@ receive the change. The PR author must consider:
    conflicts.
 
 3. **Does this affect `syncDirectories`?**
-   Files outside `.agile-flow-version`'s `syncDirectories` list are never
+   Files outside `.gembaflow-version`'s `syncDirectories` list are never
    synced automatically, regardless of changes. Additions to `syncDirectories`
    are themselves a breaking change.
 
@@ -69,13 +69,13 @@ ticket tracker, a different agent platform, or entirely different workflow
 tooling — must protect its customizations from being overwritten by
 framework syncs.
 
-**The mechanism: `.agile-flow-overrides`**
+**The mechanism: `.gembaflow-overrides`**
 
-The downstream fork maintains `.agile-flow-overrides`, a text file with
+The downstream fork maintains `.gembaflow-overrides`, a text file with
 one path per line. Both sync paths respect this file:
 
 - `pull-upstream.sh` — skips any file whose path matches an entry in
-  `.agile-flow-overrides`
+  `.gembaflow-overrides`
 - `upgrade.sh` — after a three-way merge, auto-restores any overridden
   file to the downstream's version, discarding the upstream content for
   that path
@@ -83,7 +83,7 @@ one path per line. Both sync paths respect this file:
 **Example: replacing GitHub with a different issue tracker**
 
 A downstream fork that replaces GitHub tooling with another platform
-would add the relevant agent and command files to `.agile-flow-overrides`:
+would add the relevant agent and command files to `.gembaflow-overrides`:
 
 ```
 .claude/agents/github-ticket-worker.md
@@ -102,7 +102,7 @@ framework obligation**
 The override mechanism works by exact file path. If the framework renames
 or moves a file that a downstream fork has overridden:
 
-- The `.agile-flow-overrides` entry (old path) no longer matches anything
+- The `.gembaflow-overrides` entry (old path) no longer matches anything
 - The renamed file from upstream is synced in as a new, unprotected file
 - The downstream fork now has both its custom version (old path) and the
   upstream version (new path) — silently diverged
@@ -112,21 +112,21 @@ breaking change** and requires:
 
 1. A major version bump
 2. A migration guide with the old and new paths explicitly listed
-3. A note to downstream forks to update their `.agile-flow-overrides`
+3. A note to downstream forks to update their `.gembaflow-overrides`
    entries before running the upgrade
 
-**What `.agile-flow-overrides` does not protect against**
+**What `.gembaflow-overrides` does not protect against**
 
 - **New files in `syncDirectories`:** a file the downstream also wants to
   customize will be synced in on the first run. The downstream must add
-  it to `.agile-flow-overrides` after initial sync to protect future
+  it to `.gembaflow-overrides` after initial sync to protect future
   updates.
 - **Semantic drift:** if the framework improves a file the downstream has
   overridden, the downstream will not receive those improvements. The
   downstream is responsible for manually reviewing upstream changes to
   overridden files on each release and cherry-picking what is relevant.
 - **Silent path mismatches:** a typo or stale path in
-  `.agile-flow-overrides` silently fails to protect the target. There is
+  `.gembaflow-overrides` silently fails to protect the target. There is
   no validation that listed paths actually exist.
 
 **The downstream fork's responsibility**
@@ -134,10 +134,10 @@ breaking change** and requires:
 The framework cannot know what a downstream fork has customized. The
 downstream maintainer is responsible for:
 
-1. Adding any customized file to `.agile-flow-overrides` before syncing
+1. Adding any customized file to `.gembaflow-overrides` before syncing
 2. Reading release notes for each framework version to check whether any
    overridden files were renamed or removed
-3. Updating `.agile-flow-overrides` entries when the framework reorganizes
+3. Updating `.gembaflow-overrides` entries when the framework reorganizes
    files (on major version upgrades)
 
 ### Version significance
@@ -163,7 +163,7 @@ Every PR against `gembaflow` main must satisfy this checklist before merge.
 
 - All CI jobs pass (see [Quality Gates](#quality-gates) below)
 - `CHANGELOG.md` `[Unreleased]` section updated
-- Version bumped in both `package.json` and `.agile-flow-version` (validated
+- Version bumped in both `package.json` and `.gembaflow-version` (validated
   by `validate-version-parity.sh` in CI)
 - Commit messages follow `<type>(<scope>): <subject>` convention
 
@@ -203,7 +203,7 @@ Every PR against `gembaflow` main must satisfy this checklist before merge.
 
 ### When breaking changes are made
 
-- Major version bump in `package.json` and `.agile-flow-version`
+- Major version bump in `package.json` and `.gembaflow-version`
 - Migration guide added to `CHANGELOG.md` under the new version heading
 - Explicit note in the PR description about which downstream overrides may
   need review
@@ -217,7 +217,7 @@ Every PR against `gembaflow` main must satisfy this checklist before merge.
 | CI job | What it checks | Tool |
 |--------|---------------|------|
 | `lint` | Markdown files | markdownlint-cli2 |
-| `typecheck` | JSON files; version parity between `package.json` and `.agile-flow-version` | node + custom script |
+| `typecheck` | JSON files; version parity between `package.json` and `.gembaflow-version` | node + custom script |
 | `build` | Shell script syntax and style | shellcheck + bash -n |
 | `test` | Command file frontmatter; agent file structure and minimum length | validate-commands.sh, validate-agents.sh |
 | `template-cleanliness` | Framework stays cloud-provider-neutral | check-template-cleanliness.sh |
@@ -354,7 +354,7 @@ passing.
 2. When ready to release, the maintainer:
    - Updates `CHANGELOG.md`: moves items from `[Unreleased]` to the new
      version heading with today's date
-   - Bumps `version` in `package.json` and `.agile-flow-version` (must match)
+   - Bumps `version` in `package.json` and `.gembaflow-version` (must match)
    - Commits: `chore(release): bump to vX.Y.Z`
    - Creates annotated tag: `git tag -a vX.Y.Z -m "release vX.Y.Z"`
    - Pushes tag: `git push origin vX.Y.Z`
@@ -372,7 +372,7 @@ Cloud variants are **not** automatically updated. After each release:
 | Major | Run `upgrade.sh --interactive` — resolve conflicts, review all override files for relevance |
 
 For each cloud variant, the variant maintainer should:
-1. Check if any changed framework files are listed in `.agile-flow-overrides`.
+1. Check if any changed framework files are listed in `.gembaflow-overrides`.
    If so, manually evaluate whether the override still makes sense or whether
    the framework change should be adopted.
 2. After syncing, run `scripts/doctor.sh` to verify the variant is healthy.
