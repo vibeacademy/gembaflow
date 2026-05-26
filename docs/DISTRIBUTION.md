@@ -72,7 +72,6 @@ Content **outside** markers in hybrid files is user-owned. Content
 |------|----------|-----------|-----------------|
 | `ci.yml` | framework | Standard CI pipeline | Overwrite |
 | `agent-audit-report.yml` | framework | Agent action audit | Overwrite |
-| `auto-fix.yml` | framework | Auto-fix workflow | Overwrite |
 | `auto-review.yml` | framework | Auto-review workflow | Overwrite |
 | `auto-triage.yml` | framework | Error triage workflow | Overwrite |
 | `release.yml` | framework | Release workflow | Overwrite |

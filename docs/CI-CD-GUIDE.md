@@ -13,7 +13,6 @@ required secrets, and default states.
 | Preview Deploy | `preview-deploy.yml` | PR opened/updated | Inert | RENDER_API_KEY, RENDER_SERVICE_ID, SUPABASE_ACCESS_TOKEN*, SUPABASE_PROJECT_REF* |
 | Preview Cleanup | `preview-cleanup.yml` | PR closed | Inert | RENDER_API_KEY, RENDER_SERVICE_ID, SUPABASE_ACCESS_TOKEN*, SUPABASE_PROJECT_REF* |
 | Auto Review | `auto-review.yml` | PR opened/ready | Active | None |
-| Auto Fix | `auto-fix.yml` | PR opened/updated | Active | None |
 | Rollback | `rollback-production.yml` | Manual dispatch | Inert | RENDER_API_KEY, RENDER_SERVICE_ID |
 
 *\* Optional — Supabase steps skip gracefully when these secrets are not configured.*
@@ -56,17 +55,6 @@ Triggers when a `v*` tag is pushed. Extracts the matching section from
 
 Posts a review reminder comment on new PRs, prompting the team to run
 `/review-pr` for an agent review.
-
-### Auto Fix (`auto-fix.yml`)
-
-Automatically fixes lint issues on PR branches. Detects the project
-type and runs the appropriate fixer:
-
-- **Python** (when `pyproject.toml` exists): runs `ruff check --fix`
-  and `ruff format`
-- **Node.js** (when `package.json` exists): runs `npx eslint . --fix`
-
-Fixed files are committed back to the PR branch automatically.
 
 ## Enable When Ready
 
@@ -164,7 +152,6 @@ Emergency rollback triggered manually via GitHub Actions UI.
 | `python` tests fail | Test failures or coverage below threshold | Fix tests or lower `COVERAGE_THRESHOLD` |
 | `lint-agent-policies` fails | Agent file missing safety phrases | Check `scripts/verify-agent-restrictions.sh` output |
 | `build` fails | Shell script errors | Run `shellcheck <script>` locally |
-| `auto-fix` skips your stack | No fixer detected | Ensure `package.json` (Node.js) or `pyproject.toml` (Python) exists in the repo root |
 
 ### Secret-Gated Workflows Show "Skipped"
 
