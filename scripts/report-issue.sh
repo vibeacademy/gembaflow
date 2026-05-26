@@ -15,8 +15,16 @@
 
 set -euo pipefail
 
-VERSION_FILE=".agile-flow-version"
-REPORTS_DIR=".agile-flow-reports"
+# Phase 4 rebrand (#335): prefer .gembaflow-* dotfiles; fall back to legacy
+# .agile-flow-* names for one release cycle so unmigrated forks keep working.
+VERSION_FILE=".gembaflow-version"
+if [ ! -f "$VERSION_FILE" ] && [ -f ".agile-flow-version" ]; then
+  VERSION_FILE=".agile-flow-version"
+fi
+REPORTS_DIR=".gembaflow-reports"
+if [ ! -d "$REPORTS_DIR" ] && [ -d ".agile-flow-reports" ]; then
+  REPORTS_DIR=".agile-flow-reports"
+fi
 
 # ── Parse flags ───────────────────────────────────────────────────────────────
 
@@ -107,24 +115,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ── Verify .agile-flow-version exists ──────────────────────────────────────────
+# ── Verify the version manifest exists ────────────────────────────────────────
 
 if [ ! -f "$VERSION_FILE" ]; then
-  echo "ERROR: .agile-flow-version file not found." >&2
+  echo "ERROR: .gembaflow-version file not found (also no legacy .agile-flow-version)." >&2
   echo "This fork does not have upstream metadata. Run /upgrade to initialise." >&2
   exit 1
 fi
 
-# ── Read upstream URL and version from .agile-flow-version ────────────────────
+# ── Read upstream URL and version from the manifest ──────────────────────────
 
 if ! command -v jq >/dev/null 2>&1; then
-  echo "ERROR: jq is required to parse .agile-flow-version but is not installed." >&2
+  echo "ERROR: jq is required to parse $VERSION_FILE but is not installed." >&2
   exit 1
 fi
 
 UPSTREAM_URL=$(jq -r '.upstream' "$VERSION_FILE" 2>/dev/null || echo "null")
 if [ "$UPSTREAM_URL" = "null" ] || [ -z "$UPSTREAM_URL" ]; then
-  echo "ERROR: .agile-flow-version does not contain 'upstream' field." >&2
+  echo "ERROR: $VERSION_FILE does not contain 'upstream' field." >&2
   echo "Run /upgrade to record this fork's upstream URL." >&2
   exit 1
 fi

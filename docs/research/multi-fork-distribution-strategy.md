@@ -122,7 +122,7 @@ This shapes near-term tickets toward **hardening the existing fork + workshop op
 ## Open Questions
 
 - Does the participant lose enough by getting a "generated" repo (Options 1, 2) vs a "forkable" repo (Options 3, 4) to matter? Workshop participants likely don't care; long-term self-serve users might.
-- How are framework-level breaking changes versioned across variants? `.agile-flow-version` exists but its semantics across overlays/starters need definition.
+- How are framework-level breaking changes versioned across variants? `.gembaflow-version` exists but its semantics across overlays/starters need definition.
 - Where do **shared tests** live? Agent restriction tests are framework-level; smoke tests are stack-specific. The boundary needs to be drawn explicitly under any option.
 - How are **agent prompts** authored when they have stack-specific guardrails? The spike rewrote `github-ticket-worker.md` for FastAPI/SQLModel — under Option 2, do all variants get a copy, or does the framework version reference a per-variant fragment?
 

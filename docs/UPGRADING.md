@@ -13,7 +13,7 @@ For the full list of what is and is not touched during an upgrade, see
 ## Check Your Current Version
 
 ```bash
-jq .version .agile-flow-version
+jq .version .gembaflow-version
 ```
 
 The `/doctor` command also checks for updates automatically and warns you if
@@ -52,18 +52,18 @@ The workflow runs the same sync script and opens a pull request.
 ## What Happens During an Upgrade
 
 1. The sync script fetches the latest release from `vibeacademy/gembaflow`.
-2. It compares your local version (from `.agile-flow-version`) to the latest.
+2. It compares your local version (from `.gembaflow-version`) to the latest.
 3. If an update is available, it downloads the release and copies only the
-   directories listed in `syncDirectories` (inside `.agile-flow-version`):
+   directories listed in `syncDirectories` (inside `.gembaflow-version`):
    - `.claude/agents`
    - `.claude/commands`
    - `.claude/hooks`
    - `.claude/skills`
    - `scripts`
    - `starters`
-4. It creates a branch (`agile-flow-sync/v{VERSION}`), commits the changes,
+4. It creates a branch (`gembaflow-sync/v{VERSION}`), commits the changes,
    and opens a pull request.
-5. Your `.agile-flow-version` file is updated with the new version number.
+5. Your `.gembaflow-version` file is updated with the new version number.
 
 **Your code is safe.** Application code (`app/`, `__tests__/`), product docs
 (`PRODUCT-REQUIREMENTS.md`, `PRODUCT-ROADMAP.md`), deployment config
@@ -124,7 +124,7 @@ If the PR is still open, review and merge it. If it was closed without
 merging and you want to retry, delete the remote branch first:
 
 ```bash
-git push origin --delete agile-flow-sync/v{VERSION}
+git push origin --delete gembaflow-sync/v{VERSION}
 ```
 
 ### Merge Conflicts
@@ -162,6 +162,6 @@ If the automated sync does not work for your setup, you can upgrade manually:
 3. Copy the framework directories (`.claude/agents`, `.claude/commands`,
    `.claude/hooks`, `.claude/skills`, `scripts`, `starters`) into your
    project, overwriting existing files.
-4. Update the `version` field in `.agile-flow-version` to match the release
+4. Update the `version` field in `.gembaflow-version` to match the release
    tag.
 5. Commit the changes and open a pull request for review.

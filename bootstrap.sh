@@ -934,15 +934,20 @@ phase4_workflow() {
     mark_phase_complete "phase4"
     print_success "Phase 4 complete! Workflow activated."
 
-    # Stamp installedAt in .agile-flow-version if not already set
-    if [ -f ".agile-flow-version" ]; then
+    # Stamp installedAt in the version manifest if not already set.
+    # Phase 4 dual-read (#335): prefer .gembaflow-version; fall back to legacy.
+    local af_manifest=".gembaflow-version"
+    if [ ! -f "$af_manifest" ] && [ -f ".agile-flow-version" ]; then
+        af_manifest=".agile-flow-version"
+    fi
+    if [ -f "$af_manifest" ]; then
         local current_val
-        current_val=$(jq -r '.installedAt // "null"' .agile-flow-version 2>/dev/null)
+        current_val=$(jq -r '.installedAt // "null"' "$af_manifest" 2>/dev/null)
         if [ "$current_val" = "null" ]; then
             local timestamp
             timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            jq --arg ts "$timestamp" '.installedAt = $ts' .agile-flow-version > .agile-flow-version.tmp \
-                && mv .agile-flow-version.tmp .agile-flow-version
+            jq --arg ts "$timestamp" '.installedAt = $ts' "$af_manifest" > "$af_manifest.tmp" \
+                && mv "$af_manifest.tmp" "$af_manifest"
             print_success "Stamped install time: $timestamp"
         fi
     fi
@@ -979,8 +984,13 @@ show_completion() {
     echo "  - docs/TECHNICAL-ARCHITECTURE.md - Your architecture"
     echo ""
     local af_version="unknown"
-    if [ -f ".agile-flow-version" ]; then
-        af_version=$(jq -r '.version // "unknown"' .agile-flow-version 2>/dev/null)
+    # Phase 4 dual-read (#335): prefer .gembaflow-version; fall back to legacy.
+    local af_manifest=".gembaflow-version"
+    if [ ! -f "$af_manifest" ] && [ -f ".agile-flow-version" ]; then
+        af_manifest=".agile-flow-version"
+    fi
+    if [ -f "$af_manifest" ]; then
+        af_version=$(jq -r '.version // "unknown"' "$af_manifest" 2>/dev/null)
     fi
     echo -e "Powered by ${CYAN}Gemba Flow${NC} v${af_version} — https://github.com/vibeacademy/gembaflow"
     echo ""
