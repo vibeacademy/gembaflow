@@ -1,7 +1,7 @@
-# Upgrading Agile Flow
+# Upgrading Gemba Flow
 
 This guide explains how to update your project to a newer version of the
-Agile Flow framework. Upgrades only touch framework-controlled files (agents,
+Gemba Flow framework. Upgrades only touch framework-controlled files (agents,
 commands, hooks, skills, scripts). Your application code, product docs, and
 configuration customizations are never modified.
 

@@ -1,10 +1,10 @@
 ---
-description: "Report a bug or issue from this fork back to the upstream Agile Flow repo"
+description: "Report a bug or issue from this fork back to the upstream Gemba Flow repo"
 ---
 
 # /report-issue — Report an Issue to Upstream
 
-File a structured bug report or feedback item against the upstream Agile Flow repo
+File a structured bug report or feedback item against the upstream Gemba Flow repo
 from this downstream fork. The report is delivered as a GitHub issue with a
 `downstream-report` label so upstream maintainers can triage it automatically.
 

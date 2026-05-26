@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-Answers for founders and non-engineers using the Agile Flow template.
+Answers for founders and non-engineers using the Gemba Flow template.
 
 ---
 
@@ -36,7 +36,7 @@ Then open a pull request on GitHub to propose merging your branch into
 > account for everything. Bot accounts are optional and mainly useful for
 > teams that want a clear audit trail.
 
-For **team setups**, Agile Flow uses three separate identities so there is
+For **team setups**, Gemba Flow uses three separate identities so there is
 a clear record of who did what. Your personal account is for final
 decisions (approving and merging). A "worker" bot account writes code and
 opens pull requests. A "reviewer" bot account reviews pull requests. This
@@ -238,7 +238,7 @@ gh pr create --title "Add my new feature" --body "Description of changes"
 **Merging** is the act of combining your changes into the main codebase.
 When you work on a branch, your changes are isolated -- only you can see
 them. Merging takes those isolated changes and folds them into `main` so
-they become part of the official project. In Agile Flow, only humans can
+they become part of the official project. In Gemba Flow, only humans can
 merge; the AI agents can propose and review changes, but a person always
 makes the final call.
 
@@ -252,7 +252,7 @@ makes the final call.
 
 ---
 
-## "How do I upgrade to a newer version of Agile Flow?"
+## "How do I upgrade to a newer version of Gemba Flow?"
 
 Run `/upgrade` from Claude Code. This checks for a newer release, syncs
 framework files into your project, and opens a pull request for you to review.

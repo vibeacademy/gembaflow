@@ -1,6 +1,6 @@
 # Sync Rules: Upstream ↔ Downstream
 
-This document tracks intentional differences between the upstream Agile Flow
+This document tracks intentional differences between the upstream Gemba Flow
 framework and its downstream forks. See `DISTRIBUTION.md` for the master file
 classification.
 

@@ -1,6 +1,6 @@
 # Distribution: Framework / User-Content Boundary
 
-This document classifies every file and directory in the Agile Flow template
+This document classifies every file and directory in the Gemba Flow template
 repository. The classification drives update behavior: which files are safe
 to overwrite during framework updates, which must never be touched, and
 which contain both framework and user sections.
@@ -9,7 +9,7 @@ which contain both framework and user sections.
 
 | Category | Meaning | Update Behavior |
 |----------|---------|-----------------|
-| **framework** | Controlled by Agile Flow | Safe to overwrite during sync |
+| **framework** | Controlled by Gemba Flow | Safe to overwrite during sync |
 | **user-content** | Owned by the user | Never modified by updates |
 | **hybrid** | Both framework and user sections | Only framework-marked sections updated |
 
@@ -35,7 +35,7 @@ Content **outside** markers in hybrid files is user-owned. Content
 |------|----------|-----------|-----------------|
 | `CLAUDE.md` | hybrid | Framework rules above the TEMPLATE comment; user fills in project info below | Update framework sections only |
 | `README.md` | hybrid | Framework badges and structure; user adds project-specific content | Update framework sections only |
-| `LICENSE` | framework | License terms set by Agile Flow | Overwrite |
+| `LICENSE` | framework | License terms set by Gemba Flow | Overwrite |
 | `bootstrap.sh` | framework | Template bootstrap wizard | Overwrite |
 | `VERSIONING.md` | framework | Versioning policy | Overwrite |
 | `CHANGELOG.md` | user-content | User's project changelog | Never touch |

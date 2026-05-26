@@ -1,6 +1,6 @@
 # Error Telemetry Setup
 
-This guide covers error capture and automatic bug triage for the Agile Flow
+This guide covers error capture and automatic bug triage for the Gemba Flow
 starter app.
 
 ## Zero-Config (Default)
@@ -13,7 +13,7 @@ issues labeled `bug:auto` automatically.
 **Requirements:**
 
 - `GITHUB_TOKEN` environment variable set (for creating issues)
-- `GITHUB_REPOSITORY` environment variable set (e.g., `your-org/agile-flow`)
+- `GITHUB_REPOSITORY` environment variable set (e.g., `your-org/gembaflow`)
 - `RENDER_EXTERNAL_URL` is provided automatically by Render
 
 **How it works:**
@@ -71,7 +71,7 @@ This is not needed for the zero-config flow, which creates issues directly.
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `GITHUB_TOKEN` | Yes (zero-config) | API token for creating GitHub issues |
-| `GITHUB_REPOSITORY` | Yes (zero-config) | Target repo (e.g., `org/agile-flow`) |
+| `GITHUB_REPOSITORY` | Yes (zero-config) | Target repo (e.g., `org/gembaflow`) |
 | `RENDER_EXTERNAL_URL` | Auto (Render) | App's public URL for self-DSN construction |
 | `SENTRY_DSN` | No | External Sentry/GlitchTip DSN (overrides self-DSN) |
 | `APP_URL` | No | Fallback app URL if not on Render |

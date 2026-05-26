@@ -1,6 +1,6 @@
 # Framework SDLC
 
-How `agile-flow` is developed, tested, released, and propagated to its
+How `gembaflow` is developed, tested, released, and propagated to its
 downstream cloud variants. This document is written from the perspective of
 a contributor to the framework itself — not a user building on it.
 
@@ -8,7 +8,7 @@ a contributor to the framework itself — not a user building on it.
 
 ## Framework vs. Downstream — The Critical Distinction
 
-`agile-flow` is a **framework product**. Its consumers are:
+`gembaflow` is a **framework product**. Its consumers are:
 
 - `agile-flow-gcp` — the GCP Cloud Run + Neon variant
 - `agile-flow-aws` — the AWS variant (same structural pattern)
@@ -19,17 +19,17 @@ CI workflow structure, documentation templates, and starter projects.
 Cloud variants own: platform-specific deployment, database layer, and any
 agent prompts rewritten with platform guardrails.
 
-**A PR against `agile-flow` is not a product change. It is a framework
+**A PR against `gembaflow` is not a product change. It is a framework
 change.** Every such change propagates — or can propagate — to all downstream
 variants. This carries obligations that no other PR type does.
 
 ---
 
-## What a PR Against `agile-flow` Means
+## What a PR Against `gembaflow` Means
 
 ### Downstream propagation
 
-Merging to `agile-flow` main does not automatically update cloud variants.
+Merging to `gembaflow` main does not automatically update cloud variants.
 Variants pull changes on their own schedule using two sync paths:
 
 | Sync path | When used | Mechanism |
@@ -157,7 +157,7 @@ manually by the PR author before tagging.
 
 ## Per-PR Responsibilities
 
-Every PR against `agile-flow` main must satisfy this checklist before merge.
+Every PR against `gembaflow` main must satisfy this checklist before merge.
 
 ### Always required
 

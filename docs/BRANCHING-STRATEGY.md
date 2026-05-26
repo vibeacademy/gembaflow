@@ -1,6 +1,6 @@
 # Branching Strategy
 
-This document explains why the Agile Flow template requires trunk-based
+This document explains why the Gemba Flow template requires trunk-based
 development and how the branching model keeps your project safe. It is
 written for founders and builders who may be new to Git workflows.
 
@@ -16,7 +16,7 @@ into the car.
 
 Software works the same way:
 
-| Car Factory | Software (Agile Flow) |
+| Car Factory | Software (Gemba Flow) |
 |-------------|----------------------|
 | Test bench | **Feature branch** — an isolated workspace where you build and test one change |
 | Component inspection | **CI checks** — automated tests that verify the change before it goes anywhere |
@@ -123,7 +123,7 @@ quickly avoid this entirely.
 
 ## How It Works in This Template
 
-Here is the concrete flow when a ticket is worked in Agile Flow:
+Here is the concrete flow when a ticket is worked in Gemba Flow:
 
 ```
 1. Agent picks up a ticket from the Ready column

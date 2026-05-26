@@ -1,6 +1,6 @@
 # Platform Guide
 
-Agile Flow supports multiple deployment platforms. Your choice is stored
+Gemba Flow supports multiple deployment platforms. Your choice is stored
 in `.claude/PROJECT.md` and read by the `devops-engineer` and
 `system-architect` agents.
 
@@ -188,7 +188,7 @@ Instance > connect your repo.
 
 ## Database: Supabase (Recommended)
 
-Supabase is the recommended database for Agile Flow projects. Its native
+Supabase is the recommended database for Gemba Flow projects. Its native
 **branching** feature creates an isolated Postgres instance for each PR —
 migrations auto-applied, data fully isolated between PRs. Render's managed
 Postgres cannot do this (all preview environments share the same database).

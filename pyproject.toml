@@ -3,9 +3,9 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agile-flow"
+name = "gembaflow"
 version = "0.1.0"
-description = "Agile Flow Framework"
+description = "Gemba Flow Framework"
 requires-python = ">=3.9"
 dependencies = [
     "behave>=1.2.6",

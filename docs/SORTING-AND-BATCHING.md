@@ -1,6 +1,6 @@
 # Sorting and Batching
 
-Sorting work before executing it is the single highest-leverage improvement you can make to delivery cadence. Everything else in agile-flow — ticket format, branching, backlog grooming — is downstream of this principle.
+Sorting work before executing it is the single highest-leverage improvement you can make to delivery cadence. Everything else in gembaflow — ticket format, branching, backlog grooming — is downstream of this principle.
 
 ---
 
@@ -42,7 +42,7 @@ This is why effort estimates hold and budgets don't blow up. The variance in tic
 
 ---
 
-## How agile-flow Enforces This
+## How gembaflow Enforces This
 
 Sorting and batching aren't just advice — they're built into the workflow at multiple points:
 
