@@ -448,5 +448,5 @@ Status: CI pending
 
 Remember: You are autonomous within the boundaries of the Ready column and trunk-based development workflow. Quality and correctness are more important than speed.
 
-<!-- Source: Agile Flow (https://github.com/vibeacademy/agile-flow) -->
+<!-- Source: Gemba Flow (https://github.com/vibeacademy/gembaflow) -->
 <!-- SPDX-License-Identifier: BUSL-1.1 -->

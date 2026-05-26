@@ -1,7 +1,7 @@
 <!-- FRAMEWORK:START -->
-# Agile Flow
+# Gemba Flow
 
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](.agile-flow-version) [![Use this template](https://img.shields.io/badge/Use_this-template-2ea44f)](https://github.com/vibeacademy/agile-flow/generate)
+[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE) [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](.agile-flow-version) [![Use this template](https://img.shields.io/badge/Use_this-template-2ea44f)](https://github.com/vibeacademy/gembaflow/generate)
 
 A Claude Code project template that bootstraps a complete agile development workflow with specialized AI agents.
 
@@ -15,7 +15,7 @@ reports or dashboards, but firsthand. The word *gemba* (現場) means "the
 actual place." You cannot improve a process you have not seen. You
 cannot catch problems from a summary.
 
-Agile Flow applies the same principle to AI-assisted development. When
+Gemba Flow applies the same principle to AI-assisted development. When
 agents write code on your behalf, you are the factory manager. If you
 are not observing the work as it actually happens, you cannot be a
 responsible supervisor — and you expose yourself to risks you cannot
@@ -38,7 +38,7 @@ human supervisors to walk the *gemba*.
 
 ## What This Is
 
-Agile Flow provides a team of AI agents that work together to manage your software project:
+Gemba Flow provides a team of AI agents that work together to manage your software project:
 
 | Agent | Role |
 |-------|------|
@@ -54,7 +54,7 @@ The agents hand off work to each other through a structured workflow, with human
 
 ### What This Does NOT Include
 
-Agile Flow is a **workflow template**, not a full application. You provide:
+Gemba Flow is a **workflow template**, not a full application. You provide:
 
 - **Your application code** — the template ships a minimal starter app; you replace it with your own
 - **Your database** — Supabase is recommended and documented, but you choose your data layer
@@ -69,7 +69,7 @@ Agile Flow is a **workflow template**, not a full application. You provide:
 
 ## How It Works: Progressive Refinement
 
-Agile Flow uses **progressive refinement** - each phase builds context that makes subsequent phases more focused and effective.
+Gemba Flow uses **progressive refinement** - each phase builds context that makes subsequent phases more focused and effective.
 
 ```
 Phase 1: Product Definition
@@ -140,7 +140,7 @@ Once bootstrap is complete, use the standard workflow:
 ```
 
 Use `/report-issue` to send structured bug reports or suggestions back to the
-upstream Agile Flow maintainers. This creates a feedback loop that helps improve
+upstream Gemba Flow maintainers. This creates a feedback loop that helps improve
 the framework for everyone. See [`.claude/commands/report-issue.md`](.claude/commands/report-issue.md) for details.
 
 ## Project Structure
@@ -196,7 +196,7 @@ You'll need:
 
 #### Authenticating with GitHub
 
-Agile Flow uses the `gh` CLI for all GitHub operations. Authenticate
+Gemba Flow uses the `gh` CLI for all GitHub operations. Authenticate
 each account (human + bot accounts) using the `gh` keyring:
 
 ```bash
@@ -381,14 +381,14 @@ This is a template project. To contribute:
 
 ## Attribution
 
-Built with [Agile Flow](https://github.com/vibeacademy/agile-flow) by
+Built with [Gemba Flow](https://github.com/vibeacademy/gembaflow) by
 [VibeAcademy](https://vibeacademy.com).
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE) for full terms.
 
-You may use Agile Flow for any purpose, including production use, except
-for offering a commercial product that competes with Agile Flow (a
+You may use Gemba Flow for any purpose, including production use, except
+for offering a commercial product that competes with Gemba Flow (a
 developer workflow automation framework). On 2029-03-06, this version
 converts to the Apache License 2.0.
 <!-- FRAMEWORK:END -->

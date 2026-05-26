@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Agile Flow Doctor — Local Diagnostic Script
+# Gemba Flow Doctor — Local Diagnostic Script
 #
 # Validates the full configuration needed for the workshop:
 #   CLI tools, git config, GitHub auth, MCP config, Claude settings,
@@ -114,7 +114,7 @@ resolve_cmd() {
 # ───────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║${NC}              ${BLUE}Agile Flow Doctor${NC}                              ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}              ${BLUE}Gemba Flow Doctor${NC}                              ${CYAN}║${NC}"
 echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -136,21 +136,21 @@ if [ -f ".agile-flow-version" ]; then
         local_version=$("$JQ_CMD" -r '.version' .agile-flow-version 2>/dev/null || echo "")
         if [ -n "$local_version" ]; then
             # Fetch latest release from GitHub
-            latest_json=$(curl -s --max-time 5 https://api.github.com/repos/vibeacademy/agile-flow/releases/latest 2>/dev/null || echo "")
+            latest_json=$(curl -s --max-time 5 https://api.github.com/repos/vibeacademy/gembaflow/releases/latest 2>/dev/null || echo "")
             if [ -n "$latest_json" ]; then
                 latest_version=$(echo "$latest_json" | "$JQ_CMD" -r '.tag_name // empty' 2>/dev/null | sed 's/^v//')
                 release_url=$(echo "$latest_json" | "$JQ_CMD" -r '.html_url // empty' 2>/dev/null)
                 if [ -n "$latest_version" ]; then
                     if [ "$local_version" = "$latest_version" ]; then
-                        pass "Framework Version" "Agile Flow v${local_version} (up to date)"
+                        pass "Framework Version" "Gemba Flow v${local_version} (up to date)"
                     else
-                        warn "Framework Version" "Agile Flow v${local_version} (update available: v${latest_version})" "${release_url}"
+                        warn "Framework Version" "Gemba Flow v${local_version} (update available: v${latest_version})" "${release_url}"
                     fi
                 else
-                    warn "Framework Version" "Agile Flow v${local_version} (could not check for updates)" "GitHub API returned unexpected response"
+                    warn "Framework Version" "Gemba Flow v${local_version} (could not check for updates)" "GitHub API returned unexpected response"
                 fi
             else
-                warn "Framework Version" "Agile Flow v${local_version} (could not check for updates)" "GitHub API unreachable"
+                warn "Framework Version" "Gemba Flow v${local_version} (could not check for updates)" "GitHub API unreachable"
             fi
         else
             warn "Framework Version" "Version manifest unreadable" "Check .agile-flow-version format"

@@ -75,7 +75,7 @@ init_test_fork() {
   
   # Set up as downstream fork
   mkdir -p .agile-flow-meta
-  echo "vibeacademy/agile-flow" > .agile-flow-meta/upstream
+  echo "vibeacademy/gembaflow" > .agile-flow-meta/upstream
   echo "v1.0.8" > .agile-flow-meta/version  # Start one version behind
   
   git add .agile-flow-meta >/dev/null 2>&1

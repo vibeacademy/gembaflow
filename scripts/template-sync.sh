@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# template-sync.sh -- Sync framework files from vibeacademy/agile-flow releases.
+# template-sync.sh -- Sync framework files from vibeacademy/gembaflow releases.
 # Called by .github/workflows/template-sync.yml (workflow_dispatch only).
 # Guardrails:
 #   - Only syncs directories/files listed in syncDirectories (.agile-flow-version)
@@ -31,11 +31,12 @@ if ! gh auth token >/dev/null 2>&1; then
   exit 1
 fi
 
-UPSTREAM_REPO="vibeacademy/agile-flow"
-# FALLBACK_REPO is only consulted when the primary returns 404 (e.g. during the
-# agile-flow -> gembaflow rename window). The primary default stays unchanged
-# in this PR; see #331 (Phase 0.5 of the gembaflow rebrand).
-FALLBACK_REPO="vibeacademy/gembaflow"
+UPSTREAM_REPO="vibeacademy/gembaflow"
+# FALLBACK_REPO is only consulted when the primary returns 404. Post-Phase 2a
+# (#332) the primary is now gembaflow natively; the fallback points at the
+# legacy name and would only fire via GitHub's redirect if the gembaflow name
+# is ever changed again. Belt-and-suspenders — see #331 / #332.
+FALLBACK_REPO="vibeacademy/agile-flow"
 VERSION_FILE=".agile-flow-version"
 OVERRIDES_FILE=".agile-flow-overrides"
 RUNNING_SCRIPT_REL=$(python3 -c "import os,sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.getcwd()))" "$0")
@@ -209,9 +210,9 @@ echo "Protected overrides: ${#OVERRIDE_PATTERNS[@]} pattern(s)"
 ###############################################################################
 # 2. Fetch latest release from GitHub (unauthenticated)
 ###############################################################################
-# Use -L so curl follows GitHub's 301 redirects when an upstream repo is
-# renamed (e.g. agile-flow -> gembaflow during the rebrand rollout). Without
-# -L, curl returns empty on a redirect and the next JSON parse fails silently.
+# Use -L so curl follows GitHub's 301 redirects in case an upstream repo is
+# renamed in the future. Without -L, curl returns empty on a redirect and the
+# next JSON parse fails silently.
 RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/${UPSTREAM_REPO}/releases/latest" 2>/dev/null || true)
 
 # If the primary returned 404 (or curl produced no output), retry against the
@@ -466,7 +467,7 @@ mkdir -p .agile-flow-meta
 echo "$LATEST_VERSION" > .agile-flow-meta/version
 git add .agile-flow-meta/version
 
-COMMIT_MSG="chore(sync): update Agile Flow framework to v${LATEST_VERSION}"
+COMMIT_MSG="chore(sync): update Gemba Flow framework to v${LATEST_VERSION}"
 # Scope the bot identity to this single commit using -c so running locally
 # does NOT overwrite the user's per-repo git author config.
 git -c user.name="github-actions[bot]" \
@@ -481,7 +482,7 @@ for f in "${FILES_CHANGED[@]}"; do
 "
 done
 
-PR_BODY="## Agile Flow Framework Update
+PR_BODY="## Gemba Flow Framework Update
 
 Updates framework files from \`v${LOCAL_VERSION}\` to \`v${LATEST_VERSION}\`.
 
@@ -497,7 +498,7 @@ See the full release notes: ${RELEASE_URL}
 > **Please review the changes before merging.**"
 
 gh pr create \
-  --title "chore(sync): update Agile Flow framework to v${LATEST_VERSION}" \
+  --title "chore(sync): update Gemba Flow framework to v${LATEST_VERSION}" \
   --body "$PR_BODY" \
   --base main \
   --head "$SYNC_BRANCH"

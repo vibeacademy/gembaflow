@@ -337,10 +337,10 @@ run_upstream_scenario "upstream-honored" "vibeacademy/agile-flow-gcp" "vibeacade
 run_upstream_scenario "upstream-url-normalized" "https://github.com/vibeacademy/agile-flow-gcp" "vibeacademy/agile-flow-gcp" ""
 
 # (b) absent upstream falls back to hardcoded default
-run_upstream_scenario "upstream-absent" "" "vibeacademy/agile-flow" ""
+run_upstream_scenario "upstream-absent" "" "vibeacademy/gembaflow" ""
 
 # (c) 404 from primary -> fallback URL is tried
-FAIL_URL="https://api.github.com/repos/vibeacademy/agile-flow/releases/latest"
+FAIL_URL="https://api.github.com/repos/vibeacademy/gembaflow/releases/latest"
 SCEN_DIR="$WORK_DIR/scen-fallback"
 mkdir -p "$SCEN_DIR/scripts/lib"
 cp scripts/template-sync.sh "$SCEN_DIR/scripts/template-sync.sh"
@@ -365,17 +365,17 @@ popd >/dev/null
 
 URL1=$(sed -n '1p' "$WORK_DIR/curl-fallback.log" || true)
 URL2=$(sed -n '2p' "$WORK_DIR/curl-fallback.log" || true)
-if [[ "$URL1" == *"/repos/vibeacademy/agile-flow/releases/latest" ]]; then
+if [[ "$URL1" == *"/repos/vibeacademy/gembaflow/releases/latest" ]]; then
   pass "[fallback] primary URL tried first"
 else
   fail "[fallback] expected primary URL first, got: ${URL1:-<none>}"
 fi
-if [[ "$URL2" == *"/repos/vibeacademy/gembaflow/releases/latest" ]]; then
+if [[ "$URL2" == *"/repos/vibeacademy/agile-flow/releases/latest" ]]; then
   pass "[fallback] fallback URL tried after primary 404"
 else
-  fail "[fallback] expected gembaflow fallback URL second, got: ${URL2:-<none>}"
+  fail "[fallback] expected agile-flow fallback URL second, got: ${URL2:-<none>}"
 fi
-if grep -q "retrying against fallback vibeacademy/gembaflow" "$WORK_DIR/scen-fallback.log"; then
+if grep -q "retrying against fallback vibeacademy/agile-flow" "$WORK_DIR/scen-fallback.log"; then
   pass "[fallback] informational stderr line emitted"
 else
   fail "[fallback] expected informational fallback log line"

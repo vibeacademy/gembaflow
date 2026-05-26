@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Agile Flow Account Setup
+# Gemba Flow Account Setup
 #
 # Streamlined setup for the three-account GitHub configuration.
 # Paste your PATs → done. No interactive gh prompts.
@@ -99,7 +99,7 @@ persist_env_var() {
     else
         {
             echo ""
-            echo "# Added by Agile Flow setup-accounts"
+            echo "# Added by Gemba Flow setup-accounts"
             echo "export ${var_name}=\"${var_value}\""
         } >> "$profile"
         print_info "Added ${var_name} to ${profile}"
@@ -124,7 +124,7 @@ trap restore_personal EXIT
 # ═══════════════════════════════════════════════════════════════════
 
 echo ""
-echo -e "${CYAN}━━━ Agile Flow Account Setup ━━━${NC}"
+echo -e "${CYAN}━━━ Gemba Flow Account Setup ━━━${NC}"
 echo ""
 
 # ───────────────────────────────────────────────────────────────────

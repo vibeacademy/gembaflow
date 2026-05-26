@@ -87,7 +87,7 @@ The script generates a YAML front-matter Markdown file in .agile-flow-reports/:
 ```
 ---
 agile_flow_report: true
-upstream: https://github.com/vibeacademy/agile-flow
+upstream: https://github.com/vibeacademy/gembaflow
 fork_commit: abc123def456...
 upstream_version: v2.1.0 @ def789abc012
 severity: p2
@@ -106,7 +106,7 @@ End your response with a Result Block:
 ---
 
 **Result:** Issue filed
-URL: https://github.com/vibeacademy/agile-flow/issues/42
+URL: https://github.com/vibeacademy/gembaflow/issues/42
 Severity: p2
 Component: provisioning
 Report: .agile-flow-reports/report-20260508-143022.md
@@ -119,7 +119,7 @@ Or if fallback was used:
 
 **Result:** Report saved (manual submission required)
 Report: .agile-flow-reports/report-20260508-143022.md
-Browser URL: https://github.com/vibeacademy/agile-flow/issues/new?...
+Browser URL: https://github.com/vibeacademy/gembaflow/issues/new?...
 ```
 
 Or on error:

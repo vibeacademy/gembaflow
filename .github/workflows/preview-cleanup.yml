@@ -7,7 +7,7 @@ on:
 jobs:
   cleanup:
     name: Cleanup Preview Resources
-    if: github.repository != 'vibeacademy/agile-flow'
+    if: github.repository != 'vibeacademy/gembaflow'
     runs-on: ubuntu-latest
     steps:
       - name: Setup Supabase CLI
