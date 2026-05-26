@@ -32,6 +32,10 @@ if ! gh auth token >/dev/null 2>&1; then
 fi
 
 UPSTREAM_REPO="vibeacademy/agile-flow"
+# FALLBACK_REPO is only consulted when the primary returns 404 (e.g. during the
+# agile-flow -> gembaflow rename window). The primary default stays unchanged
+# in this PR; see #331 (Phase 0.5 of the gembaflow rebrand).
+FALLBACK_REPO="vibeacademy/gembaflow"
 VERSION_FILE=".agile-flow-version"
 OVERRIDES_FILE=".agile-flow-overrides"
 RUNNING_SCRIPT_REL=$(python3 -c "import os,sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.getcwd()))" "$0")
@@ -170,7 +174,33 @@ dirs = json.load(open('$VERSION_FILE')).get('syncDirectories', [])
 print('\n'.join(dirs))
 ")
 
+# Read optional `upstream` field from .agile-flow-version. Accepts either a
+# bare "owner/repo" string or a full GitHub URL; falls back to the hardcoded
+# UPSTREAM_REPO if the field is absent or empty. This lets downstream variant
+# forks (e.g. agile-flow-gcp) point /upgrade at their own upstream without
+# editing this script. See #331 (folds agile-flow-gcp#204).
+VERSION_UPSTREAM=$(python3 -c "
+import json, sys
+data = json.load(open('$VERSION_FILE'))
+val = data.get('upstream') or ''
+val = val.strip()
+# Normalize URL form -> owner/repo. Accept https://github.com/<owner>/<repo>
+# (with optional trailing .git or slash).
+for prefix in ('https://github.com/', 'http://github.com/', 'git@github.com:'):
+    if val.startswith(prefix):
+        val = val[len(prefix):]
+        break
+if val.endswith('.git'):
+    val = val[:-4]
+val = val.strip('/')
+print(val)
+")
+if [ -n "$VERSION_UPSTREAM" ]; then
+  UPSTREAM_REPO="$VERSION_UPSTREAM"
+fi
+
 echo "Local version : $LOCAL_VERSION"
+echo "Upstream repo : $UPSTREAM_REPO"
 echo "Sync targets  : $SYNC_DIRS"
 
 load_override_patterns "$OVERRIDES_FILE"
@@ -179,10 +209,23 @@ echo "Protected overrides: ${#OVERRIDE_PATTERNS[@]} pattern(s)"
 ###############################################################################
 # 2. Fetch latest release from GitHub (unauthenticated)
 ###############################################################################
-RELEASE_JSON=$(curl -sf "https://api.github.com/repos/${UPSTREAM_REPO}/releases/latest") || {
-  echo "ERROR: Could not fetch latest release from ${UPSTREAM_REPO}."
+# Use -L so curl follows GitHub's 301 redirects when an upstream repo is
+# renamed (e.g. agile-flow -> gembaflow during the rebrand rollout). Without
+# -L, curl returns empty on a redirect and the next JSON parse fails silently.
+RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/${UPSTREAM_REPO}/releases/latest" 2>/dev/null || true)
+
+# If the primary returned 404 (or curl produced no output), retry against the
+# fallback repo. This only fires when the primary truly doesn't exist; a 200
+# response keeps behavior byte-for-byte identical to today.
+if [ -z "$RELEASE_JSON" ] && [ -n "${FALLBACK_REPO:-}" ] && [ "$FALLBACK_REPO" != "$UPSTREAM_REPO" ]; then
+  echo "INFO: ${UPSTREAM_REPO} not reachable; retrying against fallback ${FALLBACK_REPO}." >&2
+  RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/${FALLBACK_REPO}/releases/latest" 2>/dev/null || true)
+fi
+
+if [ -z "$RELEASE_JSON" ]; then
+  echo "ERROR: Could not fetch latest release from ${UPSTREAM_REPO} (or fallback ${FALLBACK_REPO})."
   exit 1
-}
+fi
 
 LATEST_VERSION=$(echo "$RELEASE_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
 RELEASE_URL=$(echo "$RELEASE_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['html_url'])")
