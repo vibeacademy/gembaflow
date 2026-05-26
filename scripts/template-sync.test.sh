@@ -331,10 +331,10 @@ JSON
 }
 
 # (a) upstream field honored when present
-run_upstream_scenario "upstream-honored" "vibeacademy/agile-flow-gcp" "vibeacademy/agile-flow-gcp" ""
+run_upstream_scenario "upstream-honored" "vibeacademy/example-variant" "vibeacademy/example-variant" ""
 
 # (a2) upstream URL form normalized to owner/repo
-run_upstream_scenario "upstream-url-normalized" "https://github.com/vibeacademy/agile-flow-gcp" "vibeacademy/agile-flow-gcp" ""
+run_upstream_scenario "upstream-url-normalized" "https://github.com/vibeacademy/example-variant" "vibeacademy/example-variant" ""
 
 # (b) absent upstream falls back to hardcoded default
 run_upstream_scenario "upstream-absent" "" "vibeacademy/gembaflow" ""

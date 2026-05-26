@@ -209,8 +209,8 @@ print('\n'.join(dirs))
 # .agile-flow-version during the Phase 4 dual-read cycle). Accepts either a
 # bare "owner/repo" string or a full GitHub URL; falls back to the hardcoded
 # UPSTREAM_REPO if the field is absent or empty. This lets downstream variant
-# forks (e.g. gembaflow-gcp) point /upgrade at their own upstream without
-# editing this script. See #331 (folds agile-flow-gcp#204).
+# forks point /upgrade at their own upstream without editing this script.
+# See #331.
 VERSION_UPSTREAM=$(python3 -c "
 import json, sys
 data = json.load(open('$VERSION_FILE'))
