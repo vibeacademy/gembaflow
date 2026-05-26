@@ -29,7 +29,7 @@
   // Solo mode is the default for Codespaces — no bot accounts, single
   // personal account plays all roles.
   "containerEnv": {
-    "AGILE_FLOW_SOLO_MODE": "true"
+    "GEMBAFLOW_SOLO_MODE": "true"
   },
 
   // Preinstall Claude Code extension — provides `claude` CLI and sidebar UI.

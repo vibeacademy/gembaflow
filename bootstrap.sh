@@ -21,6 +21,19 @@ NC='\033[0m' # No Color
 # Status file to track progress
 STATUS_FILE=".claude/.bootstrap-status"
 
+# Dual-read shim for the agile-flow → Gemba Flow env-var rebrand.
+# Prefers GEMBAFLOW_*, falls back to the deprecated AGILE_FLOW_*.
+# See scripts/lib/env-compat.sh for the migration policy.
+BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/env-compat.sh
+source "${BOOTSTRAP_DIR}/scripts/lib/env-compat.sh"
+
+# Resolved values from the dual-read shim (prefer GEMBAFLOW_*, fall back
+# to deprecated AGILE_FLOW_*). Stored in plain bash vars so the rest of
+# this script (and code paths that reassign via `unset`) stays readable.
+BOOTSTRAP_WORKER_ACCOUNT="$(gf_env GEMBAFLOW_WORKER_ACCOUNT AGILE_FLOW_WORKER_ACCOUNT)"
+BOOTSTRAP_REVIEWER_ACCOUNT="$(gf_env GEMBAFLOW_REVIEWER_ACCOUNT AGILE_FLOW_REVIEWER_ACCOUNT)"
+
 print_header() {
     echo ""
     echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
@@ -292,16 +305,17 @@ phase0_environment() {
     echo "  human commit history clean and makes bot actions easy to audit."
     echo ""
 
-    if [ -n "$AGILE_FLOW_WORKER_ACCOUNT" ]; then
-        print_success "Worker account already configured: ${AGILE_FLOW_WORKER_ACCOUNT}"
+    if [ -n "$BOOTSTRAP_WORKER_ACCOUNT" ]; then
+        print_success "Worker account already configured: ${BOOTSTRAP_WORKER_ACCOUNT}"
         echo ""
         read -p "  Keep this account? (Y/n): " keep_worker
         if [[ "$keep_worker" =~ ^[Nn]$ ]]; then
-            unset AGILE_FLOW_WORKER_ACCOUNT
+            BOOTSTRAP_WORKER_ACCOUNT=""
+            unset GEMBAFLOW_WORKER_ACCOUNT AGILE_FLOW_WORKER_ACCOUNT
         fi
     fi
 
-    if [ -z "$AGILE_FLOW_WORKER_ACCOUNT" ]; then
+    if [ -z "$BOOTSTRAP_WORKER_ACCOUNT" ]; then
         echo "  The worker bot account should follow the naming convention:"
         echo "    {org}-worker   (e.g. acme-worker)"
         echo ""
@@ -322,7 +336,7 @@ phase0_environment() {
         read -p "  Press Enter to authenticate ${worker_account} (or 's' to skip): " worker_login
         if [[ "$worker_login" =~ ^[Ss]$ ]]; then
             print_warning "Skipped worker account login."
-            print_info "Set it manually later: export AGILE_FLOW_WORKER_ACCOUNT=${worker_account}"
+            print_info "Set it manually later: export GEMBAFLOW_WORKER_ACCOUNT=${worker_account}"
         else
             echo ""
             print_info "Logging in as ${worker_account}..."
@@ -334,7 +348,8 @@ phase0_environment() {
                 echo "  You can retry later with: gh auth login"
                 return 1
             }
-            persist_env_var "AGILE_FLOW_WORKER_ACCOUNT" "$worker_account"
+            persist_env_var "GEMBAFLOW_WORKER_ACCOUNT" "$worker_account"
+            BOOTSTRAP_WORKER_ACCOUNT="$worker_account"
             print_success "Worker account set: ${worker_account}"
 
             # Verify project scope on worker account
@@ -362,20 +377,21 @@ phase0_environment() {
     echo "  approving its own pull requests."
     echo ""
 
-    if [ -n "$AGILE_FLOW_REVIEWER_ACCOUNT" ]; then
-        print_success "Reviewer account already configured: ${AGILE_FLOW_REVIEWER_ACCOUNT}"
+    if [ -n "$BOOTSTRAP_REVIEWER_ACCOUNT" ]; then
+        print_success "Reviewer account already configured: ${BOOTSTRAP_REVIEWER_ACCOUNT}"
         echo ""
         read -p "  Keep this account? (Y/n): " keep_reviewer
         if [[ "$keep_reviewer" =~ ^[Nn]$ ]]; then
-            unset AGILE_FLOW_REVIEWER_ACCOUNT
+            BOOTSTRAP_REVIEWER_ACCOUNT=""
+            unset GEMBAFLOW_REVIEWER_ACCOUNT AGILE_FLOW_REVIEWER_ACCOUNT
         fi
     fi
 
-    if [ -z "$AGILE_FLOW_REVIEWER_ACCOUNT" ]; then
+    if [ -z "$BOOTSTRAP_REVIEWER_ACCOUNT" ]; then
         # Derive from worker account if available
         local reviewer_account=""
-        if [ -n "$AGILE_FLOW_WORKER_ACCOUNT" ]; then
-            local org_from_worker="${AGILE_FLOW_WORKER_ACCOUNT%-worker}"
+        if [ -n "$BOOTSTRAP_WORKER_ACCOUNT" ]; then
+            local org_from_worker="${BOOTSTRAP_WORKER_ACCOUNT%-worker}"
             reviewer_account="${org_from_worker}-reviewer"
             echo "  Based on your worker account, the reviewer account would be:"
             echo "    ${reviewer_account}"
@@ -403,7 +419,7 @@ phase0_environment() {
         read -p "  Press Enter to authenticate ${reviewer_account} (or 's' to skip): " reviewer_login
         if [[ "$reviewer_login" =~ ^[Ss]$ ]]; then
             print_warning "Skipped reviewer account login."
-            print_info "Set it manually later: export AGILE_FLOW_REVIEWER_ACCOUNT=${reviewer_account}"
+            print_info "Set it manually later: export GEMBAFLOW_REVIEWER_ACCOUNT=${reviewer_account}"
         else
             echo ""
             print_info "Logging in as ${reviewer_account}..."
@@ -415,7 +431,8 @@ phase0_environment() {
                 echo "  You can retry later with: gh auth login"
                 return 1
             }
-            persist_env_var "AGILE_FLOW_REVIEWER_ACCOUNT" "$reviewer_account"
+            persist_env_var "GEMBAFLOW_REVIEWER_ACCOUNT" "$reviewer_account"
+            BOOTSTRAP_REVIEWER_ACCOUNT="$reviewer_account"
             print_success "Reviewer account set: ${reviewer_account}"
 
             # Verify project scope on reviewer account
@@ -448,16 +465,26 @@ phase0_environment() {
         print_warning "skipped some account logins above — you can fix it later."
     fi
 
-    if [ -n "$AGILE_FLOW_WORKER_ACCOUNT" ]; then
-        print_success "AGILE_FLOW_WORKER_ACCOUNT = ${AGILE_FLOW_WORKER_ACCOUNT}"
+    # Re-read after persist_env_var (which exports in the current shell)
+    # so the summary reflects what was just configured. Use the shim
+    # so an existing AGILE_FLOW_* still surfaces (with the deprecation
+    # warning already printed at script start).
+    local worker_now reviewer_now worker_src reviewer_src
+    worker_now="$(gf_env GEMBAFLOW_WORKER_ACCOUNT AGILE_FLOW_WORKER_ACCOUNT)"
+    reviewer_now="$(gf_env GEMBAFLOW_REVIEWER_ACCOUNT AGILE_FLOW_REVIEWER_ACCOUNT)"
+    worker_src="$(gf_env_source_label GEMBAFLOW_WORKER_ACCOUNT AGILE_FLOW_WORKER_ACCOUNT)"
+    reviewer_src="$(gf_env_source_label GEMBAFLOW_REVIEWER_ACCOUNT AGILE_FLOW_REVIEWER_ACCOUNT)"
+
+    if [ -n "$worker_now" ]; then
+        print_success "Worker account = ${worker_now} (from ${worker_src})"
     else
-        print_warning "AGILE_FLOW_WORKER_ACCOUNT is not set."
+        print_warning "GEMBAFLOW_WORKER_ACCOUNT is not set."
     fi
 
-    if [ -n "$AGILE_FLOW_REVIEWER_ACCOUNT" ]; then
-        print_success "AGILE_FLOW_REVIEWER_ACCOUNT = ${AGILE_FLOW_REVIEWER_ACCOUNT}"
+    if [ -n "$reviewer_now" ]; then
+        print_success "Reviewer account = ${reviewer_now} (from ${reviewer_src})"
     else
-        print_warning "AGILE_FLOW_REVIEWER_ACCOUNT is not set."
+        print_warning "GEMBAFLOW_REVIEWER_ACCOUNT is not set."
     fi
 
     # -----------------------------------------------------------------------

@@ -25,6 +25,13 @@ if [ -z "$BASH_VERSION" ]; then
     exec bash "$0" "$@"
 fi
 
+# Dual-read shim for the agile-flow → Gemba Flow env-var rebrand.
+# Prefers GEMBAFLOW_*, falls back to the deprecated AGILE_FLOW_*.
+# See scripts/lib/env-compat.sh for the migration policy.
+DOCTOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/env-compat.sh
+source "${DOCTOR_DIR}/lib/env-compat.sh"
+
 # ───────────────────────────────────────────────────────────────────
 #  Colors
 # ───────────────────────────────────────────────────────────────────
@@ -292,40 +299,54 @@ else
     fail "GitHub Auth" "Not authenticated with gh" "Run: gh auth login"
 fi
 
-# AGILE_FLOW_WORKER_ACCOUNT (WARN)
-if [ -n "${AGILE_FLOW_WORKER_ACCOUNT:-}" ]; then
-    pass "GitHub Auth" "AGILE_FLOW_WORKER_ACCOUNT set: $AGILE_FLOW_WORKER_ACCOUNT"
+# Worker account env var (WARN) — dual-read GEMBAFLOW_* / AGILE_FLOW_*
+DOCTOR_WORKER_ACCOUNT="$(gf_env GEMBAFLOW_WORKER_ACCOUNT AGILE_FLOW_WORKER_ACCOUNT)"
+DOCTOR_WORKER_SRC="$(gf_env_source_label GEMBAFLOW_WORKER_ACCOUNT AGILE_FLOW_WORKER_ACCOUNT)"
+if [ -n "$DOCTOR_WORKER_ACCOUNT" ]; then
+    pass "GitHub Auth" "Worker account env set (${DOCTOR_WORKER_SRC}): $DOCTOR_WORKER_ACCOUNT"
 
     # Test worker account is in keyring
-    if "$GH_CMD" auth switch --user "$AGILE_FLOW_WORKER_ACCOUNT" &>/dev/null 2>&1; then
-        pass "GitHub Auth" "Worker account ($AGILE_FLOW_WORKER_ACCOUNT) in gh keyring"
+    if "$GH_CMD" auth switch --user "$DOCTOR_WORKER_ACCOUNT" &>/dev/null 2>&1; then
+        pass "GitHub Auth" "Worker account ($DOCTOR_WORKER_ACCOUNT) in gh keyring"
         # Restore original user
         if [ -n "$ORIGINAL_GH_USER" ]; then
             "$GH_CMD" auth switch --user "$ORIGINAL_GH_USER" &>/dev/null 2>&1 || true
         fi
     else
-        warn "GitHub Auth" "Worker account ($AGILE_FLOW_WORKER_ACCOUNT) not in gh keyring" "Run: gh auth login for this account"
+        warn "GitHub Auth" "Worker account ($DOCTOR_WORKER_ACCOUNT) not in gh keyring" "Run: gh auth login for this account"
+    fi
+
+    # Nudge users still on the deprecated name to migrate.
+    if [ -z "${GEMBAFLOW_WORKER_ACCOUNT:-}" ] && [ -n "${AGILE_FLOW_WORKER_ACCOUNT:-}" ]; then
+        warn "GitHub Auth" "AGILE_FLOW_WORKER_ACCOUNT is deprecated" "Rename to GEMBAFLOW_WORKER_ACCOUNT in your shell rc"
     fi
 else
-    warn "GitHub Auth" "AGILE_FLOW_WORKER_ACCOUNT not set" "export AGILE_FLOW_WORKER_ACCOUNT=\"{org}-worker\""
+    warn "GitHub Auth" "GEMBAFLOW_WORKER_ACCOUNT not set" "export GEMBAFLOW_WORKER_ACCOUNT=\"{org}-worker\""
 fi
 
-# AGILE_FLOW_REVIEWER_ACCOUNT (WARN)
-if [ -n "${AGILE_FLOW_REVIEWER_ACCOUNT:-}" ]; then
-    pass "GitHub Auth" "AGILE_FLOW_REVIEWER_ACCOUNT set: $AGILE_FLOW_REVIEWER_ACCOUNT"
+# Reviewer account env var (WARN) — dual-read GEMBAFLOW_* / AGILE_FLOW_*
+DOCTOR_REVIEWER_ACCOUNT="$(gf_env GEMBAFLOW_REVIEWER_ACCOUNT AGILE_FLOW_REVIEWER_ACCOUNT)"
+DOCTOR_REVIEWER_SRC="$(gf_env_source_label GEMBAFLOW_REVIEWER_ACCOUNT AGILE_FLOW_REVIEWER_ACCOUNT)"
+if [ -n "$DOCTOR_REVIEWER_ACCOUNT" ]; then
+    pass "GitHub Auth" "Reviewer account env set (${DOCTOR_REVIEWER_SRC}): $DOCTOR_REVIEWER_ACCOUNT"
 
     # Test reviewer account is in keyring
-    if "$GH_CMD" auth switch --user "$AGILE_FLOW_REVIEWER_ACCOUNT" &>/dev/null 2>&1; then
-        pass "GitHub Auth" "Reviewer account ($AGILE_FLOW_REVIEWER_ACCOUNT) in gh keyring"
+    if "$GH_CMD" auth switch --user "$DOCTOR_REVIEWER_ACCOUNT" &>/dev/null 2>&1; then
+        pass "GitHub Auth" "Reviewer account ($DOCTOR_REVIEWER_ACCOUNT) in gh keyring"
         # Restore original user
         if [ -n "$ORIGINAL_GH_USER" ]; then
             "$GH_CMD" auth switch --user "$ORIGINAL_GH_USER" &>/dev/null 2>&1 || true
         fi
     else
-        warn "GitHub Auth" "Reviewer account ($AGILE_FLOW_REVIEWER_ACCOUNT) not in gh keyring" "Run: gh auth login for this account"
+        warn "GitHub Auth" "Reviewer account ($DOCTOR_REVIEWER_ACCOUNT) not in gh keyring" "Run: gh auth login for this account"
+    fi
+
+    # Nudge users still on the deprecated name to migrate.
+    if [ -z "${GEMBAFLOW_REVIEWER_ACCOUNT:-}" ] && [ -n "${AGILE_FLOW_REVIEWER_ACCOUNT:-}" ]; then
+        warn "GitHub Auth" "AGILE_FLOW_REVIEWER_ACCOUNT is deprecated" "Rename to GEMBAFLOW_REVIEWER_ACCOUNT in your shell rc"
     fi
 else
-    warn "GitHub Auth" "AGILE_FLOW_REVIEWER_ACCOUNT not set" "export AGILE_FLOW_REVIEWER_ACCOUNT=\"{org}-reviewer\""
+    warn "GitHub Auth" "GEMBAFLOW_REVIEWER_ACCOUNT not set" "export GEMBAFLOW_REVIEWER_ACCOUNT=\"{org}-reviewer\""
 fi
 
 # Final restore — ensure we always end on the original user

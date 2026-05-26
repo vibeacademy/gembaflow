@@ -65,8 +65,12 @@ errors, typos): skip ticket ceremony but still use branch + PR.
 
 The `.claude/hooks/ensure-github-account.sh` hook auto-switches accounts:
 
-- **Worker** (`AGILE_FLOW_WORKER_ACCOUNT`, default: `va-worker`) — PR creation
-- **Reviewer** (`AGILE_FLOW_REVIEWER_ACCOUNT`, default: `va-reviewer`) — PR reviews
+- **Worker** (`GEMBAFLOW_WORKER_ACCOUNT`, default: `va-worker`) — PR creation
+- **Reviewer** (`GEMBAFLOW_REVIEWER_ACCOUNT`, default: `va-reviewer`) — PR reviews
+
+> The deprecated `AGILE_FLOW_WORKER_ACCOUNT` / `AGILE_FLOW_REVIEWER_ACCOUNT`
+> names still work via a dual-read shim (see `scripts/lib/env-compat.sh`)
+> and will be removed in a future release.
 
 ### GitHub CLI (`gh`)
 
