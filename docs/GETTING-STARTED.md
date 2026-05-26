@@ -1,6 +1,6 @@
-# Getting Started with Agile Flow
+# Getting Started with Gemba Flow
 
-A step-by-step guide to set up your project using the Agile Flow template.
+A step-by-step guide to set up your project using the Gemba Flow template.
 This guide is written for founders and non-engineers -- every step includes
 what you should see when it works.
 
@@ -229,7 +229,7 @@ Save everything and push it to GitHub.
 git add -A
 
 # Save a snapshot with a description
-git commit -m "Initialize project with Agile Flow template"
+git commit -m "Initialize project with Gemba Flow template"
 
 # Upload to GitHub
 git push -u origin main
@@ -355,7 +355,7 @@ This usually means Phase 3 (agent configuration) did not complete. Run:
 
 ## Checking for Updates
 
-Agile Flow tracks its version in the `.agile-flow-version` file at your
+Gemba Flow tracks its version in the `.agile-flow-version` file at your
 project root. To check which version you are running:
 
 ```bash

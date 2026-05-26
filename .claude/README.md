@@ -1,6 +1,6 @@
 # Claude Code Configuration
 
-This directory contains agent policies, slash commands, and settings for Claude Code projects using the Agile Flow template.
+This directory contains agent policies, slash commands, and settings for Claude Code projects using the Gemba Flow template.
 
 ## Directory Structure
 

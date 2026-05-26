@@ -123,7 +123,7 @@ single line of code.
 ### Automated changelogs and releases
 
 Tools can generate changelogs automatically from conventional commits.
-The Agile Flow template's release workflow (`release.yml`) already uses
+The Gemba Flow template's release workflow (`release.yml`) already uses
 `CHANGELOG.md` alongside commit types. Structured commits make it
 possible to answer "what shipped in this release?" without manual
 work.

@@ -1,6 +1,6 @@
 # Memory Architecture — Agent Institutional Knowledge
 
-How agile-flow agents persist, retrieve, and share knowledge across sessions.
+How gembaflow agents persist, retrieve, and share knowledge across sessions.
 For context engineering principles behind these choices, see
 [CONTEXT-OPTIMIZATIONS.md](CONTEXT-OPTIMIZATIONS.md).
 

@@ -1,6 +1,6 @@
 # Versioning Policy
 
-Agile Flow follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
+Gemba Flow follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 ## Version Format
 

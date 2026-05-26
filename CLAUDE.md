@@ -1,5 +1,5 @@
 <!-- FRAMEWORK:START -->
-# Agile Flow - Claude Code Project Template
+# Gemba Flow - Claude Code Project Template
 
 ## >>> CRITICAL RULES — Read These First <<<
 

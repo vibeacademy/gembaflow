@@ -1,6 +1,6 @@
 # Artifact Flow
 
-How documents, tickets, and code flow through the Agile Flow system — who
+How documents, tickets, and code flow through the Gemba Flow system — who
 produces each artifact, what it contains, and who consumes it.
 
 ---

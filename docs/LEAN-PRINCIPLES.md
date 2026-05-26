@@ -1,6 +1,6 @@
-# Lean Principles in Agile Flow
+# Lean Principles in Gemba Flow
 
-Agile Flow is a waste elimination system. Every agent, command, hook, and
+Gemba Flow is a waste elimination system. Every agent, command, hook, and
 workflow constraint exists to close a specific leak in the software delivery
 pipeline. The leaks are not new — they are the seven wastes identified by
 Toyota's lean manufacturing system, translated for software delivery by
@@ -13,7 +13,7 @@ is a way that code generation decouples from value delivery.
 
 ## The Seven Wastes
 
-| Manufacturing Waste | Software Waste | Agile Flow Countermeasure |
+| Manufacturing Waste | Software Waste | Gemba Flow Countermeasure |
 |---------------------|----------------|--------------------------|
 | Inventory | Partially Done Work | Pull system, WIP limits, one-ticket-at-a-time |
 | Overproduction | Extra Features | PM/PO gate, scope lock, feature evaluation |
@@ -35,7 +35,7 @@ obsolescence before delivery.
 half-finished PRs faster than humans can review them. Without constraints,
 you accumulate inventory at machine speed.
 
-**Agile Flow countermeasures:**
+**Gemba Flow countermeasures:**
 
 | Practice | How it helps |
 |----------|-------------|
@@ -60,7 +60,7 @@ to build a login page and it will add OAuth, magic links, biometric auth,
 and a password strength meter — none of which were requested. Overproduction
 is the default mode for generative AI.
 
-**Agile Flow countermeasures:**
+**Gemba Flow countermeasures:**
 
 | Practice | How it helps |
 |----------|-------------|
@@ -89,7 +89,7 @@ files, re-discovers the same patterns, and makes the same mistakes —
 every single time. Relearning waste becomes *catastrophic* at agent speed
 because the agent does not know what it does not know.
 
-**Agile Flow countermeasures:**
+**Gemba Flow countermeasures:**
 
 | Practice | How it helps |
 |----------|-------------|
@@ -116,7 +116,7 @@ Context windows do not transfer. If the worker agent's implementation
 intent is not captured in the PR description, the reviewer agent
 reviews blind.
 
-**Agile Flow countermeasures:**
+**Gemba Flow countermeasures:**
 
 | Practice | How it helps |
 |----------|-------------|
@@ -146,7 +146,7 @@ decisions. A PR that sits unreviewed for two days wasted the agent's
 speed advantage entirely. The bottleneck shifts from code production to
 human review bandwidth.
 
-**Agile Flow countermeasures:**
+**Gemba Flow countermeasures:**
 
 | Practice | How it helps |
 |----------|-------------|
@@ -173,7 +173,7 @@ of ramping up on different work items reduces focus and productivity.
 tasks means losing context, which means relearning (waste #3). An agent
 that juggles three tickets simultaneously will do all three poorly.
 
-**Agile Flow countermeasures:**
+**Gemba Flow countermeasures:**
 
 | Practice | How it helps |
 |----------|-------------|
@@ -201,7 +201,7 @@ with equal confidence whether the code is correct or hallucinated.
 Defect generation can outpace defect detection unless the system is
 designed to prevent it.
 
-**Agile Flow countermeasures:**
+**Gemba Flow countermeasures:**
 
 | Practice | How it helps |
 |----------|-------------|

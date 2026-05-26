@@ -2,7 +2,7 @@
 description: "Run a comprehensive health check of the local environment and remote configuration"
 ---
 
-# /doctor — Agile Flow Health Check
+# /doctor — Gemba Flow Health Check
 
 Run a comprehensive diagnostic of the local environment and remote
 configuration. Surfaces every issue that could block a workshop participant.
@@ -53,7 +53,7 @@ configuration. Surfaces every issue that could block a workshop participant.
 1. Format a **health report table** combining local + remote results:
 
    ```text
-   ## Agile Flow Health Report
+   ## Gemba Flow Health Report
 
    ### Local Checks (from scripts/doctor.sh)
    PASS: {n}  WARN: {n}  FAIL: {n}  SKIP: {n}

@@ -1,6 +1,6 @@
 # Agent Workflow Summary
 
-Comprehensive reference for the Agile Flow agent-powered development workflow.
+Comprehensive reference for the Gemba Flow agent-powered development workflow.
 
 ## Table of Contents
 
@@ -822,7 +822,7 @@ gh auth switch --user {org}-worker
 
 ## Summary
 
-The Agile Flow workflow provides:
+The Gemba Flow workflow provides:
 
 1. **Automated implementation** via github-ticket-worker
 2. **Automated review** via pr-reviewer
