@@ -216,9 +216,15 @@ gh auth status --user {org}-reviewer
 ```
 
 After remediation, the account-switch hook
-(`.claude/hooks/ensure-github-account.sh`) will route `gh project item-*`,
-`gh issue create`, `gh issue comment`, and `gh pr comment` to the reviewer
-automatically — no manual switch required.
+(`.claude/hooks/ensure-github-account.sh`) auto-routes `gh pr review` and
+`gh pr comment` to the reviewer account. Other commands — including
+`gh issue create`, `gh issue comment`, and `gh project item-*` — are
+intentionally NOT auto-routed, because command patterns can't reliably
+distinguish worker-context ticket creation (e.g. `/create-ticket`,
+`/report-issue`) from reviewer-context follow-ups. Slash commands that
+need a specific account are responsible for calling
+`gh auth switch --user {org}-reviewer` explicitly before filing follow-up
+tickets or moving items on the board.
 
 ## Agent Policies
 

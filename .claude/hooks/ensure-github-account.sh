@@ -27,15 +27,19 @@ tool_command=$(echo "$input" | jq -r '.tool_input.command // empty')
 
 # Determine required account based on tool
 #
-# Routing rules:
-#   - PR authorship + project-board moves caused by ticket work -> WORKER
-#   - PR review actions + follow-up issues/comments filed during review -> REVIEWER
+# Routing rules (narrow on purpose):
+#   - `gh pr create`                     -> WORKER   (PR authorship)
+#   - `gh pr review` / `gh pr comment`   -> REVIEWER (PR approval / review comments)
+#   - all other gh commands              -> passthrough (no enforcement)
 #
-# Project-board mutation commands (`gh project item-*`) are routed to the
-# REVIEWER when the calling context is review (the reviewer files follow-up
-# tickets and parks them on the board). The worker invokes board moves
-# directly inside `gh pr create` / `gh issue close` flows which already
-# match worker patterns.
+# Why so narrow: command patterns alone cannot reliably distinguish
+# "issue created during work" (worker) from "issue created during review
+# as a follow-up" (reviewer). The same applies to `gh project item-*`
+# board moves. Slash commands that need a specific account (e.g. the
+# reviewer when `/review-pr` files a follow-up ticket) are responsible
+# for calling `gh auth switch --user <account>` explicitly before
+# those operations. This hook only enforces the two cases where the
+# command name itself is unambiguous about which account should own it.
 required_account=""
 case "$tool_name" in
   Bash)
@@ -44,12 +48,6 @@ case "$tool_name" in
         required_account="$WORKER_ACCOUNT"
         ;;
       *"gh pr review"*|*"gh pr comment"*)
-        required_account="$REVIEWER_ACCOUNT"
-        ;;
-      *"gh issue create"*|*"gh issue comment"*)
-        required_account="$REVIEWER_ACCOUNT"
-        ;;
-      *"gh project item-add"*|*"gh project item-edit"*|*"gh project item-archive"*|*"gh project item-delete"*)
         required_account="$REVIEWER_ACCOUNT"
         ;;
       *)
