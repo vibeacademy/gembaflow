@@ -138,12 +138,7 @@ fi
 # ═══════════════════════════════════════════════════════════════════
 section "Framework Version"
 
-# Phase 4 dual-read (#335): prefer .gembaflow-version; fall back to legacy
-# .agile-flow-version for one release cycle.
 VERSION_MANIFEST=".gembaflow-version"
-if [ ! -f "$VERSION_MANIFEST" ] && [ -f ".agile-flow-version" ]; then
-    VERSION_MANIFEST=".agile-flow-version"
-fi
 
 if [ -f "$VERSION_MANIFEST" ]; then
     if JQ_CMD=$(resolve_cmd jq); then

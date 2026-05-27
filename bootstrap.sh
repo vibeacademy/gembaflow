@@ -935,11 +935,7 @@ phase4_workflow() {
     print_success "Phase 4 complete! Workflow activated."
 
     # Stamp installedAt in the version manifest if not already set.
-    # Phase 4 dual-read (#335): prefer .gembaflow-version; fall back to legacy.
     local af_manifest=".gembaflow-version"
-    if [ ! -f "$af_manifest" ] && [ -f ".agile-flow-version" ]; then
-        af_manifest=".agile-flow-version"
-    fi
     if [ -f "$af_manifest" ]; then
         local current_val
         current_val=$(jq -r '.installedAt // "null"' "$af_manifest" 2>/dev/null)
@@ -984,11 +980,7 @@ show_completion() {
     echo "  - docs/TECHNICAL-ARCHITECTURE.md - Your architecture"
     echo ""
     local af_version="unknown"
-    # Phase 4 dual-read (#335): prefer .gembaflow-version; fall back to legacy.
     local af_manifest=".gembaflow-version"
-    if [ ! -f "$af_manifest" ] && [ -f ".agile-flow-version" ]; then
-        af_manifest=".agile-flow-version"
-    fi
     if [ -f "$af_manifest" ]; then
         af_version=$(jq -r '.version // "unknown"' "$af_manifest" 2>/dev/null)
     fi

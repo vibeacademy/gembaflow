@@ -58,17 +58,8 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   fi
 fi
 
-# Dual-read for the dotfile rename. Prefer the new name; fall back to the
-# legacy name for one release cycle so forks that have not yet run the
-# migration above continue to function. Cleanup ticket follows in a later PR.
 VERSION_FILE=".gembaflow-version"
-if [ ! -f "$VERSION_FILE" ] && [ -f ".agile-flow-version" ]; then
-  VERSION_FILE=".agile-flow-version"
-fi
 OVERRIDES_FILE=".gembaflow-overrides"
-if [ ! -f "$OVERRIDES_FILE" ] && [ -f ".agile-flow-overrides" ]; then
-  OVERRIDES_FILE=".agile-flow-overrides"
-fi
 RUNNING_SCRIPT_REL=$(python3 -c "import os,sys; print(os.path.relpath(os.path.realpath(sys.argv[1]), os.getcwd()))" "$0")
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -205,8 +196,7 @@ dirs = json.load(open('$VERSION_FILE')).get('syncDirectories', [])
 print('\n'.join(dirs))
 ")
 
-# Read optional `upstream` field from .gembaflow-version (or the legacy
-# .agile-flow-version during the Phase 4 dual-read cycle). Accepts either a
+# Read optional `upstream` field from .gembaflow-version. Accepts either a
 # bare "owner/repo" string or a full GitHub URL; falls back to the hardcoded
 # UPSTREAM_REPO if the field is absent or empty. This lets downstream variant
 # forks point /upgrade at their own upstream without editing this script.
@@ -481,9 +471,7 @@ fi
 
 git checkout -b "$SYNC_BRANCH"
 
-# Update the version manifest ($VERSION_FILE may be .gembaflow-version or, in
-# the dual-read fallback window, the legacy .agile-flow-version) with the new
-# version.
+# Update the version manifest with the new version.
 python3 -c "
 import json
 with open('$VERSION_FILE', 'r') as f:
@@ -495,14 +483,8 @@ with open('$VERSION_FILE', 'w') as f:
 "
 git add "$VERSION_FILE"
 
-# Write the meta-dir version stamp. Prefer the new .gembaflow-meta/ name; if
-# the legacy directory still exists alongside (shouldn't, given the migration
-# step above, but defensive), write to the new one and let the migration tidy
-# up on the next run.
+# Write the meta-dir version stamp.
 META_DIR=".gembaflow-meta"
-if [ ! -d "$META_DIR" ] && [ -d ".agile-flow-meta" ]; then
-  META_DIR=".agile-flow-meta"
-fi
 mkdir -p "$META_DIR"
 echo "$LATEST_VERSION" > "$META_DIR/version"
 git add "$META_DIR/version"

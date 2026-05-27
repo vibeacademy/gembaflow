@@ -62,14 +62,14 @@ def get_report_script_path():
     return script_path
 
 
-@given(".agile-flow-version exists with valid upstream URL")
+@given(".gembaflow-version exists with valid upstream URL")
 def agile_flow_version_exists(context):
-    """Create .agile-flow-version with valid upstream URL."""
+    """Create .gembaflow-version with valid upstream URL."""
     # Always ensure we have a temp git repo
     context.temp_git_repo = create_temp_git_repo()
 
     mock_upstream_repo = get_mock_upstream_repo()
-    version_file = context.temp_git_repo / ".agile-flow-version"
+    version_file = context.temp_git_repo / ".gembaflow-version"
     version_data = {
         "upstream": f"https://github.com/{mock_upstream_repo}",
         "version": "v2.1.0",
@@ -340,24 +340,24 @@ def fallback_url_provided(context):
 # ============================================================================
 
 
-@given(".agile-flow-version does not exist")
+@given(".gembaflow-version does not exist")
 def agile_flow_version_does_not_exist(context):
-    """Ensure .agile-flow-version file does not exist."""
+    """Ensure .gembaflow-version file does not exist."""
     # Always ensure we have a temp git repo
     context.temp_git_repo = create_temp_git_repo()
 
-    version_file = context.temp_git_repo / ".agile-flow-version"
+    version_file = context.temp_git_repo / ".gembaflow-version"
     if version_file.exists():
         version_file.unlink()
 
 
-@given(".agile-flow-version exists but upstream field is missing")
+@given(".gembaflow-version exists but upstream field is missing")
 def agile_flow_version_exists_but_upstream_missing(context):
-    """Create .agile-flow-version but without upstream field."""
+    """Create .gembaflow-version but without upstream field."""
     # Always ensure we have a temp git repo
     context.temp_git_repo = create_temp_git_repo()
 
-    version_file = context.temp_git_repo / ".agile-flow-version"
+    version_file = context.temp_git_repo / ".gembaflow-version"
     # Create JSON without upstream field
     version_data = {
         "version": "v2.1.0",
@@ -867,14 +867,14 @@ def error_indicates_body_required_in_non_interactive_mode(context):
 # ============================================================================
 
 
-@given(".agile-flow-version exists with empty string version field")
+@given(".gembaflow-version exists with empty string version field")
 def agile_flow_version_exists_with_empty_string_version(context):
-    """Create .agile-flow-version with empty string version field."""
+    """Create .gembaflow-version with empty string version field."""
     # Always ensure we have a temp git repo
     context.temp_git_repo = create_temp_git_repo()
 
     mock_upstream_repo = get_mock_upstream_repo()
-    version_file = context.temp_git_repo / ".agile-flow-version"
+    version_file = context.temp_git_repo / ".gembaflow-version"
     version_data = {
         "upstream": f"https://github.com/{mock_upstream_repo}",
         "version": "",  # empty string version
@@ -883,14 +883,14 @@ def agile_flow_version_exists_with_empty_string_version(context):
     version_file.write_text(json.dumps(version_data, indent=2) + "\n")
 
 
-@given(".agile-flow-version exists with whitespace-only version field")
+@given(".gembaflow-version exists with whitespace-only version field")
 def agile_flow_version_exists_with_whitespace_version(context):
-    """Create .agile-flow-version with whitespace-only version field."""
+    """Create .gembaflow-version with whitespace-only version field."""
     # Always ensure we have a temp git repo
     context.temp_git_repo = create_temp_git_repo()
 
     mock_upstream_repo = get_mock_upstream_repo()
-    version_file = context.temp_git_repo / ".agile-flow-version"
+    version_file = context.temp_git_repo / ".gembaflow-version"
     version_data = {
         "upstream": f"https://github.com/{mock_upstream_repo}",
         "version": "   ",  # whitespace-only version
@@ -899,14 +899,14 @@ def agile_flow_version_exists_with_whitespace_version(context):
     version_file.write_text(json.dumps(version_data, indent=2) + "\n")
 
 
-@given(".agile-flow-version exists with null version field")
+@given(".gembaflow-version exists with null version field")
 def agile_flow_version_exists_with_null_version(context):
-    """Create .agile-flow-version with null version field."""
+    """Create .gembaflow-version with null version field."""
     # Always ensure we have a temp git repo
     context.temp_git_repo = create_temp_git_repo()
 
     mock_upstream_repo = get_mock_upstream_repo()
-    version_file = context.temp_git_repo / ".agile-flow-version"
+    version_file = context.temp_git_repo / ".gembaflow-version"
     version_data = {
         "upstream": f"https://github.com/{mock_upstream_repo}",
         "version": None,

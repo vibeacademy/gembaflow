@@ -18,11 +18,6 @@
 #     Note: bash pattern matching is greedy — `*` will cross `/`, so
 #     `scripts/*.sh` also matches `scripts/lib/overrides.sh`. Use a more
 #     specific path if you need a narrower match.
-#
-# Phase 4 rebrand (#335): the default overrides path is now .gembaflow-overrides.
-# Callers passing the legacy .agile-flow-overrides path continue to work, and
-# load_override_patterns falls back to the legacy file when called with the
-# new name on a fork that has not yet migrated.
 
 # Indexed array of patterns loaded from the overrides file.
 OVERRIDE_PATTERNS=()
@@ -35,13 +30,6 @@ OVERRIDE_PATTERNS=()
 load_override_patterns() {
   local overrides_file="${1:-.gembaflow-overrides}"
   OVERRIDE_PATTERNS=()
-
-  # Phase 4 dual-read: if the requested file does not exist but the legacy
-  # .agile-flow-overrides does, transparently use it. Keeps unmigrated forks
-  # functional for one release cycle.
-  if [ ! -f "$overrides_file" ] && [ "$overrides_file" = ".gembaflow-overrides" ] && [ -f ".agile-flow-overrides" ]; then
-    overrides_file=".agile-flow-overrides"
-  fi
 
   [ -f "$overrides_file" ] || return 0
 

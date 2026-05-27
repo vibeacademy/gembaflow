@@ -7,7 +7,4 @@
 # Paths are relative to the repo root.
 
 # Metadata directory is always local — never stomped by upstream upgrades.
-# Both names listed during the Phase 4 rebrand dual-read window (#335); the
-# legacy entry can be removed in the cleanup PR after one release cycle.
 .gembaflow-meta/
-.agile-flow-meta/
