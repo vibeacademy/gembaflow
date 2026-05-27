@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `features/` directory now in `syncDirectories` — downstream forks pick up upstream test updates via `/upgrade`. Forks that customize specific feature tests should add `features/<file>` to `.gembaflow-overrides`. (#362)
+
 ## [1.2.0] - 2026-05-27
 
 **The Gemba Flow rebrand release.** v1.1.0 was the redirect-safety enabler that let the GitHub repo rename happen transparently; v1.2.0 ships the rest of the rebrand — package names, env vars, dotfile names, all URLs, agent footers, workshop docs.

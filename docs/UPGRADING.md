@@ -59,6 +59,7 @@ The workflow runs the same sync script and opens a pull request.
    - `.claude/commands`
    - `.claude/hooks`
    - `.claude/skills`
+   - `features`
    - `scripts`
    - `starters`
 4. It creates a branch (`gembaflow-sync/v{VERSION}`), commits the changes,
@@ -68,6 +69,21 @@ The workflow runs the same sync script and opens a pull request.
 **Your code is safe.** Application code (`app/`, `__tests__/`), product docs
 (`PRODUCT-REQUIREMENTS.md`, `PRODUCT-ROADMAP.md`), deployment config
 (`render.yaml`), and other user-content files are never touched.
+
+### One-time effect on forks bootstrapped before `features/` was synced
+
+The `features/` directory holds the BDD test suite and is framework-owned. It
+was added to `syncDirectories` after the v1.2.0 rebrand (#362). Forks that
+were bootstrapped before that change still carry their original copy of
+`features/` from initial fork time and have never received upstream updates
+to it. On the next `/upgrade` after #362 lands, `template-sync.sh` will
+compare each file under `features/` and replace any that differ from the
+upstream release — pulling in renames such as `.agile-flow-version` →
+`.gembaflow-version` inside the BDD step files.
+
+If your fork has intentionally customized a specific feature test, add the
+path to `.gembaflow-overrides` (e.g. `features/steps/report_issue_steps.py`)
+before running `/upgrade` to keep your local version.
 
 ---
 
@@ -160,8 +176,8 @@ If the automated sync does not work for your setup, you can upgrade manually:
    [releases page](https://github.com/vibeacademy/gembaflow/releases).
 2. Extract the archive.
 3. Copy the framework directories (`.claude/agents`, `.claude/commands`,
-   `.claude/hooks`, `.claude/skills`, `scripts`, `starters`) into your
-   project, overwriting existing files.
+   `.claude/hooks`, `.claude/skills`, `features`, `scripts`, `starters`)
+   into your project, overwriting existing files.
 4. Update the `version` field in `.gembaflow-version` to match the release
    tag.
 5. Commit the changes and open a pull request for review.
