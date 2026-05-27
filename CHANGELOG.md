@@ -7,13 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [1.2.0] - 2026-05-27
 
-- **Phase 4 of the agile-flow → Gemba Flow rebrand: dotfile rename.** The three repo-root dotfiles used by template-sync and report-issue have been renamed from `.agile-flow-*` to `.gembaflow-*`:
-  - `.agile-flow-version` → `.gembaflow-version`
-  - `.agile-flow-meta/` → `.gembaflow-meta/`
-  - `.agile-flow-overrides` → `.gembaflow-overrides`
-  The sync branch prefix is now `gembaflow-sync/v…` (was `agile-flow-sync/v…`). `scripts/template-sync.sh` performs a one-time `git mv` from old to new names on its next run, so forks see the rename as part of their next sync PR. All read paths in framework scripts (`template-sync.sh`, `report-issue.sh`, `doctor.sh`, `bootstrap.sh`, `validate-version-parity.sh`, `lib/overrides.sh`) now prefer the new name and fall back to the legacy name for one release cycle. Cleanup PR to drop the dual-read fallback follows in a separate ticket. (#335)
+**The Gemba Flow rebrand release.** v1.1.0 was the redirect-safety enabler that let the GitHub repo rename happen transparently; v1.2.0 ships the rest of the rebrand — package names, env vars, dotfile names, all URLs, agent footers, workshop docs.
+
+## Migration on first `/upgrade`
+
+When you run `/upgrade` against this release, `scripts/template-sync.sh` will:
+
+1. **Auto-rename your dotfiles** (one-time, idempotent):
+   - `.agile-flow-version` → `.gembaflow-version`
+   - `.agile-flow-meta/` → `.gembaflow-meta/`
+   - `.agile-flow-overrides` → `.gembaflow-overrides`
+2. Sync the new framework files (which now reference `.gembaflow-*` natively — no dual-read fallback as of v1.2.0).
+
+The migration step prints `INFO: migrating <old> -> <new>` for each rename. No-ops if you're already on the new names.
+
+### If you set `AGILE_FLOW_*` env vars
+
+`AGILE_FLOW_WORKER_ACCOUNT`, `AGILE_FLOW_REVIEWER_ACCOUNT`, `AGILE_FLOW_SOLO_MODE` still work via the dual-read shim in `scripts/lib/env-compat.sh` — you'll see a one-line stderr deprecation warning when they're the only thing set. Rename them to `GEMBAFLOW_*` in your shell rc / Codespaces secrets / devcontainer at your convenience.
+
+## Changed
+
+- **Package metadata:** `package.json` `name`: `agile-flow-starter` → `gembaflow-starter`. `pyproject.toml` `name`: `agile-flow` → `gembaflow`. `description`: "Gemba Flow Framework". (#347)
+- **Dotfiles renamed** (with auto-migration step on first `/upgrade`): `.agile-flow-version` → `.gembaflow-version`, `.agile-flow-meta/` → `.gembaflow-meta/`, `.agile-flow-overrides` → `.gembaflow-overrides`. Sync branch prefix `agile-flow-sync/v…` → `gembaflow-sync/v…`. (#348)
+- **Env vars** now read `GEMBAFLOW_*` first, fall back to `AGILE_FLOW_*` with deprecation warning. Helper at `scripts/lib/env-compat.sh`. (#346)
+- **URL references and agent source footers** now natively reference `vibeacademy/gembaflow`. Old URLs continue to work via GitHub's 301 redirect for legacy clones. (#345)
+- **`scripts/template-sync.sh`**: `UPSTREAM_REPO="vibeacademy/gembaflow"` (was `vibeacademy/agile-flow`); `FALLBACK_REPO="vibeacademy/agile-flow"` defensive belt-and-suspenders. (#345)
+- **Workflow guards** in `deploy.yml`, `preview-deploy.yml`, `preview-cleanup.yml`: `if: github.repository != 'vibeacademy/gembaflow'` (was `agile-flow`) — without this, the template repo would have started running preview/deploy CI on its own PRs after the rename. (#345)
+
+## Added
+
+- **`upstream` field auto-normalized** in `.gembaflow-version` from full URL or bare `owner/repo` (Phase 0.5 capability, formalized in v1.2.0 docs).
+- **Migration step** in `template-sync.sh` that `git mv`s legacy dotfiles to new names on first sync after upgrade. Kept indefinitely for dormant forks. (#348)
+
+## Removed
+
+- **Phase 4 dual-read fallback** removed across 6 scripts (`template-sync.sh`, `report-issue.sh`, `doctor.sh`, `lib/overrides.sh`, `validation/validate-version-parity.sh`, `bootstrap.sh`). Net -60 LOC. Forks on `.agile-flow-*` paths must run `/upgrade` once to trigger the migration step before scripts will function. (#359)
+
+## Fixed
+
+- **Pre-push hook**: `scripts/hooks/pre-push` now runs `uv run --extra dev pytest` and `uv run --extra dev ruff check`. Without `--extra dev`, fresh contributors' first push failed with `Failed to spawn: pytest`. (#350, closes #341)
+- **`template-cleanliness` CI check**: removed `vibeacademy/agile-flow-gcp` test fixture references that tripped `gcp` rule; replaced with generic `vibeacademy/example-variant`. (#348)
+- **BDD tests**: reports-dir assertions updated to `.gembaflow-reports/` so the test suite passes against the renamed dotfiles. (#348, #359)
+- **`#352` downstream-report** — three v1.1.0 bugs (`scripts/report-issue.sh` hardcoded paths, template-cleanliness violations, BDD assertion mismatch) all resolved on this release.
+
+## Upgrade notes
+
+After running `/upgrade` against this release:
+
+- **First-time migration**: expect `INFO: migrating .agile-flow-version -> .gembaflow-version` (and similar lines) in the sync output. The renames go into the sync PR alongside the framework file updates.
+- **If your `.agile-flow-version` had an `upstream` field**, it's preserved (the rename is a `git mv`, not a recreate). Downstream variant forks (e.g. `gembaflow-gcp`) that point at their own upstream continue working.
+- **`AGILE_FLOW_*` env vars**: still work, but rename at your convenience to silence the deprecation warning. Future minor release will drop the shim.
+- **Reviewer bot PAT**: if you provisioned one before v1.0.11, it may be missing the `project` scope. Remediate with `gh auth refresh --user {org}-reviewer --scopes repo,workflow,project,gist,read:org`. (See `.claude/README.md` "Remediation" section.)
+
+## Rebrand epic
+
+The agile-flow → Gemba Flow rebrand is now structurally complete: [gembaflow-meta#96](https://github.com/vibeacademy/gembaflow-meta/issues/96) (closed). v1.2.0 is the shipping artifact for that work.
 
 ## [1.1.0] - 2026-05-26
 
@@ -81,6 +131,7 @@ Pre-upgrade baseline — the first tagged release of Agile Flow.
 - Product documentation templates (PRD, Roadmap)
 - Getting Started guide
 
-[Unreleased]: https://github.com/vibeacademy/agile-flow/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/vibeacademy/agile-flow/compare/v1.0.11...v1.1.0
+[Unreleased]: https://github.com/vibeacademy/gembaflow/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/vibeacademy/gembaflow/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/vibeacademy/gembaflow/compare/v1.0.11...v1.1.0
 [0.9.0]: https://github.com/vibeacademy/agile-flow/releases/tag/v0.9.0
