@@ -15,16 +15,8 @@
 
 set -euo pipefail
 
-# Phase 4 rebrand (#335): prefer .gembaflow-* dotfiles; fall back to legacy
-# .agile-flow-* names for one release cycle so unmigrated forks keep working.
 VERSION_FILE=".gembaflow-version"
-if [ ! -f "$VERSION_FILE" ] && [ -f ".agile-flow-version" ]; then
-  VERSION_FILE=".agile-flow-version"
-fi
 REPORTS_DIR=".gembaflow-reports"
-if [ ! -d "$REPORTS_DIR" ] && [ -d ".agile-flow-reports" ]; then
-  REPORTS_DIR=".agile-flow-reports"
-fi
 
 # ── Parse flags ───────────────────────────────────────────────────────────────
 
@@ -118,7 +110,7 @@ done
 # ── Verify the version manifest exists ────────────────────────────────────────
 
 if [ ! -f "$VERSION_FILE" ]; then
-  echo "ERROR: .gembaflow-version file not found (also no legacy .agile-flow-version)." >&2
+  echo "ERROR: .gembaflow-version file not found." >&2
   echo "This fork does not have upstream metadata. Run /upgrade to initialise." >&2
   exit 1
 fi
