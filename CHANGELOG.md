@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Fresh forks no longer stage a no-op first `/upgrade`** (#381). `bootstrap.sh` now looks up the latest upstream release tag via `gh release view` and sets `.gembaflow-version` `version` alongside `installedAt` on first install. If the lookup fails (no network, no `gh` auth), bootstrap falls back to the previous behavior and prints a warning recommending `/upgrade`. As a safety net, `scripts/template-sync.sh` now detects the fresh-fork placeholder case (`version == "0.1.0"` with `installedAt` already stamped) and short-circuits: it writes the latest tag into the manifest locally and exits 0 without generating a sync PR. Legitimately-behind forks (e.g. `version: 1.2.0`) still sync normally.
+
 ## [1.3.0] - 2026-05-28
 
 **Adds the `/eli5` slash command to the framework.** Minor version bump because this is a user-visible new operator capability.

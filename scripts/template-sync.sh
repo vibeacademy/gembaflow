@@ -339,6 +339,40 @@ TARBALL_URL=$(echo "$RELEASE_JSON" | python3 -c "import json,sys; print(json.loa
 echo "Latest version: $LATEST_VERSION"
 
 ###############################################################################
+# 2a. Fresh-fork placeholder short-circuit (#381)
+#
+# Every fresh fork starts at ".gembaflow-version" version "0.1.0" — the template
+# placeholder. If bootstrap.sh ran but couldn't set the version (e.g. network
+# failure on `gh release view`), installedAt is stamped but version stays at
+# "0.1.0". Without this short-circuit, every such fork's first /upgrade syncs
+# from "0.1.0" to the actual latest release tag, generating a no-op PR.
+#
+# Detect this case (placeholder version + installedAt stamped) and just bump
+# the version field locally — no PR, no churn. Legitimately-behind forks
+# (version like "1.2.0" with a real installedAt) fall through to normal sync.
+###############################################################################
+INSTALLED_AT=$(python3 -c "import json; print(json.load(open('$VERSION_FILE')).get('installedAt') or '')")
+if [ "$LOCAL_VERSION" = "0.1.0" ] && [ -n "$INSTALLED_AT" ]; then
+  echo "INFO: detected fresh-fork placeholder version; setting LOCAL_VERSION to latest without sync." >&2
+  if command -v jq >/dev/null 2>&1; then
+    jq --arg ver "$LATEST_VERSION" '.version = $ver' "$VERSION_FILE" > "$VERSION_FILE.tmp" \
+      && mv "$VERSION_FILE.tmp" "$VERSION_FILE"
+  else
+    python3 - <<PY
+import json
+with open("$VERSION_FILE") as f:
+    data = json.load(f)
+data["version"] = "$LATEST_VERSION"
+with open("$VERSION_FILE", "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+PY
+  fi
+  echo "Already up to date (fresh-fork initialized to v${LATEST_VERSION})."
+  exit 0
+fi
+
+###############################################################################
 # 3. Compare versions
 ###############################################################################
 if [ "$LOCAL_VERSION" = "$LATEST_VERSION" ]; then
