@@ -612,6 +612,176 @@ else
 fi
 popd >/dev/null
 
+###############################################################################
+# Scenario 5: package.json version bump (#361)
+###############################################################################
+# Verifies template-sync.sh writes the new framework version into package.json
+# (matching .gembaflow-version), and that re-running on an already-synced repo
+# is a no-op (idempotent). Without this, the CI parity check exits non-zero on
+# every framework-sync PR.
+echo ""
+echo "Scenario 5: package.json version is bumped to match release"
+
+PKG_DIR="$WORK_DIR/pkg-bump"
+mkdir -p "$PKG_DIR/scripts/lib"
+cp scripts/template-sync.sh "$PKG_DIR/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$PKG_DIR/scripts/lib/overrides.sh"
+chmod +x "$PKG_DIR/scripts/template-sync.sh"
+: > "$PKG_DIR/.gembaflow-overrides"
+
+cat > "$PKG_DIR/.gembaflow-version" <<'JSON'
+{
+  "version": "0.0.1",
+  "syncDirectories": ["./scripts"]
+}
+JSON
+
+cat > "$PKG_DIR/package.json" <<'JSON'
+{
+  "name": "test-fork",
+  "version": "0.0.1",
+  "private": true
+}
+JSON
+
+# Upstream tarball: copies of the runtime-protected script + lib (so the
+# protect path keeps the script intact), PLUS a non-protected `scripts/marker.sh`
+# whose absence in the fork forces FILES_CHANGED to be non-empty — otherwise
+# the sync exits at "Already up to date" before reaching the version-write
+# block where the package.json bump lives.
+PKG_UPSTREAM="$WORK_DIR/pkg-upstream/vibeacademy-agile-flow-release"
+mkdir -p "$PKG_UPSTREAM/scripts/lib"
+cp scripts/template-sync.sh "$PKG_UPSTREAM/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$PKG_UPSTREAM/scripts/lib/overrides.sh"
+printf '#!/usr/bin/env bash\necho marker\n' > "$PKG_UPSTREAM/scripts/marker.sh"
+chmod +x "$PKG_UPSTREAM/scripts/marker.sh"
+tar -czf "$WORK_DIR/pkg-upstream.tar.gz" -C "$WORK_DIR/pkg-upstream" vibeacademy-agile-flow-release
+
+mkdir -p "$WORK_DIR/pkg-bin"
+cat > "$WORK_DIR/pkg-bin/curl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == *"/releases/latest"* ]]; then
+  printf '{"tag_name":"v1.2.0","html_url":"https://example.invalid/release","tarball_url":"https://example.invalid/pkg-upstream.tar.gz"}'
+  exit 0
+fi
+if [[ "$*" == *"pkg-upstream.tar.gz"* ]]; then
+  out=''
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "-o" ]; then
+      out="$2"
+      shift 2
+      continue
+    fi
+    shift
+  done
+  cp "$TEST_PKG_TARBALL" "$out"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$WORK_DIR/pkg-bin/curl"
+
+cat > "$WORK_DIR/pkg-bin/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "auth" && "${2:-}" == "token" ]]; then echo "fake-token"; exit 0; fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "create" ]]; then
+  echo "https://example.invalid/pr/361"
+  exit 0
+fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "list" ]]; then
+  echo '[]'
+  exit 0
+fi
+exit 0
+SH
+chmod +x "$WORK_DIR/pkg-bin/gh"
+
+pushd "$PKG_DIR" >/dev/null
+git init >/dev/null
+git -c user.name=test -c user.email=t@t.invalid add .
+git -c user.name=test -c user.email=t@t.invalid commit -m "init pkg-bump" >/dev/null
+git init --bare "$WORK_DIR/pkg-origin.git" >/dev/null
+git remote add origin "$WORK_DIR/pkg-origin.git"
+git push -u origin HEAD >/dev/null
+
+if TEST_PKG_TARBALL="$WORK_DIR/pkg-upstream.tar.gz" PATH="$WORK_DIR/pkg-bin:$PATH" bash scripts/template-sync.sh > "$WORK_DIR/pkg-run.log" 2>&1; then
+  PKG_VERSION_AFTER=$(python3 -c "import json; print(json.load(open('package.json'))['version'])")
+  if [ "$PKG_VERSION_AFTER" = "1.2.0" ]; then
+    pass "package.json version bumped to 1.2.0"
+  else
+    fail "expected package.json version 1.2.0, got: $PKG_VERSION_AFTER"
+  fi
+
+  if grep -q "UPDATED: package.json version -> 1.2.0" "$WORK_DIR/pkg-run.log"; then
+    pass "package.json bump is logged"
+  else
+    fail "expected log line 'UPDATED: package.json version -> 1.2.0'"
+  fi
+
+  MANIFEST_VERSION_AFTER=$(python3 -c "import json; print(json.load(open('.gembaflow-version'))['version'])")
+  if [ "$MANIFEST_VERSION_AFTER" = "$PKG_VERSION_AFTER" ]; then
+    pass ".gembaflow-version and package.json agree after sync"
+  else
+    fail "version mismatch after sync: manifest=$MANIFEST_VERSION_AFTER package=$PKG_VERSION_AFTER"
+  fi
+else
+  cat "$WORK_DIR/pkg-run.log"
+  fail "package.json bump scenario failed"
+fi
+popd >/dev/null
+
+# Idempotent re-run: with .gembaflow-version + package.json already at 1.2.0,
+# template-sync should exit cleanly at the "No updates available" check before
+# ever touching package.json — proving the bump is safe on re-invocation.
+PKG_IDEM_DIR="$WORK_DIR/pkg-idem"
+mkdir -p "$PKG_IDEM_DIR/scripts/lib"
+cp scripts/template-sync.sh "$PKG_IDEM_DIR/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$PKG_IDEM_DIR/scripts/lib/overrides.sh"
+chmod +x "$PKG_IDEM_DIR/scripts/template-sync.sh"
+: > "$PKG_IDEM_DIR/.gembaflow-overrides"
+
+cat > "$PKG_IDEM_DIR/.gembaflow-version" <<'JSON'
+{
+  "version": "1.2.0",
+  "syncDirectories": ["./scripts"]
+}
+JSON
+
+cat > "$PKG_IDEM_DIR/package.json" <<'JSON'
+{
+  "name": "test-fork",
+  "version": "1.2.0",
+  "private": true
+}
+JSON
+
+pushd "$PKG_IDEM_DIR" >/dev/null
+git init >/dev/null
+git -c user.name=test -c user.email=t@t.invalid add .
+git -c user.name=test -c user.email=t@t.invalid commit -m "init pkg-idem" >/dev/null
+
+PKG_IDEM_BEFORE=$(sha256sum package.json | awk '{print $1}')
+if TEST_PKG_TARBALL="$WORK_DIR/pkg-upstream.tar.gz" PATH="$WORK_DIR/pkg-bin:$PATH" bash scripts/template-sync.sh > "$WORK_DIR/pkg-idem.log" 2>&1; then
+  PKG_IDEM_AFTER=$(sha256sum package.json | awk '{print $1}')
+  if [ "$PKG_IDEM_BEFORE" = "$PKG_IDEM_AFTER" ]; then
+    pass "idempotent: package.json unchanged when versions already match"
+  else
+    fail "package.json mutated on idempotent re-run"
+  fi
+
+  if grep -q "No updates available" "$WORK_DIR/pkg-idem.log"; then
+    pass "idempotent re-run exits cleanly at version-equal check"
+  else
+    fail "expected 'No updates available' on idempotent run"
+  fi
+else
+  cat "$WORK_DIR/pkg-idem.log"
+  fail "idempotent re-run failed"
+fi
+popd >/dev/null
+
 echo "Results: ${TESTS_PASSED} passed, ${TESTS_FAILED} failed"
 if [ "$TESTS_FAILED" -gt 0 ]; then
   exit 1

@@ -30,7 +30,7 @@ Runs on every push and pull request to `main`.
 | Job | What It Checks |
 |-----|----------------|
 | `lint` | Markdown formatting (markdownlint) |
-| `typecheck` | JSON file validity |
+| `version-parity` | JSON file validity + `.gembaflow-version`/`package.json` parity (renamed from `typecheck` in #361 — does not run `tsc`) |
 | `build` | Shell script correctness (shellcheck) |
 | `test` | Command and agent file validation |
 | `lint-agent-policies` | Agent policy safety rules |

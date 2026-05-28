@@ -217,7 +217,7 @@ Every PR against `gembaflow` main must satisfy this checklist before merge.
 | CI job | What it checks | Tool |
 |--------|---------------|------|
 | `lint` | Markdown files | markdownlint-cli2 |
-| `typecheck` | JSON files; version parity between `package.json` and `.gembaflow-version` | node + custom script |
+| `version-parity` | JSON files; version parity between `package.json` and `.gembaflow-version` (renamed from `typecheck` in #361 — does not run `tsc`) | custom scripts |
 | `build` | Shell script syntax and style | shellcheck + bash -n |
 | `test` | Command file frontmatter; agent file structure and minimum length | validate-commands.sh, validate-agents.sh |
 | `template-cleanliness` | Framework stays cloud-provider-neutral | check-template-cleanliness.sh |
@@ -333,7 +333,7 @@ creation.
 A PR cannot merge unless all of the following pass:
 
 - `lint` (markdownlint)
-- `typecheck` (JSON validity, version parity)
+- `version-parity` (JSON validity, version parity) — renamed from `typecheck` in #361
 - `build` (shellcheck)
 - `test` (agent and command structure)
 - `template-cleanliness` (no cloud-provider terms)

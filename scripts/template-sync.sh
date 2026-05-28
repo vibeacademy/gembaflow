@@ -618,6 +618,42 @@ mkdir -p "$META_DIR"
 echo "$LATEST_VERSION" > "$META_DIR/version"
 git add "$META_DIR/version"
 
+# Bump package.json "version" to match the new framework release. The downstream
+# CI job (validate-version-parity.sh) requires .gembaflow-version and
+# package.json to agree; without this, every sync PR lands with red CI. See
+# vibeacademy/gembaflow#361. Idempotent: no-op when versions already match.
+# Skipped on non-Node forks (no package.json at repo root).
+if [ -f package.json ]; then
+  CURRENT_PKG_VERSION=""
+  if command -v jq >/dev/null 2>&1; then
+    CURRENT_PKG_VERSION=$(jq -r '.version // empty' package.json)
+  else
+    CURRENT_PKG_VERSION=$(python3 -c "import json; print(json.load(open('package.json')).get('version', ''))")
+  fi
+
+  if [ "$CURRENT_PKG_VERSION" != "$LATEST_VERSION" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      TMP_PKG=$(mktemp)
+      jq --arg v "$LATEST_VERSION" '.version = $v' package.json > "$TMP_PKG"
+      mv "$TMP_PKG" package.json
+    else
+      python3 -c "
+import json
+with open('package.json', 'r') as f:
+    data = json.load(f)
+data['version'] = '$LATEST_VERSION'
+with open('package.json', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\\n')
+"
+    fi
+    git add package.json
+    echo "UPDATED: package.json version -> $LATEST_VERSION"
+  else
+    echo "OK: package.json version already $LATEST_VERSION (no-op)"
+  fi
+fi
+
 COMMIT_MSG="chore(sync): update Gemba Flow framework to v${LATEST_VERSION}"
 # Scope the bot identity to this single commit using -c so running locally
 # does NOT overwrite the user's per-repo git author config.
