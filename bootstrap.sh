@@ -934,7 +934,9 @@ phase4_workflow() {
     mark_phase_complete "phase4"
     print_success "Phase 4 complete! Workflow activated."
 
-    # Stamp installedAt in the version manifest if not already set.
+    # Stamp installedAt AND set version to the latest upstream release tag on
+    # first install. Without this, every fresh fork starts at the placeholder
+    # "version": "0.1.0" and the first /upgrade generates a no-op sync PR (#381).
     local af_manifest=".gembaflow-version"
     if [ -f "$af_manifest" ]; then
         local current_val
@@ -942,9 +944,36 @@ phase4_workflow() {
         if [ "$current_val" = "null" ]; then
             local timestamp
             timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-            jq --arg ts "$timestamp" '.installedAt = $ts' "$af_manifest" > "$af_manifest.tmp" \
-                && mv "$af_manifest.tmp" "$af_manifest"
-            print_success "Stamped install time: $timestamp"
+
+            # Look up the latest release tag from the upstream repo. The
+            # `upstream` field accepts either a bare "owner/repo" or a full
+            # GitHub URL (https or git@); normalize both forms.
+            local upstream
+            upstream=$(jq -r '.upstream // empty' "$af_manifest" 2>/dev/null \
+                | sed -e 's|^https://github.com/||' \
+                      -e 's|^http://github.com/||' \
+                      -e 's|^git@github.com:||' \
+                      -e 's|\.git$||' \
+                      -e 's|/$||')
+            [ -z "$upstream" ] && upstream="vibeacademy/gembaflow"
+
+            local latest_version=""
+            if command -v gh >/dev/null 2>&1; then
+                latest_version=$(gh release view --repo "$upstream" --json tagName --jq '.tagName | sub("^v"; "")' 2>/dev/null || echo "")
+            fi
+
+            if [ -n "$latest_version" ]; then
+                jq --arg ts "$timestamp" --arg ver "$latest_version" \
+                    '.installedAt = $ts | .version = $ver' "$af_manifest" > "$af_manifest.tmp" \
+                    && mv "$af_manifest.tmp" "$af_manifest"
+                print_success "Stamped install time: $timestamp; version: $latest_version"
+            else
+                # Fallback: stamp installedAt only. Template-sync.sh's
+                # placeholder short-circuit will fix version on next /upgrade.
+                jq --arg ts "$timestamp" '.installedAt = $ts' "$af_manifest" > "$af_manifest.tmp" \
+                    && mv "$af_manifest.tmp" "$af_manifest"
+                print_warning "Could not look up latest release from $upstream; version field unchanged. Run /upgrade to sync."
+            fi
         fi
     fi
 }

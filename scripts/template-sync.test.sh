@@ -782,6 +782,224 @@ else
 fi
 popd >/dev/null
 
+###############################################################################
+# Scenario 7: fresh-fork placeholder short-circuit (#381)
+#
+# A fresh fork has .gembaflow-version version "0.1.0" with installedAt stamped
+# by bootstrap (network was up to stamp the timestamp but `gh release view`
+# fell through, OR this exercises template-sync's safety net regardless).
+# Expectations:
+#   - template-sync exits 0
+#   - .gembaflow-version version is rewritten to the (mocked) latest tag
+#   - no sync branch / PR is created
+#   - the INFO log line is emitted
+###############################################################################
+echo ""
+echo "Scenario 7: fresh-fork placeholder short-circuit (#381)"
+
+PLACEHOLDER_DIR="$WORK_DIR/placeholder"
+mkdir -p "$PLACEHOLDER_DIR/scripts/lib"
+cp scripts/template-sync.sh "$PLACEHOLDER_DIR/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$PLACEHOLDER_DIR/scripts/lib/overrides.sh"
+chmod +x "$PLACEHOLDER_DIR/scripts/template-sync.sh"
+: > "$PLACEHOLDER_DIR/.gembaflow-overrides"
+
+cat > "$PLACEHOLDER_DIR/.gembaflow-version" <<'JSON'
+{
+  "version": "0.1.0",
+  "upstream": "vibeacademy/gembaflow",
+  "installedAt": "2026-05-28T12:00:00Z",
+  "syncDirectories": ["./scripts"]
+}
+JSON
+
+mkdir -p "$WORK_DIR/placeholder-bin"
+cat > "$WORK_DIR/placeholder-bin/curl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == *"/releases/latest"* ]]; then
+  printf '{"tag_name":"v1.3.0","html_url":"https://example.invalid/release","tarball_url":"https://example.invalid/placeholder.tar.gz"}'
+  exit 0
+fi
+# Any tarball download in this scenario is a bug — short-circuit should fire
+# BEFORE the download step.
+echo "ERROR: tarball download attempted in placeholder scenario" >&2
+exit 1
+SH
+chmod +x "$WORK_DIR/placeholder-bin/curl"
+
+cat > "$WORK_DIR/placeholder-bin/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "gh $*" >> "$TEST_PLACEHOLDER_GH_LOG"
+if [[ "${1:-}" == "auth" && "${2:-}" == "token" ]]; then echo "fake-token"; exit 0; fi
+exit 0
+SH
+chmod +x "$WORK_DIR/placeholder-bin/gh"
+
+pushd "$PLACEHOLDER_DIR" >/dev/null
+git init >/dev/null
+git -c user.name=test -c user.email=t@t.invalid add .
+git -c user.name=test -c user.email=t@t.invalid commit -m "init placeholder" >/dev/null
+git init --bare "$WORK_DIR/placeholder-origin.git" >/dev/null
+git remote add origin "$WORK_DIR/placeholder-origin.git"
+git push -u origin HEAD >/dev/null
+
+if TEST_PLACEHOLDER_GH_LOG="$WORK_DIR/placeholder-gh.log" \
+   PATH="$WORK_DIR/placeholder-bin:$PATH" \
+   bash scripts/template-sync.sh > "$WORK_DIR/placeholder.log" 2>&1; then
+  pass "placeholder short-circuit exits 0"
+
+  PLACEHOLDER_VERSION_AFTER=$(python3 -c "import json; print(json.load(open('.gembaflow-version'))['version'])")
+  if [ "$PLACEHOLDER_VERSION_AFTER" = "1.3.0" ]; then
+    pass "placeholder: .gembaflow-version version updated to 1.3.0"
+  else
+    fail "placeholder: expected version 1.3.0, got: $PLACEHOLDER_VERSION_AFTER"
+  fi
+
+  if grep -q "detected fresh-fork placeholder version" "$WORK_DIR/placeholder.log"; then
+    pass "placeholder: INFO log line emitted"
+  else
+    fail "placeholder: expected 'detected fresh-fork placeholder version' in log"
+  fi
+
+  if grep -q "Already up to date (fresh-fork initialized to v1.3.0)" "$WORK_DIR/placeholder.log"; then
+    pass "placeholder: short-circuit message emitted"
+  else
+    fail "placeholder: expected 'Already up to date (fresh-fork initialized to v1.3.0)' in log"
+  fi
+
+  if git --git-dir "$WORK_DIR/placeholder-origin.git" show-ref --verify --quiet refs/heads/gembaflow-sync/v1.3.0; then
+    fail "placeholder: unexpected sync branch pushed to origin"
+  else
+    pass "placeholder: no sync branch created on origin"
+  fi
+
+  if ! grep -q "gh pr create" "$WORK_DIR/placeholder-gh.log" 2>/dev/null; then
+    pass "placeholder: no gh pr create call"
+  else
+    fail "placeholder: unexpected gh pr create call"
+  fi
+else
+  cat "$WORK_DIR/placeholder.log"
+  fail "placeholder scenario script exited non-zero"
+fi
+popd >/dev/null
+
+###############################################################################
+# Scenario 8: legitimately-behind fork still syncs (#381)
+#
+# version "1.2.0" with a real installedAt; latest is "1.3.0". This must
+# proceed through the normal sync flow — the placeholder short-circuit must
+# NOT fire (LOCAL_VERSION != "0.1.0").
+###############################################################################
+echo ""
+echo "Scenario 8: legitimately-behind fork (#381 negative test) — normal sync flow"
+
+BEHIND_DIR="$WORK_DIR/behind"
+mkdir -p "$BEHIND_DIR/scripts/lib"
+cp scripts/template-sync.sh "$BEHIND_DIR/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$BEHIND_DIR/scripts/lib/overrides.sh"
+chmod +x "$BEHIND_DIR/scripts/template-sync.sh"
+: > "$BEHIND_DIR/.gembaflow-overrides"
+
+cat > "$BEHIND_DIR/.gembaflow-version" <<'JSON'
+{
+  "version": "1.2.0",
+  "upstream": "vibeacademy/gembaflow",
+  "installedAt": "2026-05-25T08:00:00Z",
+  "syncDirectories": ["./scripts"]
+}
+JSON
+
+# Upstream tarball includes a non-runtime-protected file under scripts/ that
+# DIFFERS from the local copy — so the sync has real work to do and the normal
+# sync flow proceeds to gh pr create.
+mkdir -p "$WORK_DIR/behind-upstream/release/scripts/lib"
+cp scripts/template-sync.sh "$WORK_DIR/behind-upstream/release/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$WORK_DIR/behind-upstream/release/scripts/lib/overrides.sh"
+echo "#!/usr/bin/env bash" > "$WORK_DIR/behind-upstream/release/scripts/example.sh"
+echo "echo upstream-v1.3.0" >> "$WORK_DIR/behind-upstream/release/scripts/example.sh"
+echo "#!/usr/bin/env bash" > "$BEHIND_DIR/scripts/example.sh"
+echo "echo local-v1.2.0" >> "$BEHIND_DIR/scripts/example.sh"
+chmod +x "$WORK_DIR/behind-upstream/release/scripts/example.sh" "$BEHIND_DIR/scripts/example.sh"
+tar -czf "$WORK_DIR/behind-upstream.tar.gz" -C "$WORK_DIR/behind-upstream" release
+
+mkdir -p "$WORK_DIR/behind-bin"
+cat > "$WORK_DIR/behind-bin/curl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == *"/releases/latest"* ]]; then
+  printf '{"tag_name":"v1.3.0","html_url":"https://example.invalid/release","tarball_url":"https://example.invalid/behind-upstream.tar.gz"}'
+  exit 0
+fi
+if [[ "$*" == *"behind-upstream.tar.gz"* ]]; then
+  out=''
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "-o" ]; then out="$2"; shift 2; continue; fi
+    shift
+  done
+  cp "$TEST_BEHIND_TARBALL" "$out"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$WORK_DIR/behind-bin/curl"
+
+cat > "$WORK_DIR/behind-bin/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "gh $*" >> "$TEST_BEHIND_GH_LOG"
+if [[ "${1:-}" == "auth" && "${2:-}" == "token" ]]; then echo "fake-token"; exit 0; fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "create" ]]; then
+  echo "https://example.invalid/pr/381"
+  exit 0
+fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "list" ]]; then
+  echo '[]'
+  exit 0
+fi
+exit 0
+SH
+chmod +x "$WORK_DIR/behind-bin/gh"
+
+pushd "$BEHIND_DIR" >/dev/null
+git init >/dev/null
+git -c user.name=test -c user.email=t@t.invalid add .
+git -c user.name=test -c user.email=t@t.invalid commit -m "init behind" >/dev/null
+git init --bare "$WORK_DIR/behind-origin.git" >/dev/null
+git remote add origin "$WORK_DIR/behind-origin.git"
+git push -u origin HEAD >/dev/null
+
+if TEST_BEHIND_TARBALL="$WORK_DIR/behind-upstream.tar.gz" \
+   TEST_BEHIND_GH_LOG="$WORK_DIR/behind-gh.log" \
+   PATH="$WORK_DIR/behind-bin:$PATH" \
+   bash scripts/template-sync.sh > "$WORK_DIR/behind.log" 2>&1; then
+  pass "behind-fork sync exits 0"
+
+  if grep -q "detected fresh-fork placeholder version" "$WORK_DIR/behind.log"; then
+    fail "behind-fork: placeholder short-circuit fired but should NOT have"
+  else
+    pass "behind-fork: placeholder short-circuit did NOT fire"
+  fi
+
+  if grep -q "Update available: 1.2.0 -> 1.3.0" "$WORK_DIR/behind.log"; then
+    pass "behind-fork: normal sync flow entered"
+  else
+    fail "behind-fork: expected 'Update available: 1.2.0 -> 1.3.0' in log"
+  fi
+
+  if grep -q "gh pr create" "$WORK_DIR/behind-gh.log" 2>/dev/null; then
+    pass "behind-fork: gh pr create invoked"
+  else
+    fail "behind-fork: expected gh pr create call (normal sync flow)"
+  fi
+else
+  cat "$WORK_DIR/behind.log"
+  fail "behind-fork scenario script exited non-zero"
+fi
+popd >/dev/null
+
 echo "Results: ${TESTS_PASSED} passed, ${TESTS_FAILED} failed"
 if [ "$TESTS_FAILED" -gt 0 ]; then
   exit 1
