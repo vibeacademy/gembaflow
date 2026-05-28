@@ -58,7 +58,7 @@ Content **outside** markers in hybrid files is user-owned. Content
 
 | Path | Category | Rationale | Update Behavior |
 |------|----------|-----------|-----------------|
-| `.claude/agents/*.md` | framework | Agent definitions ship with template | Overwrite |
+| `.claude/agents/*.md` | hybrid | Framework persona + restrictions in marked sections; user-supplied project specialization outside markers | Update marked sections only |
 | `.claude/commands/*.md` | framework | Slash commands ship with template | Overwrite |
 | `.claude/hooks/ensure-github-account.sh` | framework | Account-switching hook | Overwrite |
 | `.claude/skills/commit.md` | framework | Commit conventions | Overwrite |
@@ -146,7 +146,11 @@ Content **outside** markers in hybrid files is user-owned. Content
 
 ## Sync Directories Summary
 
-These directories contain only framework files and are safe for bulk sync:
+These directories are included in the bulk sync pass. Most files inside are
+pure framework files (Overwrite). The exception is `.claude/agents/*.md`,
+which is hybrid: `template-sync.sh` only overwrites the content between
+`<!-- FRAMEWORK:START -->` / `<!-- FRAMEWORK:END -->` markers, leaving the
+user-owned project specialization (written by `/bootstrap-agents`) intact.
 
 ```json
 [
@@ -164,5 +168,8 @@ These directories contain only framework files and are safe for bulk sync:
 ]
 ```
 
-Hybrid files require marker-aware merging and are handled separately by
-the template-sync mechanism.
+Pure hybrid files outside the bulk-sync paths (e.g. `CLAUDE.md`,
+`README.md`) are not part of the bulk sync at all today — the
+template-sync mechanism leaves them to the user. Only the in-tree hybrid
+files listed under `syncDirectories` go through the marker-aware merge
+path (currently `.claude/agents/*.md`).

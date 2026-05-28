@@ -381,6 +381,237 @@ else
   fail "[fallback] expected informational fallback log line"
 fi
 
+###############################################################################
+# Scenario 4: hybrid agent file merge (#363)
+#
+# A `.claude/agents/<file>.md` with FRAMEWORK markers + user content outside
+# markers must:
+#   - get its framework section refreshed from upstream
+#   - retain the user content outside the markers byte-for-byte
+#
+# A legacy file (no markers) must be preserved entirely and the run must warn.
+###############################################################################
+echo ""
+echo "Scenario 4: hybrid .claude/agents/*.md preserves user content outside FRAMEWORK markers"
+
+HYBRID_DIR="$WORK_DIR/hybrid"
+mkdir -p "$HYBRID_DIR/scripts/lib" "$HYBRID_DIR/.claude/agents"
+
+cat > "$HYBRID_DIR/.gembaflow-version" <<'JSON'
+{
+  "version": "0.0.1",
+  "syncDirectories": [".claude/agents"]
+}
+JSON
+: > "$HYBRID_DIR/.gembaflow-overrides"
+
+# Local hybrid agent file: framework section (will be replaced) + user content (must survive).
+cat > "$HYBRID_DIR/.claude/agents/pr-reviewer.md" <<'MD'
+---
+name: pr-reviewer
+description: Local description (unchanged)
+---
+
+<!-- FRAMEWORK:START -->
+
+You are a Staff Engineer (OLD framework text).
+
+<!-- FRAMEWORK:END -->
+
+## Project Context
+
+**Product**: example-site — local user-owned content.
+**Bot accounts**: va-worker, va-reviewer.
+**Tech stack**: Next.js 15.
+
+This entire block must survive the sync.
+MD
+
+# Local legacy agent file: no markers at all.
+cat > "$HYBRID_DIR/.claude/agents/system-architect.md" <<'MD'
+---
+name: system-architect
+description: Legacy agent without markers
+---
+
+You are a System Architect (legacy text, no FRAMEWORK markers).
+
+## Project Context
+
+This file pre-dates the marker convention; it must NOT be wiped.
+MD
+
+cp scripts/template-sync.sh "$HYBRID_DIR/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$HYBRID_DIR/scripts/lib/overrides.sh"
+chmod +x "$HYBRID_DIR/scripts/template-sync.sh"
+
+# Upstream release: refreshed framework section + a brand-new agent file.
+HYBRID_UP="$WORK_DIR/hybrid-upstream/release"
+mkdir -p "$HYBRID_UP/.claude/agents"
+
+cat > "$HYBRID_UP/.claude/agents/pr-reviewer.md" <<'MD'
+---
+name: pr-reviewer
+description: Upstream description (will be installed)
+---
+
+<!-- FRAMEWORK:START -->
+
+You are a Staff Engineer (NEW framework text v1.0.5).
+
+Additional restrictions:
+- New restriction line that did not exist before.
+
+<!-- FRAMEWORK:END -->
+MD
+
+cat > "$HYBRID_UP/.claude/agents/system-architect.md" <<'MD'
+---
+name: system-architect
+description: Upstream description
+---
+
+<!-- FRAMEWORK:START -->
+
+You are a System Architect (new framework body with markers).
+
+<!-- FRAMEWORK:END -->
+MD
+
+tar -czf "$WORK_DIR/hybrid-upstream.tar.gz" -C "$WORK_DIR/hybrid-upstream" release
+
+mkdir -p "$WORK_DIR/hybrid-bin"
+cat > "$WORK_DIR/hybrid-bin/curl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == *"/releases/latest"* ]]; then
+  printf '{"tag_name":"v1.0.5","html_url":"https://example.invalid/release","tarball_url":"https://example.invalid/hybrid-upstream.tar.gz"}'
+  exit 0
+fi
+if [[ "$*" == *"hybrid-upstream.tar.gz"* ]]; then
+  out=''
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "-o" ]; then out="$2"; shift 2; continue; fi
+    shift
+  done
+  cp "$TEST_HYBRID_TARBALL" "$out"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$WORK_DIR/hybrid-bin/curl"
+
+cat > "$WORK_DIR/hybrid-bin/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "gh $*" >> "$TEST_HYBRID_GH_LOG"
+if [[ "${1:-}" == "auth" && "${2:-}" == "token" ]]; then echo "fake-token"; exit 0; fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "create" ]]; then
+  # Capture body for later inspection.
+  shift
+  shift
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "--body" ]; then
+      echo "$2" > "$TEST_HYBRID_PR_BODY"
+      shift 2
+      continue
+    fi
+    shift
+  done
+  echo "https://example.invalid/pr/363"
+  exit 0
+fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "list" ]]; then echo '[]'; exit 0; fi
+exit 0
+SH
+chmod +x "$WORK_DIR/hybrid-bin/gh"
+
+pushd "$HYBRID_DIR" >/dev/null
+git init >/dev/null
+git add .
+git commit -m "init hybrid" >/dev/null
+git init --bare "$WORK_DIR/hybrid-origin.git" >/dev/null
+git remote add origin "$WORK_DIR/hybrid-origin.git"
+git push -u origin HEAD >/dev/null
+
+TEST_HYBRID_TARBALL="$WORK_DIR/hybrid-upstream.tar.gz" \
+TEST_HYBRID_GH_LOG="$WORK_DIR/hybrid-gh.log" \
+TEST_HYBRID_PR_BODY="$WORK_DIR/hybrid-pr-body.txt" \
+PATH="$WORK_DIR/hybrid-bin:$PATH" \
+  bash scripts/template-sync.sh > "$WORK_DIR/hybrid.log" 2>&1 || HYBRID_RC=$?
+
+if grep -q "UPDATED (hybrid framework section): .claude/agents/pr-reviewer.md" "$WORK_DIR/hybrid.log"; then
+  pass "[hybrid] pr-reviewer.md framework section reported as updated"
+else
+  fail "[hybrid] expected UPDATED (hybrid framework section) log line for pr-reviewer.md"
+fi
+
+# Marker-aware merge: framework section replaced.
+if grep -q "NEW framework text v1.0.5" .claude/agents/pr-reviewer.md; then
+  pass "[hybrid] upstream framework body installed in pr-reviewer.md"
+else
+  fail "[hybrid] expected upstream framework body in pr-reviewer.md"
+fi
+
+# User content outside markers preserved.
+if grep -q "example-site — local user-owned content" .claude/agents/pr-reviewer.md \
+   && grep -q "va-worker, va-reviewer" .claude/agents/pr-reviewer.md \
+   && grep -q "This entire block must survive the sync." .claude/agents/pr-reviewer.md; then
+  pass "[hybrid] user content outside markers preserved in pr-reviewer.md"
+else
+  fail "[hybrid] user content outside markers was destroyed in pr-reviewer.md"
+fi
+
+# Old framework body must be gone.
+if ! grep -q "OLD framework text" .claude/agents/pr-reviewer.md; then
+  pass "[hybrid] old framework body removed from pr-reviewer.md"
+else
+  fail "[hybrid] old framework body still present after sync"
+fi
+
+# Frontmatter description must come from upstream, since it's outside the
+# markers conceptually — wait: actually frontmatter is OUTSIDE markers, so the
+# user's local frontmatter MUST be preserved. Verify.
+if grep -q "description: Local description (unchanged)" .claude/agents/pr-reviewer.md; then
+  pass "[hybrid] local YAML frontmatter preserved (lives outside markers)"
+else
+  fail "[hybrid] local YAML frontmatter was overwritten"
+fi
+
+# Legacy file: should be preserved entirely and warning emitted.
+if grep -q "lacks <!-- FRAMEWORK:START/END --> markers; preserving local file" "$WORK_DIR/hybrid.log"; then
+  pass "[hybrid] legacy agent without markers triggers warning"
+else
+  fail "[hybrid] expected legacy-file warning in log"
+fi
+
+if grep -q "legacy text, no FRAMEWORK markers" .claude/agents/system-architect.md \
+   && grep -q "This file pre-dates the marker convention" .claude/agents/system-architect.md; then
+  pass "[hybrid] legacy agent file content preserved untouched"
+else
+  fail "[hybrid] legacy agent file was modified"
+fi
+
+# Sanity: legacy file should NOT have been forcibly given the upstream body.
+if ! grep -q "new framework body with markers" .claude/agents/system-architect.md; then
+  pass "[hybrid] legacy agent file was NOT auto-overwritten with upstream body"
+else
+  fail "[hybrid] legacy agent file was overwritten despite missing markers"
+fi
+
+# PR body should mention the hybrid update.
+if [ -f "$WORK_DIR/hybrid-pr-body.txt" ] && grep -q "Hybrid agent files updated (framework section only)" "$WORK_DIR/hybrid-pr-body.txt"; then
+  pass "[hybrid] PR body announces hybrid updates"
+else
+  fail "[hybrid] expected PR body to announce hybrid updates"
+fi
+if [ -f "$WORK_DIR/hybrid-pr-body.txt" ] && grep -q "Legacy agent files (no FRAMEWORK markers)" "$WORK_DIR/hybrid-pr-body.txt"; then
+  pass "[hybrid] PR body warns about legacy agent files"
+else
+  fail "[hybrid] expected PR body to warn about legacy agent files"
+fi
+popd >/dev/null
+
 echo "Results: ${TESTS_PASSED} passed, ${TESTS_FAILED} failed"
 if [ "$TESTS_FAILED" -gt 0 ]; then
   exit 1

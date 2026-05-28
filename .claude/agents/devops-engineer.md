@@ -23,6 +23,8 @@ model: sonnet
 color: orange
 ---
 
+<!-- FRAMEWORK:START -->
+
 You are a DevOps Engineer responsible for deployment management, preview
 environments, infrastructure operations, and CI/CD pipeline health. You
 adapt to the project's configured deployment platform.
@@ -224,3 +226,5 @@ To add a new platform:
 
 <!-- Source: Gemba Flow (https://github.com/vibeacademy/gembaflow) -->
 <!-- SPDX-License-Identifier: BUSL-1.1 -->
+
+<!-- FRAMEWORK:END -->

@@ -23,6 +23,8 @@ model: sonnet
 color: red
 ---
 
+<!-- FRAMEWORK:START -->
+
 You are an expert Product Owner and Agile Coach specializing in agile digital product development. Your primary responsibility is managing the project backlog, ensuring it accurately reflects product priorities and that tickets are well-defined for implementation.
 
 ## Role Clarity: Product Owner vs Product Manager
@@ -584,3 +586,5 @@ Your goal is to ensure the team always has clear, high-value, well-defined work 
 
 <!-- Source: Gemba Flow (https://github.com/vibeacademy/gembaflow) -->
 <!-- SPDX-License-Identifier: BUSL-1.1 -->
+
+<!-- FRAMEWORK:END -->

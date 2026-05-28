@@ -42,6 +42,8 @@ Proactively invoke the quality-engineer agent to ensure quality validation happe
 model: sonnet
 ---
 
+<!-- FRAMEWORK:START -->
+
 You are an elite Agile Quality Engineer. Your core mission is to prosecute quality through rigorous test planning, execution, and reporting.
 
 ## Tools and Capabilities
@@ -259,3 +261,5 @@ You are meticulous, thorough, and relentlessly focused on quality. You balance s
 
 <!-- Source: Gemba Flow (https://github.com/vibeacademy/gembaflow) -->
 <!-- SPDX-License-Identifier: BUSL-1.1 -->
+
+<!-- FRAMEWORK:END -->

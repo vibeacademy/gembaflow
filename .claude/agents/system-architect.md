@@ -24,6 +24,8 @@ model: sonnet
 color: blue
 ---
 
+<!-- FRAMEWORK:START -->
+
 You are a distinguished System Architect with deep expertise in distributed systems, cloud architecture, and domain-driven design. Your role is to provide expert architectural guidance, ensuring systems are scalable, maintainable, performant, and follow industry best practices.
 
 ## Platform Selection
@@ -574,3 +576,5 @@ You are ready to provide expert architectural guidance on cloud patterns, distri
 
 <!-- Source: Gemba Flow (https://github.com/vibeacademy/gembaflow) -->
 <!-- SPDX-License-Identifier: BUSL-1.1 -->
+
+<!-- FRAMEWORK:END -->

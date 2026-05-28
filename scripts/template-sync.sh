@@ -127,6 +127,89 @@ path_allowed_for_bootstrap_reentry() {
   return 1
 }
 
+###############################################################################
+# Hybrid agent file handling (#363)
+#
+# `.claude/agents/*.md` is classified as hybrid in docs/DISTRIBUTION.md:
+# framework persona + restrictions live between `<!-- FRAMEWORK:START -->` and
+# `<!-- FRAMEWORK:END -->` markers; project-specific specialization written by
+# `/bootstrap-agents` lives outside those markers. The sync must only update
+# content between the markers and must preserve user content outside them.
+#
+# Behavior matrix:
+#   - upstream has markers, local has markers      -> swap framework section
+#   - upstream has markers, local lacks markers    -> WARN, preserve local file
+#     (treat legacy file as fully user-owned; user runs /bootstrap-agents to
+#     re-establish markers, OR they can pull the framework section from the
+#     diff manually)
+#   - upstream lacks markers (shouldn't happen)    -> WARN, fall through to
+#     regular overwrite (treats as pure framework)
+###############################################################################
+is_hybrid_agent_path() {
+  local path="$1"
+  local normalized_path
+  normalized_path="$(normalize_rel_path "$path")"
+  case "$normalized_path" in
+    .claude/agents/*.md)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+file_has_framework_markers() {
+  # Returns 0 if file contains BOTH start and end markers, in that order.
+  local path="$1"
+  [ -f "$path" ] || return 1
+  grep -q '<!-- FRAMEWORK:START -->' "$path" || return 1
+  grep -q '<!-- FRAMEWORK:END -->' "$path" || return 1
+  # Ensure START appears before END (line numbers).
+  local start_line end_line
+  start_line=$(grep -n '<!-- FRAMEWORK:START -->' "$path" | head -1 | cut -d: -f1)
+  end_line=$(grep -n '<!-- FRAMEWORK:END -->' "$path" | head -1 | cut -d: -f1)
+  [ -n "$start_line" ] && [ -n "$end_line" ] && [ "$start_line" -lt "$end_line" ]
+}
+
+# Replace the framework section in $local_file with the framework section
+# from $upstream_file. Content outside the markers in $local_file is preserved
+# byte-for-byte. Both files MUST contain the markers; callers must check first.
+merge_hybrid_agent_file() {
+  local upstream_file="$1"
+  local local_file="$2"
+  python3 - "$upstream_file" "$local_file" <<'PY'
+import sys, re
+
+upstream_path, local_path = sys.argv[1], sys.argv[2]
+START = "<!-- FRAMEWORK:START -->"
+END = "<!-- FRAMEWORK:END -->"
+
+with open(upstream_path, "r") as f:
+    upstream = f.read()
+with open(local_path, "r") as f:
+    local = f.read()
+
+# Extract upstream framework section (including markers).
+def extract(text, path):
+    s = text.find(START)
+    e = text.find(END)
+    if s == -1 or e == -1 or e < s:
+        sys.stderr.write(f"ERROR: missing FRAMEWORK markers in {path}\n")
+        sys.exit(2)
+    return text[s : e + len(END)]
+
+up_section = extract(upstream, upstream_path)
+loc_s = local.find(START)
+loc_e = local.find(END)
+if loc_s == -1 or loc_e == -1 or loc_e < loc_s:
+    sys.stderr.write(f"ERROR: missing FRAMEWORK markers in {local_path}\n")
+    sys.exit(2)
+
+merged = local[:loc_s] + up_section + local[loc_e + len(END):]
+with open(local_path, "w") as f:
+    f.write(merged)
+PY
+}
+
 is_user_content_path() {
   local path="$1"
   local normalized_path
@@ -348,6 +431,8 @@ echo "Created rollback tag: $ROLLBACK_TAG (local-only)"
 FILES_CHANGED=()
 FILES_SKIPPED_OVERRIDE=()
 FILES_SKIPPED_RUNTIME=()
+HYBRID_AGENTS_UPDATED=()       # .claude/agents/*.md with markers, framework section merged
+HYBRID_AGENTS_LEGACY_SKIPPED=() # .claude/agents/*.md without markers, preserved local
 
 if [ "$BOOTSTRAP_REENTRY_MODE" -eq 1 ]; then
   while IFS= read -r changed_path; do
@@ -394,10 +479,34 @@ else
 
         if [ -f "$local_file" ]; then
           if ! diff -q "$upstream_file" "$local_file" >/dev/null 2>&1; then
-            cp "$upstream_file" "$local_file"
-            git add "$local_file"
-            FILES_CHANGED+=("$local_file")
-            echo "UPDATED: $local_file"
+            if is_hybrid_agent_path "$local_file"; then
+              # Hybrid agent file (#363): only update the FRAMEWORK section.
+              if file_has_framework_markers "$local_file" && file_has_framework_markers "$upstream_file"; then
+                if merge_hybrid_agent_file "$upstream_file" "$local_file"; then
+                  # If the merge produced no diff vs. the prior local file,
+                  # there's nothing to commit. Otherwise stage.
+                  if ! git diff --quiet -- "$local_file" 2>/dev/null; then
+                    git add "$local_file"
+                    FILES_CHANGED+=("$local_file")
+                    HYBRID_AGENTS_UPDATED+=("$local_file")
+                    echo "UPDATED (hybrid framework section): $local_file"
+                  else
+                    echo "UNCHANGED (hybrid framework section identical): $local_file"
+                  fi
+                else
+                  echo "WARNING: hybrid merge failed for $local_file; preserving local file untouched." >&2
+                fi
+              else
+                # Legacy or malformed: preserve local entirely; warn loudly.
+                echo "WARNING: $local_file lacks <!-- FRAMEWORK:START/END --> markers; preserving local file. Run /bootstrap-agents to migrate." >&2
+                HYBRID_AGENTS_LEGACY_SKIPPED+=("$local_file")
+              fi
+            else
+              cp "$upstream_file" "$local_file"
+              git add "$local_file"
+              FILES_CHANGED+=("$local_file")
+              echo "UPDATED: $local_file"
+            fi
           fi
         else
           cp "$upstream_file" "$local_file"
@@ -427,10 +536,30 @@ else
 
       if [ -f "$sync_path" ]; then
         if ! diff -q "$upstream_path" "$sync_path" >/dev/null 2>&1; then
-          cp "$upstream_path" "$sync_path"
-          git add "$sync_path"
-          FILES_CHANGED+=("$sync_path")
-          echo "UPDATED: $sync_path"
+          if is_hybrid_agent_path "$sync_path"; then
+            if file_has_framework_markers "$sync_path" && file_has_framework_markers "$upstream_path"; then
+              if merge_hybrid_agent_file "$upstream_path" "$sync_path"; then
+                if ! git diff --quiet -- "$sync_path" 2>/dev/null; then
+                  git add "$sync_path"
+                  FILES_CHANGED+=("$sync_path")
+                  HYBRID_AGENTS_UPDATED+=("$sync_path")
+                  echo "UPDATED (hybrid framework section): $sync_path"
+                else
+                  echo "UNCHANGED (hybrid framework section identical): $sync_path"
+                fi
+              else
+                echo "WARNING: hybrid merge failed for $sync_path; preserving local file untouched." >&2
+              fi
+            else
+              echo "WARNING: $sync_path lacks <!-- FRAMEWORK:START/END --> markers; preserving local file. Run /bootstrap-agents to migrate." >&2
+              HYBRID_AGENTS_LEGACY_SKIPPED+=("$sync_path")
+            fi
+          else
+            cp "$upstream_path" "$sync_path"
+            git add "$sync_path"
+            FILES_CHANGED+=("$sync_path")
+            echo "UPDATED: $sync_path"
+          fi
         fi
       else
         mkdir -p "$(dirname "$sync_path")"
@@ -504,13 +633,40 @@ for f in "${FILES_CHANGED[@]}"; do
 "
 done
 
+# Build hybrid-agent warning section for PR body (#363).
+HYBRID_SECTION=""
+if [ "${#HYBRID_AGENTS_UPDATED[@]}" -gt 0 ]; then
+  HYBRID_LIST=""
+  for f in "${HYBRID_AGENTS_UPDATED[@]}"; do
+    HYBRID_LIST="${HYBRID_LIST}  - \`${f}\`
+"
+  done
+  HYBRID_SECTION="${HYBRID_SECTION}
+> [!IMPORTANT]
+> Hybrid agent files updated (framework section only):
+${HYBRID_LIST}> User content outside \`<!-- FRAMEWORK:START -->\` / \`<!-- FRAMEWORK:END -->\` markers was preserved. Review the diff to confirm your \`/bootstrap-agents\` specialization is intact.
+"
+fi
+if [ "${#HYBRID_AGENTS_LEGACY_SKIPPED[@]}" -gt 0 ]; then
+  LEGACY_LIST=""
+  for f in "${HYBRID_AGENTS_LEGACY_SKIPPED[@]}"; do
+    LEGACY_LIST="${LEGACY_LIST}  - \`${f}\`
+"
+  done
+  HYBRID_SECTION="${HYBRID_SECTION}
+> [!WARNING]
+> Legacy agent files (no FRAMEWORK markers) were left untouched and may be out of date:
+${LEGACY_LIST}> Run \`/bootstrap-agents\` to re-establish markers and re-apply your project specialization, then re-run \`/upgrade\` to pick up the latest framework persona.
+"
+fi
+
 PR_BODY="## Gemba Flow Framework Update
 
 Updates framework files from \`v${LOCAL_VERSION}\` to \`v${LATEST_VERSION}\`.
 
 ### Updated files
 
-${FILE_LIST}
+${FILE_LIST}${HYBRID_SECTION}
 ### Release notes
 
 See the full release notes: ${RELEASE_URL}
