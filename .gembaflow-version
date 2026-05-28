@@ -8,6 +8,7 @@
     ".claude/commands",
     ".claude/hooks",
     ".claude/skills",
+    "features",
     "scripts",
     "starters"
   ]
