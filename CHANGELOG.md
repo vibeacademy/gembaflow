@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-05-28
+
+**Adds the `/eli5` slash command to the framework.** Minor version bump because this is a user-visible new operator capability.
+
+### Added
+
+- **`/eli5` slash command** — posts a plain-language comment on a target issue or PR translating dense Agentic-PRD-Lite ticket bodies for **non-engineer operators** (founders, workshop attendees, stakeholders). Every technical term encountered (JWT, RLS, feature flag, CI gate, webhook, etc.) is treated as a teaching opportunity with an inline definition on first use, rather than assumed-known. Marker-based idempotency: re-running on the same target replaces the prior ELI5 comment, never appends. Optional Mermaid diagram with built-in render-check. Comment-only — never edits the canonical issue/PR body. (#330)
+
+### Migration notes
+
+- **Operators with the prior `/eli5` prototype in their own forks** (notably `vibeacademy/cubrox`, where the prototype lived in `.claude/commands/eli5.md` at commit `3ba35cb`) can run `/pull-upstream` to receive the upstream version. The upstream port intentionally diverges from the cubrox prototype in audience model: cubrox assumed "tech-adjacent operator who knows what an API is," while upstream assumes **the operator is NOT an engineer**. The "Keep as-is" column from cubrox's translation table is deliberately removed — there is no such column upstream; every term gets a definition.
+
+### Audience-model design
+
+The command spec includes worked examples for `JWT`, `RLS`, `feature flag`, `CI gate`, and `webhook` showing the expected `<term> (<plain-language definition>)` pattern. Word-budget guideline: soft 600-word ceiling, with a "Glossary section" escape valve when explanations need more room. The deliberate counter to `/review-pr` and `/work-ticket`, which assume an engineer audience.
+
+### No breaking changes
+
+- All existing slash commands behave identically to v1.2.1.
+- No file rename, no env var change, no protocol change.
+- `/eli5` is purely additive.
+
 ## [1.2.1] - 2026-05-28
 
 **Patch release fixing three real bugs hit on first downstream consumption of v1.2.0.** All three were filed as `[downstream-report]` issues on the same day v1.2.0 shipped.
@@ -163,7 +185,8 @@ Pre-upgrade baseline — the first tagged release of Agile Flow.
 - Product documentation templates (PRD, Roadmap)
 - Getting Started guide
 
-[Unreleased]: https://github.com/vibeacademy/gembaflow/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/vibeacademy/gembaflow/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/vibeacademy/gembaflow/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/vibeacademy/gembaflow/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/vibeacademy/gembaflow/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/vibeacademy/gembaflow/compare/v1.0.11...v1.1.0
