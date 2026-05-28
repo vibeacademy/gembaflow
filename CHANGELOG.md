@@ -7,9 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [1.2.1] - 2026-05-28
 
-- `features/` directory now in `syncDirectories` — downstream forks pick up upstream test updates via `/upgrade`. Forks that customize specific feature tests should add `features/<file>` to `.gembaflow-overrides`. (#362)
+**Patch release fixing three real bugs hit on first downstream consumption of v1.2.0.** All three were filed as `[downstream-report]` issues on the same day v1.2.0 shipped.
+
+## Fixed
+
+- **`template-sync.sh` now bumps `package.json` version** alongside `.gembaflow-version` (#361). Previously, every sync PR landed with red CI because `validate-version-parity.sh` found the two version sources disagreeing. The fix uses `jq` (with a `python3` fallback) to update `package.json` only if its `version` differs from the new release. Idempotent; skipped on non-Node forks. (#365)
+- **`features/` directory added to `syncDirectories`** (#362). Downstream forks bootstrapped before the rebrand had stale `features/*` files referencing `.agile-flow-version` that `/upgrade` never touched, causing the BDD suite to fail post-sync. Future `/upgrade` runs now refresh these files. (#364)
+- **`.claude/agents/*.md` now classified as `hybrid` with FRAMEWORK markers** (#363). Previously `bootstrap-agents` and `template-sync.sh` silently contradicted each other — every sync wiped out project-specific agent specialization. Now `template-sync.sh` only updates content between `<!-- FRAMEWORK:START -->` and `<!-- FRAMEWORK:END -->` markers; user-supplied specialization outside markers is preserved. (#366)
+
+## Changed
+
+- **CI job renamed `typecheck` → `version-parity`** (#361). The job had been misleadingly named `typecheck` — it never ran `tsc`, only the version-parity check. The real TypeScript `tsc --noEmit` lives in the `node` job and is unchanged.
+
+  **⚠ Branch protection action required for consumers**: if you have a fork with branch protection that mirrors upstream, the required-status-check named `typecheck` now needs to be renamed to `version-parity` in your ruleset. Otherwise sync PRs against your fork will block on a check that no longer exists.
+
+## Added
+
+- **`bootstrap-agents` skill updated** with one-shot migration logic: when run on a legacy agent file (no markers), wraps the framework persona content in markers and appends project specialization after. Forks that ran `bootstrap-agents` before this release should re-run it once to gain marker protection. (#366)
+
+## Migration notes
+
+After `/upgrade` against this release:
+
+- **Existing `.claude/agents/*.md` files without `<!-- FRAMEWORK:* -->` markers are preserved entirely** (preserve-and-warn behavior). The sync PR includes a `[!WARNING]` callout listing those files and recommending `/bootstrap-agents` to gain marker protection.
+- **`features/*.{py,feature}` files** with `.agile-flow-version` literals (a leftover from pre-rebrand bootstrap) will be replaced by the clean upstream versions. Forks that have customized their own feature tests should add `features/<file>` to `.gembaflow-overrides` to protect them before the sync.
+- **Sync PRs land green on CI**. The `version-parity` job verifies `.gembaflow-version` and `package.json` agree; `template-sync.sh` writes both, so they always do.
+
+## Downstream-report status
+
+`#352` (the original consolidated downstream-report against v1.1.0) was resolved by v1.2.0. This release picks up the three separate reports filed against v1.2.0 itself by the same consumer (`vibeacademy/gembaflow-site`): #361, #362, #363.
 
 ## [1.2.0] - 2026-05-27
 
@@ -135,7 +163,8 @@ Pre-upgrade baseline — the first tagged release of Agile Flow.
 - Product documentation templates (PRD, Roadmap)
 - Getting Started guide
 
-[Unreleased]: https://github.com/vibeacademy/gembaflow/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/vibeacademy/gembaflow/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/vibeacademy/gembaflow/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/vibeacademy/gembaflow/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/vibeacademy/gembaflow/compare/v1.0.11...v1.1.0
 [0.9.0]: https://github.com/vibeacademy/agile-flow/releases/tag/v0.9.0
