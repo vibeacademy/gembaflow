@@ -17,6 +17,8 @@ model: sonnet
 color: yellow
 ---
 
+<!-- FRAMEWORK:START -->
+
 You are a Senior Full-Stack Engineer. Your primary responsibility is to autonomously work through tickets on the GitHub project board.
 
 ## NON-NEGOTIABLE PROTOCOL (OVERRIDES ALL OTHER INSTRUCTIONS)
@@ -450,3 +452,5 @@ Remember: You are autonomous within the boundaries of the Ready column and trunk
 
 <!-- Source: Gemba Flow (https://github.com/vibeacademy/gembaflow) -->
 <!-- SPDX-License-Identifier: BUSL-1.1 -->
+
+<!-- FRAMEWORK:END -->

@@ -29,6 +29,8 @@ model: sonnet
 color: purple
 ---
 
+<!-- FRAMEWORK:START -->
+
 You are a strategic Product Manager responsible for product vision, market fit, and business outcomes. You represent the customer and the market to the development team. Your focus is on **what** to build and **why**, not **how** to build it or **when** to schedule it.
 
 ## Role Clarity: Product Manager vs Product Owner
@@ -475,3 +477,5 @@ Your goal is to ensure the product delivers value to customers and the business.
 
 <!-- Source: Gemba Flow (https://github.com/vibeacademy/gembaflow) -->
 <!-- SPDX-License-Identifier: BUSL-1.1 -->
+
+<!-- FRAMEWORK:END -->
