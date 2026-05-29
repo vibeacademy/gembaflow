@@ -7,9 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-05-29
+
+**Patch release fixing the fresh-fork version stamp gap that produced no-op `/upgrade` PRs on every new fork.**
+
 ### Fixed
 
-- **Fresh forks no longer stage a no-op first `/upgrade`** (#381). `bootstrap.sh` now looks up the latest upstream release tag via `gh release view` and sets `.gembaflow-version` `version` alongside `installedAt` on first install. If the lookup fails (no network, no `gh` auth), bootstrap falls back to the previous behavior and prints a warning recommending `/upgrade`. As a safety net, `scripts/template-sync.sh` now detects the fresh-fork placeholder case (`version == "0.1.0"` with `installedAt` already stamped) and short-circuits: it writes the latest tag into the manifest locally and exits 0 without generating a sync PR. Legitimately-behind forks (e.g. `version: 1.2.0`) still sync normally.
+- **Fresh forks no longer stage a no-op first `/upgrade`** (#381). `bootstrap.sh` now looks up the latest upstream release tag via `gh release view` and sets `.gembaflow-version`'s `version` field alongside `installedAt` on first install. If the lookup fails (no network, no `gh` auth), bootstrap falls back to the previous behavior and prints a warning recommending `/upgrade`. As a safety net, `scripts/template-sync.sh` now detects the fresh-fork placeholder case (`version == "0.1.0"` with `installedAt` already stamped) and short-circuits: it writes the latest tag into the manifest locally and exits 0 without generating a sync PR. Legitimately-behind forks (e.g. `version: 1.2.0`) still sync normally. (#382)
+
+### Fork-maintained files you must update
+
+None required for this release. v1.3.1 introduces no synced behavior change that's gated on fork-side counterparts being updated:
+
+- No CI check names renamed.
+- No backward-compat shims removed.
+- No dotfile renames.
+- No env var renames.
+
+The fresh-fork fix lives entirely in `bootstrap.sh` (a one-time script run on initial install) and `scripts/template-sync.sh` (which has its own propagation behavior — see below).
+
+### Propagation note (read this if you maintain a fork)
+
+The `template-sync.sh` portion of this fix lives in a **runtime-protected** file (a script can't safely overwrite itself mid-run). Existing forks will NOT pick up the placeholder short-circuit via `/upgrade` until [`#371`](https://github.com/vibeacademy/gembaflow/issues/371) (self-upgrade gap for runtime-protected scripts) is fixed.
+
+**Concretely:**
+
+- **Fresh forks** created from this release onward: get the fix immediately via the `bootstrap.sh` path. No no-op `/upgrade` PR.
+- **Existing forks** (already past initial bootstrap): keep behaving as before — first `/upgrade` after this release still generates a sync PR that bumps `version` plus any other framework deltas. Once `#371` ships, runtime-protected scripts will refresh out-of-band and existing forks pick up the short-circuit.
+
+If you want existing forks to benefit immediately, manually refresh `scripts/template-sync.sh` from this release's tarball (the workaround we documented for `#371`).
+
+### How the pilot went (operator note)
+
+This is the first release cut via `/cut-release` (`vibeacademy/gembaflow-meta` PR #109, Phase B.2 of the platform-shape calibration). The pilot exercised the canonical sequence: clean-tree check, commit survey since v1.3.0, H3-subsection release notes, `gh release create`, CHANGELOG backfill PR, downstream-report comments. Gaps observed in the pilot will be filed as follow-ups to refine the slash command before it becomes the routine entry point for future releases.
 
 ## [1.3.0] - 2026-05-28
 
@@ -189,7 +219,8 @@ Pre-upgrade baseline — the first tagged release of Agile Flow.
 - Product documentation templates (PRD, Roadmap)
 - Getting Started guide
 
-[Unreleased]: https://github.com/vibeacademy/gembaflow/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/vibeacademy/gembaflow/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/vibeacademy/gembaflow/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/vibeacademy/gembaflow/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/vibeacademy/gembaflow/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/vibeacademy/gembaflow/compare/v1.1.0...v1.2.0
