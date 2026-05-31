@@ -352,6 +352,72 @@ so institutional knowledge persists across sessions.
 See `docs/MEMORY-ARCHITECTURE.md` for full naming conventions and the
 `{domain}` field definition.
 
+## Swarm Mode
+
+You operate in **swarm mode** when invoked by `/swarm` with three required inputs: a pre-assigned worktree path, a pre-assigned branch name, and a per-variant implementation brief. If any of the three is missing, fall back to **solo mode** (the default behavior described above). Swarm mode is the one place the single-worker assumption above is relaxed — every `## NON-NEGOTIABLE PROTOCOL` rule otherwise applies unchanged, including the rule that you ONLY work on tickets in "Ready" or "In Progress" columns (the orchestrator moves the ticket to In Progress at Phase 2 start, so this rule is satisfied).
+
+### Activation
+
+Swarm mode activates when ALL three of these are present in the invocation:
+
+- `worktree` — a path like `.claude/worktrees/swarm-{N}-{letter}/`, already created by `/swarm` Phase 2.
+- `branch` — a name like `feature/issue-{N}-{slug}-variant-{letter}`, already created by `/swarm` Phase 2.
+- `brief` — the per-variant implementation brief (a ~100-word excerpt of `reports/swarms/issue-{N}-briefs.md`).
+
+The variant letter is derived from the trailing `-variant-{letter}` segment of the branch name. If the orchestrator passes inputs that fail any of these shapes, ignore the partial swarm context and operate as if invoked solo — select the top Ready ticket, create a branch, move to In Progress, etc. Do not attempt to repair the inputs.
+
+### Behavior diffs from solo mode
+
+In swarm mode, the worker:
+
+- **MUST NOT select a ticket from the board.** The ticket number is passed by the orchestrator.
+- **MUST NOT create a branch.** The orchestrator already created the branch and the worktree.
+- **MUST NOT move the ticket to "In Progress".** The orchestrator moves the ticket once at Phase 2 start, not per variant. Solo's "move to In Progress before starting" rule is suspended in swarm mode.
+- **MUST operate inside the assigned worktree.** Run all `git`, build, and test commands from inside the worktree directory. The primary clone belongs to the orchestrator.
+- **MUST treat the brief as additional implementation guidance on top of the ticket.** The brief is the "angle" this variant should take — modal vs inline vs progressive disclosure, etc. Stay inside the ticket's scope; the brief shapes the approach, it does not redefine the scope.
+- **MUST push the pre-assigned branch after local tests have run.** Pushes are parallel-safe across variants because each variant is on a distinct branch in a distinct worktree.
+- **MUST NOT run `gh pr create` itself.** PR creation is serialized by the orchestrator at Phase 4 to avoid the worker-bot account-switch race. The worker instead reports `ready-to-open-PR` along with the proposed PR title, body, build status, and fork-impact summary — the orchestrator opens the PR using those inputs.
+- **MUST NOT apply PR labels itself.** The orchestrator labels each PR `swarm-variant-{letter}` after creation, and additionally `swarm-failed` if the worker reported a failed build.
+- **MUST NOT move the ticket to "In Review".** The orchestrator moves the ticket once at Phase 4 end, not per variant. Solo's "move to In Review when CI passes" rule is suspended in swarm mode.
+
+### Behaviors preserved in swarm mode
+
+Every `## NON-NEGOTIABLE PROTOCOL` rule still applies in swarm mode. The relaxations above are scoped to ticket-selection, branch-creation, board-movement, and PR-creation/labeling — nothing else changes. In particular:
+
+- You still NEVER merge pull requests (PROTOCOL rule 1).
+- You still NEVER move tickets to the "Done" column (PROTOCOL rule 2).
+- You still NEVER push directly to the main branch (PROTOCOL rule 3).
+- You still ONLY work on tickets in "Ready" or "In Progress" columns (PROTOCOL rule 4) — the orchestrator placed the ticket in In Progress at Phase 2 start, so this rule is satisfied.
+- The refusal clause (PROTOCOL rule 5) still applies — if asked to merge, move to Done, or push to main while in swarm mode, refuse and remind the user.
+- Quality and protocol still beat speed (PROTOCOL rule 6).
+- All `## Stack Guardrails (Render + Supabase)` constraints apply — variants automatically get their own preview URLs and Supabase branch DBs via the existing `preview-deploy.yml` plumbing.
+- The Definition of Done checklist for the ticket still has to pass.
+- Pre-flight checks from `## Tools and Capabilities` still apply (auth, account identity, board access).
+
+### Failure handling
+
+If local tests fail in swarm mode, the worker still pushes the branch and still reports `ready-to-open-PR` — with `build-status: failed` and a short failure summary in the proposed PR body. The orchestrator labels the resulting PR `swarm-failed` and opens it anyway. **Failures are information, not garbage.** Other variants are unaffected; the orchestrator does not abort the swarm on a single failed variant. Render preview deploy may still render for failed variants depending on the failure mode — the orchestrator includes the preview link in the aggregate either way.
+
+### Report-back shape
+
+When implementation is complete (pass or fail), report back to the orchestrator with exactly these fields:
+
+```
+**Variant {letter} ready-to-open-PR**
+
+Title: <proposed PR title — prefix with [swarm-{letter}]>
+Body: <proposed PR body, following the standard PR-body convention>
+Build status: <green|red>
+Failure summary: <one paragraph, only if red>
+Render preview URL: <if deploy completed; otherwise "pending" or "failed">
+Fork impact: <which downstream forks see this on next sync, if applicable>
+Runtime-protected paths touched: <list, or "none">
+```
+
+This is the input the orchestrator uses to call `gh pr create` at Phase 4 and to compose the aggregate comment on the source issue. Be concrete and tight — the orchestrator does not reshape your text, it just delivers it.
+
+See `docs/plans/SWARM-COMMAND-PLAN.md` for the full design rationale (worktree isolation, Option-A account-switch serialization, why the orchestrator owns PR creation and board movement).
+
 ## Framework-Specific Testing Patterns
 
 ### React / Next.js with Vitest
