@@ -28,8 +28,8 @@ auto-handoff is preferred in steady state — this command exists for:
 - **Re-runs** — idempotent via the HTML marker (`<!-- review-to-tickets:source=#N -->`)
   on the prioritizer's summary comment; previously filed findings are detected
   and skipped.
-- **Cross-repo invocations** — when a review on `gembaflow-gcp` should produce
-  tickets on `gembaflow-gcp`'s board (or vice versa).
+- **Cross-repo invocations** — when a review on `downstream-fork` should produce
+  tickets on `downstream-fork`'s board (or vice versa).
 
 The command does NOT prompt the operator with a y/n confirmation per finding.
 Per-finding decisions belong to `agile-backlog-prioritizer`. The operator sees
@@ -76,7 +76,7 @@ Before invoking the prioritizer, verify:
 ## Workflow
 
 1. **Resolve target.** `/review-to-tickets #324` (same-repo) or
-   `/review-to-tickets vibeacademy/gembaflow-gcp#223` (cross-repo URL form).
+   `/review-to-tickets vibeacademy/downstream-fork#223` (cross-repo URL form).
    With no argument, scan the active repo's open PRs for the most-recently-
    reviewed one that has not yet been processed (no marker comment).
 2. **Fetch comments.** `gh pr view <N> --repo <owner>/<repo> --json comments,reviews`.
@@ -125,7 +125,7 @@ Before invoking the prioritizer, verify:
 
 ```
 /review-to-tickets #324
-/review-to-tickets vibeacademy/gembaflow-gcp#223
+/review-to-tickets vibeacademy/downstream-fork#223
 /review-to-tickets                  # most-recently-reviewed unprocessed PR
 ```
 
@@ -145,7 +145,7 @@ this command can detect previously-filed findings.
 ## Cross-repo invocation notes
 
 When the argument is a cross-repo URL form (e.g.
-`vibeacademy/gembaflow-gcp#223`):
+`vibeacademy/downstream-fork#223`):
 
 - Use `--repo <owner>/<repo>` on every `gh` call.
 - The prioritizer files tickets to the **source PR's** repo and project board
