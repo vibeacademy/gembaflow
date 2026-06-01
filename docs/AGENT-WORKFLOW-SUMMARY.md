@@ -461,6 +461,7 @@ A ticket is done when:
 |----------|---------|
 | `.claude/commands/work-ticket.md` | Work ticket command |
 | `.claude/commands/review-pr.md` | Review PR command |
+| `.claude/commands/review-to-tickets.md` | Convert review Suggestions into Backlog tickets |
 | `.claude/commands/groom-backlog.md` | Groom backlog command |
 
 ### Product Documentation
@@ -529,6 +530,34 @@ for setup instructions and the `.mcp.json` configuration.
 4. Analyzes code quality
 5. Posts detailed review
 6. Provides GO/NO-GO recommendation
+7. **If review contains non-blocking Suggestions**, auto-hands off to
+   `agile-backlog-prioritizer` (Task tool, fire-and-forget) — the prioritizer
+   files chosen tickets to Backlog and posts a scope-impact summary comment
+   on the PR. See `/review-to-tickets` for the manual escape hatch.
+
+### /review-to-tickets
+
+**Purpose**: Manually trigger the review → tickets flow for a PR — useful for
+retroactive backfill, re-runs, and cross-repo invocations.
+
+**Usage**: `/review-to-tickets #324` (same-repo) or
+`/review-to-tickets vibeacademy/gembaflow-gcp#223` (cross-repo URL form).
+
+**What Happens**:
+
+1. Parses the most recent `/review-pr` template comment on the target PR
+2. Detects idempotency marker `<!-- review-to-tickets:source=#N -->` and
+   subtracts previously-filed findings
+3. Drafts candidate tickets per non-blocking Suggestion
+4. Delegates per-finding decisions (file / dedupe / drop) to
+   `agile-backlog-prioritizer`
+5. Prioritizer files chosen tickets to Backlog and posts a structured summary
+   comment on the source PR with a scope-impact verdict
+
+This command does NOT prompt the operator with a y/n confirmation per
+finding — that decision belongs to the prioritizer agent. The operator's
+intervention point is the scope-impact line on the summary comment, which
+flags scope expansion for the next `/groom-backlog` pass.
 
 ### /groom-backlog
 

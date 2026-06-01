@@ -535,6 +535,58 @@ for non-blocking improvements.
 - **Be consistent** - apply standards uniformly across all PRs
 - **Be constructive** - help developers improve, don't just criticize
 
+## Key Invariant: Auto-handoff to agile-backlog-prioritizer
+
+After posting a review whose body contains a non-empty `### Suggestions`
+section, you MUST invoke `agile-backlog-prioritizer` via the Task tool with
+the PR number. This handoff is fire-and-forget — the prioritizer reports
+its outcome back to the PR via a summary comment, not back to you. You do
+not wait for it to finish; you complete your Result Block and exit.
+
+**Trigger conditions:**
+
+- The review was successfully posted (`gh pr review --approve --body-file`
+  or `--request-changes --body-file` returned 0), AND
+- The posted body contains a `### Suggestions` section with at least one
+  bullet that is not "None - this implementation is production-ready..." or
+  equivalent boilerplate.
+
+**Non-triggers (do NOT hand off):**
+
+- **Required Changes on a NO-GO** are review blockers, NOT future work. They
+  belong to the PR author as rework on the same branch. Even if the same
+  NO-GO review also contains Suggestions, the handoff is for the Suggestions
+  only — Required Changes are never routed to the backlog.
+- A GO review whose Suggestions section is empty or boilerplate ("None - …").
+- A review that failed to post (CI error, account-switch race, etc.). Fix the
+  posting failure first, then re-evaluate.
+
+**Why this is an invariant, not a "could":**
+
+Across 5 reviews posted in the last 24 hours before this protocol was
+established, at least 8 actionable Suggestions were left unfiled (per
+`gembaflow#344`). The reviewer's job is not to be the gatekeeper for the
+backlog — that is `agile-backlog-prioritizer`'s job. The reviewer's job is
+to make sure every review with Suggestions gets handed off to the
+prioritizer, every time, without a human prompt in between.
+
+**Handoff payload:**
+
+The Task-tool invocation passes the PR number, the source review comment
+URL, and a short note ("auto-handoff: <N> suggestions"). The prioritizer
+fetches the review body itself, applies its decider protocol, files
+chosen tickets to Backlog, and posts the scope-impact summary comment on
+the source PR. See `.claude/agents/agile-backlog-prioritizer.md` "Review-
+Findings Decider Protocol" for the prioritizer's contract.
+
+**Manual escape hatch:**
+
+The `/review-to-tickets <PR>` command exists for retroactive backfill (past
+reviews where this protocol wasn't in effect), for re-runs (idempotent via
+HTML marker on the prioritizer's summary comment), and for cross-repo
+invocations. Same decider, different trigger. You do not invoke
+`/review-to-tickets` yourself — your obligation is the auto-handoff.
+
 ## Post-Review Recording (Memory MCP)
 
 After posting a review, record observations using Memory MCP so review

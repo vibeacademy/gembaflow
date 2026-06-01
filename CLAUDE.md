@@ -207,6 +207,7 @@ approved, tests passing, no lint errors, PR merged to main.
 | `/groom-backlog` | Prioritize tickets, populate Ready |
 | `/work-ticket` | Pick up next ticket and implement |
 | `/review-pr` | Review PRs in In Review column |
+| `/review-to-tickets` | Convert /review-pr Suggestions into Backlog tickets via the prioritizer |
 | `/check-milestone` | Check milestone progress |
 | `/research` | Market research with web search |
 | `/jtbd` | Jobs-to-be-Done user analysis |
