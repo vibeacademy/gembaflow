@@ -247,7 +247,8 @@ stateDiagram-v2
 | `/groom-backlog` | Backlog Prioritizer | PRD, Roadmap, Architecture, Controls | Refined tickets in Ready column |
 | `/create-ticket` | Backlog Prioritizer | PRD, Architecture, Controls | Single ticket in Backlog |
 | `/work-ticket` | Ticket Worker | Ticket, Architecture | Branch, code, tests, PR |
-| `/review-pr` | PR Reviewer | PR, ticket, code diff | Review comment (GO/NO-GO) |
+| `/review-pr` | PR Reviewer | PR, ticket, code diff | Review comment (GO/NO-GO) + auto-handoff to prioritizer when Suggestions present |
+| `/review-to-tickets` | Backlog Prioritizer | PR review comment with Suggestions | Filed Backlog tickets + scope-impact summary comment on source PR |
 | `/sprint-status` | Any agent | Board state | Status report |
 | `/evaluate-feature` | Product Manager | PRD, Roadmap | BUILD/DEFER/DECLINE decision |
 | `/release-decision` | Product Manager | Board, PRD, metrics | GO/NO-GO release decision |
