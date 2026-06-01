@@ -11,6 +11,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`/review-to-tickets` slash command** — closes the loop between `/review-pr` and the backlog by converting non-blocking Suggestions on a posted review into filed Backlog tickets. The command is the manual escape hatch (retroactive backfill, re-runs, cross-repo invocations); in steady state, `pr-reviewer` auto-hands off to `agile-backlog-prioritizer` immediately after posting a review with Suggestions. The prioritizer is the per-finding decider (file / dedupe / drop), files chosen tickets to Backlog (never Ready — promotion stays a `/groom-backlog` decision), and posts a structured summary comment on the source PR with a mandatory scope-impact verdict (unchanged / expanded / none). Idempotent re-runs via HTML marker. Required Changes on a NO-GO review are review blockers, not future work, and stay out of this flow. (#344)
 
+## [1.4.0] - 2026-05-31
+
+**Minor release adding `/swarm` — run N parallel implementations of one ticket and pick the winner.**
+
+### Added
+
+- **`/swarm` slash command** (#390). Runs N parallel implementations of one Ready-column ticket, opens one PR per variant, leaves variant selection to the human. See `.claude/commands/swarm.md`.
+- **`swarm-planner` agent** (#389). Produces N differentiated implementation briefs from a single ticket so each `/swarm` variant explores a meaningfully different approach (not N identical attempts).
+- **Swarm mode for `github-ticket-worker`** (#392). The existing ticket worker now accepts a swarm-brief input and runs in isolated-worktree mode so concurrent variants don't trample each other.
+
+### Migration notes
+
+No migration required. `/swarm` is a new opt-in command; existing `/work-ticket` flows are unchanged.
+
+### Fork-maintained files you must update
+
+_None this release._
+
+### Propagation note
+
+This release touches only `.claude/agents/` and `.claude/commands/` — no runtime-protected scripts (`scripts/template-sync.sh`, `scripts/lib/overrides.sh`) were modified. Existing forks (`gembaflow-gcp`, `gembaflow-site`) pick up `/swarm` and `swarm-planner` automatically on next `/upgrade`. No fresh-fork-only caveat applies.
+
 ## [1.3.1] - 2026-05-29
 
 **Patch release fixing the fresh-fork version stamp gap that produced no-op `/upgrade` PRs on every new fork.**
