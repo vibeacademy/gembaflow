@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-05-31
+
+**Minor release adding `/swarm` — run N parallel implementations of one ticket and pick the winner.**
+
+### Added
+
+- **`/swarm` slash command** (#390). Runs N parallel implementations of one Ready-column ticket, opens one PR per variant, leaves variant selection to the human. See `.claude/commands/swarm.md`.
+- **`swarm-planner` agent** (#389). Produces N differentiated implementation briefs from a single ticket so each `/swarm` variant explores a meaningfully different approach (not N identical attempts).
+- **Swarm mode for `github-ticket-worker`** (#392). The existing ticket worker now accepts a swarm-brief input and runs in isolated-worktree mode so concurrent variants don't trample each other.
+
+### Migration notes
+
+No migration required. `/swarm` is a new opt-in command; existing `/work-ticket` flows are unchanged.
+
+### Fork-maintained files you must update
+
+_None this release._
+
+### Propagation note
+
+This release touches only `.claude/agents/` and `.claude/commands/` — no runtime-protected scripts (`scripts/template-sync.sh`, `scripts/lib/overrides.sh`) were modified. Existing forks (`gembaflow-gcp`, `gembaflow-site`) pick up `/swarm` and `swarm-planner` automatically on next `/upgrade`. No fresh-fork-only caveat applies.
+
 ## [1.3.1] - 2026-05-29
 
 **Patch release fixing the fresh-fork version stamp gap that produced no-op `/upgrade` PRs on every new fork.**
