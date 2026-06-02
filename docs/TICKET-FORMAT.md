@@ -75,7 +75,7 @@ Parent Epic: INFRA-010 (Observability and Health Checks)
 Effort Estimate: XS
 Priority: P1
 
---- A. Environment Context ---
+### A. Environment Context
 - Stack: Next.js 15 / React 19 / TypeScript (see TECHNICAL-ARCHITECTURE.md)
 - Integration points: Render health-check configuration (render.yaml)
 - Existing pattern: follow app/api/health/route.ts for route structure
@@ -83,21 +83,21 @@ Priority: P1
     - CREATE app/api/ping/route.ts
     - CREATE __tests__/ping.test.ts
 
---- B. Guardrails ---
+### B. Guardrails
 - Do NOT add authentication to this endpoint (it must be publicly reachable).
 - Do NOT import any database or ORM modules; this endpoint must have zero
   downstream dependencies.
 - Response time must be < 10ms at p99.
 - Do NOT modify any existing routes or middleware.
 
---- C. Happy Path ---
+### C. Happy Path
 1. Client sends GET /api/ping with no body and no auth headers.
 2. Next.js App Router routes to the ping handler.
 3. Handler returns HTTP 200 with body: {"ping": "pong"}
    Content-Type: application/json
 4. No database call, no logging side-effect, no cache hit.
 
---- D. Definition of Done ---
+### D. Definition of Done
 - ping.test.ts asserts GET /api/ping returns 200 with body {"ping": "pong"}.
 - ping.test.ts asserts response Content-Type is application/json.
 - `npm run lint` returns zero errors.
