@@ -30,8 +30,9 @@ the user if any check fails — do not continue with partial tooling.
 3. **All tests must pass before pushing** — never use `--no-verify`
 4. **Monitor CI after PR creation**: `gh pr checks <PR_NUMBER> --watch` — fix failures up to 3 times
 5. **Move ticket to In Review** only when CI passes
-6. **Never merge PRs** — human reviewer does this
-7. **Never commit directly to main** — always use feature branches and PRs
+6. **Auto-handoff to `pr-reviewer` on green CI** — once CI is green and the ticket is in In Review, launch the `pr-reviewer` agent via the Task tool immediately. Do not pause for human approval; green CI means the human is out of the loop until the GO/NO-GO is posted. (Solo mode only — swarm mode skips this; the orchestrator handles review timing.)
+7. **Never merge PRs** — human reviewer does this
+8. **Never commit directly to main** — always use feature branches and PRs
 
 ## Workflow Steps
 
@@ -64,7 +65,8 @@ the user if any check fails — do not continue with partial tooling.
 6. **Test Locally** — Run lint and tests. Do NOT push if any fail.
 7. **Push** — If pre-push hook fails, fix and retry (see Reference below)
 8. **Create PR** — Detailed description, link to issue
-9. **Monitor CI** — Watch checks, auto-fix failures, move to In Review when green
+9. **Monitor CI** — Watch checks, auto-fix failures (max 3 attempts), move to In Review when green
+10. **Hand off to reviewer** — On green CI, launch the `pr-reviewer` agent via the Task tool with the PR number. Wait for the GO/NO-GO verdict to be posted before returning. If CI never reaches green within 3 fix attempts, do NOT hand off — leave the escalation comment per the protocol below and stop.
 
 ## Quick Fix Protocol
 
@@ -167,13 +169,32 @@ Report each step with a Progress Line, then end your output with a Result Block:
 → Tests passing (3/3)
 → Pushed to origin
 → Created PR #108
+→ CI green (1 fix attempt: ruff)
 → Moved #21 to In Review
+→ Handed off to pr-reviewer (GO posted)
 
 ---
 
-**Result:** PR created
+**Result:** PR created and reviewed
 PR: #108 — feat: add health check endpoint
 Branch: feature/issue-21-health-check
 Ticket: #21 — moved to In Review
-Status: CI pending
+CI: green
+Review: GO posted by pr-reviewer
+```
+
+If CI does not reach green within 3 fix attempts, the handoff is skipped and the Result Block reflects the escalation instead:
+
+```
+→ Created PR #108
+→ CI failed (3 fix attempts exhausted)
+→ Posted escalation comment on PR
+→ Ticket #21 left in In Progress
+
+---
+
+**Result:** PR created — escalated, no handoff
+PR: #108 — feat: add health check endpoint
+CI: red after 3 attempts (test failure: <summary>)
+Review: not started — awaiting human
 ```
