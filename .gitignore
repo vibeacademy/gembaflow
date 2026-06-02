@@ -49,6 +49,11 @@ coverage/
 # Logs
 *.log
 logs/
+
+# Framework-generated artifacts (do not commit)
+.gembaflow-reports/
+.agile-flow-reports/
+.agile-flow-version
 # FRAMEWORK:END
 
 # Project-specific ignores (add below this line)
