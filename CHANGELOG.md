@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - **Nested-subagent limitation documented in auto-handoff invariants** — both `github-ticket-worker.md` (worker → reviewer handoff) and `pr-reviewer.md` (reviewer → prioritizer handoff) now carry a "Known limitation: nested subagent contexts" subsection. The auto-handoffs silently no-op when the agent is itself a nested subagent (the Task tool is unavailable below the orchestrator in this Claude Code setup), which bites `/swarm` runs and orchestrator-driven multi-ticket batches. The new note names the fallback: include an explicit handoff-recommendation line in the Result Block so the orchestrator one level up can spawn the next link manually. Documentation-only; no behavioral change. Paired with the meta-side note in `gembaflow-meta#127`. (gembaflow-meta#126)
+- **`docs/TICKET-FORMAT.md` example uses `###` headers instead of dash-banners** — the Concrete Example section's four Power-Section markers were `--- A. Environment Context ---` style. That style is harmless inside the surrounding code fence but renders as horizontal rules if anyone copies the example out as a template, and is inconsistent with the `###` (or `##`) headers real ticket bodies actually use. Switched to `### A. Environment Context` etc. so the example is copy-paste-safe and matches the conventions tickets in the wild follow. Content unchanged. (#235)
 
 ## [1.4.0] - 2026-05-31
 
