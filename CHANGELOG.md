@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Root `.gitignore` now covers framework-generated artifacts** — `.gembaflow-reports/` (the directory `/report-issue` writes into), the legacy `.agile-flow-reports/` (pre-rebrand name, still present on some forks), and the legacy `.agile-flow-version` dotfile (transitional safety net — the current canonical `.gembaflow-version` is intentionally NOT ignored) are now recognized as ignorable. Removes the recurring `/upgrade` clean-tree precheck failure on every fork that has ever run `/report-issue`. The clean-tree check itself is unchanged — this only adds the ignore patterns the check is supposed to honor. (#372)
+- **Release notes now require a "Fork-maintained files you must update" section** — `docs/SDLC.md`'s release process gains a step 4 obligating maintainers to add this section to every release's GitHub Release body. The section calls out concrete edits a fork maintainer must apply by hand after `/upgrade` (removed shims, renamed CI checks, branch-protection rule expectations, workflow file deltas). If a release introduces no fork-required edits, the section reads "None required" — never omitted, so the absence is meaningful information. `VERSIONING.md` cross-links the convention. `.claude/commands/release-decision.md` adds the section to its Communication Readiness checklist. Retroactive backfill applied to the published v1.2.0 and v1.2.1 GitHub Releases. (#373)
 
 ### Documentation
 

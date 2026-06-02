@@ -33,6 +33,7 @@ MAJOR.MINOR.PATCH
 1. All changes land on `main` via pull request.
 2. When ready to release, a maintainer creates an annotated tag (`git tag -a vX.Y.Z`).
 3. Pushing the tag triggers the GitHub Release workflow, which publishes a release with the relevant `CHANGELOG.md` section.
+4. **The release notes MUST include a "Fork-maintained files you must update" section** — see [docs/SDLC.md](./docs/SDLC.md#fork-maintained-files-you-must-update-required-section-in-every-release-notes-file) for the template and rationale. If the release introduces no fork-required edits, the section reads "None required" — the absence is made explicit.
 
 ## Current Version
 

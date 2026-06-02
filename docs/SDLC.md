@@ -360,6 +360,69 @@ passing.
    - Pushes tag: `git push origin vX.Y.Z`
 3. The `release.yml` workflow fires on the tag, extracts the CHANGELOG
    section, and creates a GitHub Release.
+4. The maintainer **edits the published GitHub Release** to add the
+   "Fork-maintained files you must update" section (see template below).
+   The workflow generates the release from the CHANGELOG section, which
+   describes synced framework changes — fork-maintained file edits that
+   downstream consumers must apply manually require a separate, explicit
+   call-out so they aren't lost in the CHANGELOG bullets.
+
+### "Fork-maintained files you must update" (required section in every release notes file)
+
+When a release changes behavior that's only enforced through a *synced*
+artifact while the *related* fork-maintained artifact stays behind, forks
+silently drift. This section makes that drift visible at release time.
+
+**The section is required on every release**, even if the answer is
+"None required". The absence of fork-required edits is meaningful
+information — it tells consumers they can run `/upgrade` without
+preparation.
+
+What belongs in the section:
+
+- **Removed compatibility shims** — e.g. "`report-issue.sh` no longer
+  reads `.agile-flow-version` — update your `features/` BDD tests if you
+  have any that reference it."
+- **Renamed CI check names** — e.g. "`typecheck` → `version-parity` in
+  `.github/workflows/ci.yml`. Update your branch-protection ruleset to
+  match, or sync PRs will block on a check that no longer reports."
+- **Workflow file deltas** — `.github/workflows/` is fork-maintained, not
+  synced. Any expectation the framework has of those workflows (job
+  names, required outputs, secrets) belongs here.
+- **Branch-protection rule expectations** — required-status-check name
+  changes, force-push policy changes, anything the fork's ruleset would
+  need to mirror.
+- **Anything else where a synced framework file references a
+  fork-maintained counterpart whose name or behavior must match.**
+
+What does NOT belong:
+
+- Migration steps the framework's own scripts handle automatically (e.g.
+  dotfile renames done by `template-sync.sh`'s migration step). Those go
+  in "Migration notes" / "Upgrade notes", not here.
+- New features or fixes — those are CHANGELOG entries.
+
+### Release notes template — Fork-maintained files section
+
+```markdown
+## Fork-maintained files you must update
+
+> **What this section is:** edits a fork maintainer must apply by hand
+> after `/upgrade` — file paths and rule names whose synced framework
+> counterpart changed, but which themselves are not synced.
+
+- **`<file or rule>`** — `<what changed in the synced counterpart>`. Edit
+  required: `<concrete diff or instruction>`. Skip if `<condition>`.
+- **`<file or rule>`** — ...
+
+(If none: `**None required.** This release does not change any
+fork-maintained file expectations.`)
+```
+
+**Authoritative source for what's synced vs not:** `.gembaflow-version`'s
+`syncDirectories` list + `docs/DISTRIBUTION.md` classification (per path:
+`framework`, `user-content`, or `hybrid`). Anything not in
+`syncDirectories` or marked `user-content` is fork-maintained.
 
 ### Downstream obligations after a release
 
