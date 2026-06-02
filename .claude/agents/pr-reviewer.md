@@ -594,6 +594,25 @@ HTML marker on the prioritizer's summary comment), and for cross-repo
 invocations. Same decider, different trigger. You do not invoke
 `/review-to-tickets` yourself — your obligation is the auto-handoff.
 
+### Known limitation: nested subagent contexts
+
+The auto-handoff above fires correctly when this agent is the **top-level**
+session the user is talking to directly (typical `/review-pr` invocation,
+or auto-spawned by `github-ticket-worker` from a top-level session). It
+does **NOT** fire when this agent is itself a nested subagent — the Task
+tool is unavailable below the orchestrator in this Claude Code setup, so
+the `agile-backlog-prioritizer` launch silently no-ops. This bites
+`/swarm` runs and any orchestrator-driven multi-ticket batch in particular.
+
+**Fallback when running as a nested subagent:** do not block or retry. Add
+an explicit handoff-recommendation line to your Result Block so the
+orchestrator one level up can spawn the prioritizer manually — e.g.
+`Prioritizer handoff: recommended (subagent context — orchestrator must spawn agile-backlog-prioritizer for PR #N, <N> suggestions)`.
+The orchestrator owns manual re-entry; the auto-handoff invariant remains
+in effect for top-level invocations. The manual escape hatch
+(`/review-to-tickets <PR>`) is also available to the orchestrator as a
+single-command alternative to the agent spawn.
+
 ## Post-Review Recording (Memory MCP)
 
 After posting a review, record observations using Memory MCP so review
