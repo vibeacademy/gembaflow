@@ -48,6 +48,12 @@ Ticket moved to: (left in In Progress)
 Reviewer handoff: skipped — CI red after 3 fix attempts, escalation comment left on PR
 ```
 
+### Known limitation: nested subagent contexts
+
+The auto-handoff above fires correctly when this agent is the **top-level** session the user is talking to directly (typical `/work-ticket` or direct invocation). It does **NOT** fire when this agent is itself a nested subagent — the Task tool is unavailable below the orchestrator in this Claude Code setup, so the `pr-reviewer` launch silently no-ops. This bites `/swarm` runs and any orchestrator-driven multi-ticket batch in particular.
+
+**Fallback when running as a nested subagent:** do not block or retry. Add an explicit handoff-recommendation line to your Result Block so the orchestrator one level up can spawn the next link manually — e.g. `Reviewer handoff: recommended (subagent context — orchestrator must spawn pr-reviewer for PR #N)`. The orchestrator owns manual re-entry; the auto-handoff invariant remains in effect for top-level invocations.
+
 ## Project Context
 
 <!--
