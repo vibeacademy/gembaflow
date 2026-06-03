@@ -386,6 +386,14 @@ What belongs in the section:
 - **Renamed CI check names** — e.g. "`typecheck` → `version-parity` in
   `.github/workflows/ci.yml`. Update your branch-protection ruleset to
   match, or sync PRs will block on a check that no longer reports."
+  **When you rename a check that `scripts/verify-bot-permissions.sh`
+  reads, also add a deprecation alias** in that script's
+  `DEPRECATED_CHECK_ALIASES` map so forks have one release cycle to
+  rename their workflow. Format:
+  `[old-name]=new-name  # DEPRECATED_AT: vX.Y.Z; remove in vX.Y+1`.
+  File a follow-up ticket for the next release to remove the alias.
+  Grep convention: `grep -n "DEPRECATED_AT:" scripts/verify-bot-permissions.sh`
+  lists active aliases.
 - **Workflow file deltas** — `.github/workflows/` is fork-maintained, not
   synced. Any expectation the framework has of those workflows (job
   names, required outputs, secrets) belongs here.
