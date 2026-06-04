@@ -8,6 +8,13 @@ File a structured bug report or feedback item against the upstream Gemba Flow re
 from this downstream fork. The report is delivered as a GitHub issue with a
 `downstream-report` label so upstream maintainers can triage it automatically.
 
+**Severity vs priority:** the `severity` field you'll be prompted for (p1/p2/p3)
+is recorded in the report's YAML front matter, not applied as a repo label on
+the upstream issue. **Priority is canonical on the upstream project board's
+Priority field**, not on the issue itself — see `docs/TICKET-FORMAT.md`. If the
+new issue belongs on the board, the upstream maintainer (or you, if you have
+project access) adds it there and sets the Priority field.
+
 ## When to use this command
 
 Use `/report-issue` when you have found:
