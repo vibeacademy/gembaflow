@@ -21,7 +21,7 @@ Each ticket has **Standard Fields** followed by **4 Power Sections**.
 | **Problem Statement** | What is broken or missing, and why it matters. 2-3 sentences max. |
 | **Parent Epic** | Link to the parent epic, if applicable. Omit if standalone. |
 | **Effort Estimate** | XS (< 1 hr), S (1-4 hr), M (4-8 hr), L (1-3 days), XL (3+ days). |
-| **Priority** | P0 (drop everything), P1 (current sprint), P2 (next sprint), P3 (backlog). |
+| **Priority** | P0 (drop everything), P1 (current sprint), P2 (next sprint), P3 (backlog). Set on the project board's Priority field — **not** as a repo label on the issue. Issue bodies may render `Priority: P1` as documentation, but the board field is the canonical source. |
 
 ### Power Section A: Environment Context
 

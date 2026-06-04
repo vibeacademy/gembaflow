@@ -591,6 +591,11 @@ if command -v gh >/dev/null 2>&1; then
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo "Issue filed successfully."
       echo "Report saved: $REPORT_FILE"
+      echo ""
+      echo "Severity ($SEVERITY) is recorded in the report's YAML front matter,"
+      echo "not as a repo label. Priority is canonical on the upstream project"
+      echo "board, not on this issue. If this issue should be tracked there,"
+      echo "add it to the board and set its Priority field."
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       exit 0
     fi
@@ -609,6 +614,11 @@ if command -v gh >/dev/null 2>&1; then
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo "Issue filed successfully."
       echo "Report saved: $REPORT_FILE"
+      echo ""
+      echo "Severity ($SEVERITY) is recorded in the report's YAML front matter,"
+      echo "not as a repo label. Priority is canonical on the upstream project"
+      echo "board, not on this issue. If this issue should be tracked there,"
+      echo "add it to the board and set its Priority field."
       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       exit 0
     fi
