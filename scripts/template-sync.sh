@@ -73,6 +73,29 @@ RUNTIME_PROTECTED_PATHS=(
   "scripts/lib/overrides.sh"
 )
 
+###############################################################################
+# Assistant-mode files (gembaflow#406)
+#
+# `.claude/modes/` is a fork-extensible directory: the framework ships five
+# canonical modes (default, scaffolded, socratic, terse-expert, shipping-coach),
+# and forks may add their own `<name>.md` fragments. The sync rule is
+# "upstream-only overwrite":
+#
+#   - Files that exist upstream get synced (added/updated as usual).
+#   - Files that exist ONLY locally (fork-added modes) are left alone, because
+#     the iteration loop in section 7 walks `find "$upstream_path"` and never
+#     touches a local file that has no upstream counterpart.
+#
+# This means fork-local modes survive every `/upgrade` without needing an
+# entry in `.gembaflow-overrides`.
+#
+# `scripts/resolve-mode.sh` (the precedence-walking hook script) and the
+# `SessionStart` hook block in `.claude/settings.json` are framework
+# infrastructure and ARE synced normally — they live alongside other
+# framework scripts under `scripts/` and `.claude/`. The hook script is NOT
+# runtime-protected: it does not modify itself during a sync run.
+###############################################################################
+
 normalize_rel_path() {
   local path="$1"
   while [[ "$path" == ./* ]]; do

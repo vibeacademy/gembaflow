@@ -54,9 +54,24 @@
     "memory",
     "sequential-thinking"
   ],
+  "assistantMode": "",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/resolve-mode.sh --emit-fragment"
+          }
+        ]
+      }
+    ]
+  },
   "_comments": {
     "deny_merge": "IMPORTANT: Bash(gh pr merge:*) is intentionally DENIED to enforce trunk-based development workflow. Only humans can merge PRs. Agents can review (gh pr review) but cannot finalize merges.",
     "deny_secrets": "Secret files (.env, *.key, credentials) are denied to prevent accidental exposure of sensitive data.",
-    "bot_accounts": "This template assumes separate bot accounts for worker and reviewer agents. See .claude/README.md for setup instructions."
+    "bot_accounts": "This template assumes separate bot accounts for worker and reviewer agents. See .claude/README.md for setup instructions.",
+    "assistant_mode": "The 'assistantMode' field (when non-empty) names a mode under .claude/modes/. This is the team-shared, committed layer of the precedence chain. Operators can override it locally with .claude/mode.local (gitignored). See .claude/modes/README.md.",
+    "session_start_hook": "The SessionStart hook runs scripts/resolve-mode.sh, which walks the precedence chain (assistantMode -> .claude/mode.local -> default) and emits the resolved mode fragment to stdout so Claude reads it as additional context. The hook script and the /mode slash command share one resolver by construction (gembaflow#406)."
   }
 }

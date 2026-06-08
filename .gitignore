@@ -13,6 +13,9 @@ Thumbs.db
 # Claude Code local settings (contains user-specific permissions)
 .claude/settings.local.json
 
+# Assistant mode selection (operator-local; see .claude/modes/README.md)
+.claude/mode.local
+
 # Environment and secrets
 .env
 .env.*

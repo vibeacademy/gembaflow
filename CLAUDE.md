@@ -204,6 +204,7 @@ approved, tests passing, no lint errors, PR merged to main.
 
 | Command | Description |
 |---------|-------------|
+| `/mode` | Set or inspect the active assistant mode for the main session |
 | `/groom-backlog` | Prioritize tickets, populate Ready |
 | `/work-ticket` | Pick up next ticket and implement |
 | `/review-pr` | Review PRs in In Review column |
@@ -220,4 +221,9 @@ approved, tests passing, no lint errors, PR merged to main.
 | `/lock-scope` | Lock MVP scope |
 | `/doctor` | Environment health check (local + remote) |
 | `/upgrade` | Upgrade framework files to latest release |
+
+### Assistant Mode
+
+<!-- The active assistant mode is injected at session start by the SessionStart hook in .claude/settings.json, which runs scripts/resolve-mode.sh. -->
+<!-- See .claude/modes/README.md for the precedence chain, the shipped modes, and how to add a fork-local mode. -->
 <!-- FRAMEWORK:END -->

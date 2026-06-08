@@ -704,12 +704,79 @@ MCPEOF
     # -----------------------------------------------------------------------
     echo ""
     if [ "$smoke_pass" = true ]; then
+        # -----------------------------------------------------------------------
+        #  Assistant mode prompt (gembaflow#406)
+        #  Minimal: list shipped modes, accept a choice, write .claude/mode.local.
+        #  All resolution logic lives in scripts/resolve-mode.sh — bootstrap just
+        #  writes the file. Idempotent: skip if .claude/mode.local already exists.
+        # -----------------------------------------------------------------------
+        bootstrap_assistant_mode
+
         print_success "Environment setup complete."
         mark_phase_complete "phase0"
     else
         print_error "Some smoke tests failed. Please fix the issues above and re-run."
         return 1
     fi
+}
+
+# ---------------------------------------------------------------------------
+#  bootstrap_assistant_mode — first-run prompt to pick an assistant mode
+#  for the main Claude session. Lists shipped modes via the resolver, writes
+#  the operator's choice to .claude/mode.local. Idempotent.
+# ---------------------------------------------------------------------------
+bootstrap_assistant_mode() {
+    local resolver="scripts/resolve-mode.sh"
+
+    if [ ! -x "$resolver" ] && [ ! -f "$resolver" ]; then
+        return 0
+    fi
+
+    echo ""
+    echo -e "${CYAN}--- Assistant mode (optional) ---${NC}"
+
+    if [ -f ".claude/mode.local" ]; then
+        local current
+        current="$(head -n 1 .claude/mode.local | tr -d '[:space:]')"
+        print_info "Assistant mode already set to '${current}' (.claude/mode.local). Skipping."
+        echo "  Run '/mode list' or '/mode <name>' to change later."
+        return 0
+    fi
+
+    echo ""
+    echo "  The main Claude session can be calibrated to one of several modes."
+    echo "  Modes shape tone and presentation only — sub-agents are unaffected."
+    echo ""
+    echo "  Available modes:"
+
+    local mode_lines
+    mode_lines="$(bash "$resolver" --list 2>/dev/null || true)"
+    if [ -z "$mode_lines" ]; then
+        print_warning "Could not list modes; skipping mode selection."
+        return 0
+    fi
+
+    echo "$mode_lines" | while IFS=$'\t' read -r name positioning; do
+        printf "    - %-16s %s\n" "$name" "$positioning"
+    done
+    echo ""
+
+    read -p "  Choose a mode (Enter to skip and use 'default'): " mode_choice
+    mode_choice="$(echo "$mode_choice" | tr -d '[:space:]')"
+
+    if [ -z "$mode_choice" ]; then
+        print_info "No mode selected. Default behavior will apply."
+        return 0
+    fi
+
+    if ! echo "$mode_lines" | cut -f1 | grep -qx "$mode_choice"; then
+        print_warning "'$mode_choice' is not a known mode. Skipping — you can set one later with /mode <name>."
+        return 0
+    fi
+
+    mkdir -p .claude
+    printf '%s\n' "$mode_choice" > .claude/mode.local
+    print_success "Assistant mode set to '${mode_choice}' (.claude/mode.local)."
 }
 
 # ===========================================================================
