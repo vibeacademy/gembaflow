@@ -853,6 +853,81 @@ phase3_agents() {
 }
 
 # ===========================================================================
+#  Assistant mode — one-time prompt (#406)
+#
+#  Writes the chosen mode to .claude/mode.local (a single line, gitignored).
+#  Idempotent: if the file already exists, asks before overwriting.
+#  Operator may skip — no file is written, resolution falls through to default.
+# ===========================================================================
+prompt_assistant_mode() {
+    local mode_dir=".claude/modes"
+    local mode_local=".claude/mode.local"
+
+    # If no modes directory shipped (older checkout), skip silently.
+    if [ ! -d "$mode_dir" ]; then
+        return 0
+    fi
+
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}Assistant mode (optional)${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "Modes bias the main Claude session toward a chosen interaction style."
+    echo "(Sub-agents like /work-ticket and /review-pr are NOT affected.)"
+    echo ""
+
+    if [ -f "$mode_local" ]; then
+        local current_mode
+        current_mode=$(head -1 "$mode_local" | tr -d '[:space:]')
+        if [ -n "$current_mode" ]; then
+            echo "Mode already set: ${current_mode}"
+            read -p "Keep? [Y/n]: " keep_mode
+            if [[ ! "$keep_mode" =~ ^[Nn]$ ]]; then
+                print_info "Keeping existing mode: ${current_mode}"
+                return 0
+            fi
+        fi
+    fi
+
+    echo "Shipped modes:"
+    echo "  1) default        — Baseline behavior; no fragment applied."
+    echo "  2) scaffolded     — Surface the workflow; verbose, step-by-step."
+    echo "  3) socratic       — Teach by asking; withhold the final answer."
+    echo "  4) terse-expert   — Assume expert reader; skip preambles."
+    echo "  5) shipping-coach — Push every suggestion toward smallest-shippable."
+    echo ""
+    read -p "Choice [1-5, Enter to skip]: " mode_choice
+
+    local chosen=""
+    case "$mode_choice" in
+        1) chosen="default" ;;
+        2) chosen="scaffolded" ;;
+        3) chosen="socratic" ;;
+        4) chosen="terse-expert" ;;
+        5) chosen="shipping-coach" ;;
+        "")
+            print_info "No mode selected; main session will use default behavior."
+            return 0
+            ;;
+        *)
+            print_warning "Invalid choice — skipping mode selection."
+            return 0
+            ;;
+    esac
+
+    # Sanity: confirm the mode file actually exists before writing.
+    if [ ! -f "${mode_dir}/${chosen}.md" ]; then
+        print_warning "Mode file ${mode_dir}/${chosen}.md not found — skipping."
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$mode_local")"
+    printf '%s\n' "$chosen" > "$mode_local"
+    print_success "Mode set to ${chosen} (.claude/mode.local). Switch later with /mode <name>."
+}
+
+# ===========================================================================
 #  Phase 4 — Workflow Activation
 # ===========================================================================
 phase4_workflow() {
@@ -933,6 +1008,10 @@ phase4_workflow() {
 
     mark_phase_complete "phase4"
     print_success "Phase 4 complete! Workflow activated."
+
+    # One-time assistant-mode prompt (#406). Idempotent on re-run — asks
+    # before overwriting an existing .claude/mode.local.
+    prompt_assistant_mode
 
     # Stamp installedAt AND set version to the latest upstream release tag on
     # first install. Without this, every fresh fork starts at the placeholder

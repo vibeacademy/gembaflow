@@ -14,6 +14,12 @@
 
 ---
 
+## Assistant mode (main session only)
+
+Resolve the active mode in this order: `.claude/settings.json` `"assistantMode"` if set, else the first non-empty line of `.claude/mode.local`, else `default`. Then read `.claude/modes/<resolved>.md` and follow its `## Instructions` section as if those bullets were prepended to this file. Sub-agents ignore this block — they keep their own personas. Switch modes any time with `/mode <name>`; list available modes with `/mode list`.
+
+---
+
 ## Critical Requirements
 
 > **TL;DR:** Trunk-based dev, quality-driven workflow, pre-push verification.
@@ -220,4 +226,6 @@ approved, tests passing, no lint errors, PR merged to main.
 | `/lock-scope` | Lock MVP scope |
 | `/doctor` | Environment health check (local + remote) |
 | `/upgrade` | Upgrade framework files to latest release |
+| `/mode` | View, list, or set the main-session assistant mode |
+| `/help` | List the shipped slash commands |
 <!-- FRAMEWORK:END -->

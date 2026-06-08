@@ -485,7 +485,15 @@ else
     fi
 
     if [ -d "$upstream_path" ]; then
-      # Directory sync: iterate over each file in the upstream directory
+      # Directory sync: iterate over each file in the upstream directory.
+      #
+      # Fork-extensibility note (#406 — assistant modes): this loop is
+      # upstream-driven. It enumerates files that exist in the upstream
+      # release and writes them locally. Files that exist ONLY in the
+      # fork are never enumerated, so fork-local additions in
+      # `.claude/modes/` (e.g. a fork-local `gentle-ofelia.md` mode) are
+      # untouched on every sync. The same property holds for any other
+      # synced directory — there is no deletion pass.
       while IFS= read -r file; do
         rel_file="${file#"$upstream_path"/}"
         local_file="$sync_path/$rel_file"
