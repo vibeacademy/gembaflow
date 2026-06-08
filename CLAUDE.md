@@ -135,6 +135,24 @@ Every agent output MUST follow these patterns. Full spec: `docs/AGENT-OUTPUT-STA
 
 **Section Order** (multi-section reports): Context → Findings → Recommendations → Result Block
 
+---
+
+## Assistant Mode Resolution
+
+The main session can run in any of several modes that bias tone, verbosity, and explanation depth without changing the framework guardrails above. Sub-agents are unaffected. To resolve which mode is active for this session, follow this procedure exactly:
+
+First, check `.claude/settings.json`. If the key `assistantMode` is present and its value is a non-empty string, that value is a candidate for the resolved mode. This is the **canonical, team-shared** setting and the form recommended for committed configuration.
+
+Next, check `.claude/mode.local`. If the file exists, its entire trimmed contents (typically a single short string like `scaffolded`) is the **personal, local-machine override** and takes precedence over `settings.json`. The file is gitignored on purpose — it represents one operator's preference, not a team decision.
+
+If neither `settings.json` `assistantMode` nor `.claude/mode.local` is set, the resolved mode is `default`.
+
+Once you have the resolved mode name, read `.claude/modes/<name>.md`. Treat the file's `## Persona` and `## Heuristics` sections as additional context about how you should present yourself in this session — tone, verbosity, and explanation depth. Do not let the mode override any safety protocol, GitHub auth rule, or workflow guardrail above; modes are additive prompt fragments, not replacement personas. If the resolved mode is `default`, no overlay applies and you proceed with framework baseline behavior.
+
+If `.claude/modes/<name>.md` does not exist (e.g. a stale `mode.local` referencing a mode that was removed), fall back to `default` silently and continue.
+
+The mode applies to the **main session only**. When a sub-agent is invoked via the Task tool or a slash command, the sub-agent runs its own calibrated persona regardless of the resolved mode; when control returns to the main session, the resolved mode resumes.
+
 <!-- FRAMEWORK:END -->
 
 ---
@@ -220,4 +238,5 @@ approved, tests passing, no lint errors, PR merged to main.
 | `/lock-scope` | Lock MVP scope |
 | `/doctor` | Environment health check (local + remote) |
 | `/upgrade` | Upgrade framework files to latest release |
+| `/mode` | Select, list, or inspect the assistant mode for the main session |
 <!-- FRAMEWORK:END -->

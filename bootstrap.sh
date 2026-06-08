@@ -976,6 +976,81 @@ phase4_workflow() {
             fi
         fi
     fi
+
+    # -------------------------------------------------------------------
+    #  Assistant mode selection (#406)
+    #  Idempotent: if a mode is already set in either settings.json or
+    #  mode.local, skip without overwriting.
+    # -------------------------------------------------------------------
+    echo ""
+    print_info "Assistant mode selection..."
+    local settings_file=".claude/settings.json"
+    local mode_local=".claude/mode.local"
+    local existing_settings_mode=""
+    local existing_local_mode=""
+    if [ -f "$settings_file" ] && command -v jq >/dev/null 2>&1; then
+        existing_settings_mode=$(jq -r '.assistantMode // empty' "$settings_file" 2>/dev/null)
+    fi
+    if [ -f "$mode_local" ]; then
+        existing_local_mode=$(tr -d '[:space:]' < "$mode_local")
+    fi
+
+    if [ -n "$existing_settings_mode" ] || [ -n "$existing_local_mode" ]; then
+        if [ -n "$existing_settings_mode" ]; then
+            print_success "Mode already set in settings.json: ${existing_settings_mode} — leaving as-is."
+        fi
+        if [ -n "$existing_local_mode" ]; then
+            print_success "Local mode override already set: ${existing_local_mode} — leaving as-is."
+        fi
+    else
+        echo ""
+        echo "The main Claude session can run in one of several modes that bias"
+        echo "its tone and verbosity. Sub-agents are unaffected. Available modes:"
+        echo ""
+        if [ -d ".claude/modes" ]; then
+            for mode_file in .claude/modes/*.md; do
+                [ -f "$mode_file" ] || continue
+                local mode_name="${mode_file##*/}"
+                mode_name="${mode_name%.md}"
+                [ "$mode_name" = "README" ] && continue
+                local headline
+                headline=$(awk '/^## Headline behavior/{getline; while(/^$/)getline; print; exit}' "$mode_file")
+                printf "  - %-16s %s\n" "$mode_name" "$headline"
+            done
+        fi
+        echo ""
+        echo "You can set the mode for the whole team (committed to"
+        echo ".claude/settings.json) or just for yourself on this machine"
+        echo "(written to .claude/mode.local, which is gitignored)."
+        echo ""
+        read -p "Mode name (or press Enter to skip and use 'default'): " selected_mode
+        if [ -n "$selected_mode" ]; then
+            if [ ! -f ".claude/modes/${selected_mode}.md" ]; then
+                print_warning "Unknown mode: ${selected_mode}. Skipping. Run /mode list later to see options."
+            else
+                read -p "Set this for [t]eam (settings.json) or just [p]ersonal (mode.local)? [t/p]: " mode_scope
+                case "$mode_scope" in
+                    t|T)
+                        if [ -f "$settings_file" ] && command -v jq >/dev/null 2>&1; then
+                            jq --arg m "$selected_mode" '.assistantMode = $m' "$settings_file" \
+                                > "$settings_file.tmp" && mv "$settings_file.tmp" "$settings_file"
+                            print_success "Set assistantMode='${selected_mode}' in $settings_file (team-shared)."
+                        else
+                            print_warning "$settings_file not found or jq unavailable; falling back to mode.local."
+                            echo "$selected_mode" > "$mode_local"
+                            print_success "Wrote mode '${selected_mode}' to $mode_local."
+                        fi
+                        ;;
+                    p|P|*)
+                        echo "$selected_mode" > "$mode_local"
+                        print_success "Wrote mode '${selected_mode}' to $mode_local (personal, gitignored)."
+                        ;;
+                esac
+            fi
+        else
+            print_info "No mode selected; main session will use 'default' behavior."
+        fi
+    fi
 }
 
 # ===========================================================================
@@ -1001,6 +1076,7 @@ show_completion() {
     echo "  /check-milestone   - Track milestone progress"
     echo "  /evaluate-feature  - Assess feature requests"
     echo "  /release-decision  - Go/no-go for releases"
+    echo "  /mode              - Select main-session assistant mode"
     echo ""
     echo -e "${CYAN}Documentation:${NC}"
     echo "  - CLAUDE.md - Project configuration"

@@ -54,9 +54,11 @@
     "memory",
     "sequential-thinking"
   ],
+  "assistantMode": null,
   "_comments": {
     "deny_merge": "IMPORTANT: Bash(gh pr merge:*) is intentionally DENIED to enforce trunk-based development workflow. Only humans can merge PRs. Agents can review (gh pr review) but cannot finalize merges.",
     "deny_secrets": "Secret files (.env, *.key, credentials) are denied to prevent accidental exposure of sensitive data.",
-    "bot_accounts": "This template assumes separate bot accounts for worker and reviewer agents. See .claude/README.md for setup instructions."
+    "bot_accounts": "This template assumes separate bot accounts for worker and reviewer agents. See .claude/README.md for setup instructions.",
+    "assistantMode": "Canonical, version-controlled selection of the main-session assistant mode. Set to one of the names in .claude/modes/ (e.g. \"scaffolded\", \"socratic\", \"terse-expert\", \"shipping-coach\") to share a mode with the team. Leave null to fall back to .claude/mode.local (personal, gitignored) or to the framework default. See .claude/modes/README.md for the registry and CLAUDE.md for the resolution chain."
   }
 }

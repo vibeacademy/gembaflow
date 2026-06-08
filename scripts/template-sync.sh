@@ -468,6 +468,40 @@ FILES_SKIPPED_RUNTIME=()
 HYBRID_AGENTS_UPDATED=()       # .claude/agents/*.md with markers, framework section merged
 HYBRID_AGENTS_LEGACY_SKIPPED=() # .claude/agents/*.md without markers, preserved local
 
+# Mode-registry summary (#406). `.claude/modes/` is a fork-extensible registry —
+# upstream files are synced like any other directory, but fork-local files are
+# never touched (the find loop only iterates upstream files, so anything fork-
+# local is implicitly preserved). We surface the split explicitly in the sync
+# log so the maintainer can see at a glance which fork-local modes survived.
+modes_summary_log() {
+  local upstream_modes_dir="$1"
+  [ -d "$upstream_modes_dir" ] || return 0
+
+  local upstream_count
+  upstream_count=$(find "$upstream_modes_dir" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+
+  local fork_local=()
+  if [ -d ".claude/modes" ]; then
+    while IFS= read -r local_file; do
+      [ -z "$local_file" ] && continue
+      local rel
+      rel="${local_file##*/}"
+      if [ ! -f "$upstream_modes_dir/$rel" ]; then
+        fork_local+=("${rel%.md}")
+      fi
+    done < <(find ".claude/modes" -maxdepth 1 -type f -name '*.md')
+  fi
+
+  if [ "${#fork_local[@]}" -eq 0 ]; then
+    echo "[modes] Syncing ${upstream_count} framework modes; 0 fork-local modes preserved."
+  else
+    local joined
+    joined=$(IFS=,; echo "${fork_local[*]}")
+    joined="${joined//,/, }"
+    echo "[modes] Syncing ${upstream_count} framework modes; ${#fork_local[@]} fork-local modes preserved: ${joined}."
+  fi
+}
+
 if [ "$BOOTSTRAP_REENTRY_MODE" -eq 1 ]; then
   while IFS= read -r changed_path; do
     [ -z "$changed_path" ] && continue
@@ -485,6 +519,10 @@ else
     fi
 
     if [ -d "$upstream_path" ]; then
+      # Friendly log line for the mode registry (#406).
+      if [ "$(normalize_rel_path "$sync_path")" = ".claude/modes" ]; then
+        modes_summary_log "$upstream_path"
+      fi
       # Directory sync: iterate over each file in the upstream directory
       while IFS= read -r file; do
         rel_file="${file#"$upstream_path"/}"
