@@ -13,6 +13,11 @@ Thumbs.db
 # Claude Code local settings (contains user-specific permissions)
 .claude/settings.local.json
 
+# Personal main-session mode override (gitignored on purpose; team-shared
+# selection lives in .claude/settings.json "assistantMode"). See
+# .claude/modes/README.md.
+.claude/mode.local
+
 # Environment and secrets
 .env
 .env.*
