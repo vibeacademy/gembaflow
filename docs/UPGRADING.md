@@ -24,7 +24,11 @@ jq .version .gembaflow-version
 ```
 
 The `/doctor` command also checks for updates automatically and warns you if
-a newer version is available.
+a newer version is available. It also runs an early "clone is current with
+origin" check — if your local repo is behind `origin/main`, `/doctor` prints
+the count and the most-recent upstream commit subject so you can decide
+whether to `git pull` before running `/upgrade`. This catches the "planning
+from a stale clone" failure mode that surfaces as silently obsolete tickets.
 
 To see all available releases, visit the
 [Gemba Flow releases page](https://github.com/vibeacademy/gembaflow/releases).
