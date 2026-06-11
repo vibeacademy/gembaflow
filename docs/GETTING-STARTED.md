@@ -366,7 +366,11 @@ To see if a newer version is available, visit the
 [Gemba Flow releases page](https://github.com/vibeacademy/gembaflow/releases).
 
 The `/doctor` command also checks for updates automatically and will warn
-you if a newer version is available.
+you if a newer version is available. It also runs an early "clone is
+current with origin" check — if your local repo is behind `origin/main`,
+`/doctor` prints the count and the most-recent upstream commit subject so
+you can decide whether to `git pull` before doing any planning,
+architecture, or `/upgrade` work.
 
 To upgrade, run `/upgrade` from Claude Code. See [UPGRADING.md](UPGRADING.md)
 for the full upgrade guide, alternative methods, and troubleshooting.

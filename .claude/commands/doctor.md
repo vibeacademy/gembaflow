@@ -9,6 +9,57 @@ configuration. Surfaces every issue that could block a workshop participant.
 
 ## Instructions
 
+1. **Verify the clone is current with origin.** A stale clone is a silent
+   failure mode — the architect-shaped session in `feature-x/jiujitsology`
+   2026-06-10 began with a plan that spawned 14 obsolete tickets because the
+   local repo was 3 commits behind `origin/main`. This early step prevents
+   that pattern.
+
+   Run these in order; do NOT mutate state — no `git pull`, no `git checkout`:
+
+   ```bash
+   git fetch --quiet 2>/dev/null || FETCH_FAILED=1
+   BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+   ```
+
+   - If `FETCH_FAILED` is set (likely offline or auth issue), print:
+
+     ```text
+     ℹ Could not verify against origin. If you're offline, this is fine.
+       If not, check network / `gh auth status`.
+     ```
+
+     Continue to the next step — do NOT fail the doctor run.
+
+   - If `git fetch` succeeded, count commits behind:
+
+     ```bash
+     BEHIND=$(git rev-list --count "HEAD..origin/$BRANCH" 2>/dev/null || echo "?")
+     ```
+
+     - If `BEHIND` is `0`: print `✓ Clone is current with origin/$BRANCH.`
+     - If `BEHIND` is `>0`: print a warning naming the count and the
+       most-recent upstream commit subject so the operator can decide
+       whether to pull:
+
+       ```bash
+       LAST=$(git log "HEAD..origin/$BRANCH" --pretty=format:'%s' -1 2>/dev/null)
+       ```
+
+       Then:
+
+       ```text
+       ⚠ Local is $BEHIND commits behind origin/$BRANCH.
+         Most recent upstream commit: "$LAST"
+         Run `git pull` before proceeding with anything that depends on
+         the current code state (planning, architecture work, /upgrade).
+       ```
+
+     - If `BEHIND` is `?`: print `ℹ Could not count commits behind origin (unusual git state); skipping freshness check.`
+
+   This step is informational — never block the rest of the doctor run on
+   it. The point is to surface the gap, not to gate.
+
 1. Run the local diagnostic script and capture the full output:
 
    ```bash
