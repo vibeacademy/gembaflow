@@ -178,6 +178,54 @@ modern path above — this workaround is one-time only.
 
 ---
 
+## Pre-Upgrade Audit (`audit-local-customizations.sh`)
+
+Before each `/upgrade`, the framework runs
+`scripts/audit-local-customizations.sh`. The audit surfaces every
+framework-controlled file (a path under `syncDirectories` in
+`.gembaflow-version`) that has been modified locally since the fork was
+bootstrapped (`installedAt`) and is NOT already protected by
+`.gembaflow-overrides`. These are the files at silent-clobber risk when
+the sync runs.
+
+The audit is **read-only**:
+
+- It never modifies `.gembaflow-overrides` automatically.
+- It always exits 0 (informational; never blocks).
+- The `/upgrade` skill spec wraps the audit with an operator confirmation
+  step — if the audit lists unprotected paths, the operator is prompted
+  before the sync proceeds.
+
+Operator response options:
+
+| Answer | Result |
+|---|---|
+| `y` / `yes` | Continue to sync; accept the clobber risk. |
+| `N` / no / anything else | Stop. Operator adds the surfaced paths to `.gembaflow-overrides`, commits, and re-runs `/upgrade`. |
+
+Automated re-runs (e.g. CI) that cannot answer the prompt should pass
+`--skip-audit` to bypass the audit step:
+
+```bash
+/upgrade --skip-audit
+```
+
+This was added to close the silent-clobber failure mode where a fork
+that had hand-customized a framework-controlled file (a tightened
+validator, an agent prompt) would lose the customization on the next
+sync and only notice via CI failure — or worse, not notice at all if
+the customization wasn't CI-tested.
+
+### What the audit cannot catch
+
+- Files outside `syncDirectories` (sync never touches them; no risk).
+- Files in `syncDirectories` that were modified BEFORE `installedAt`
+  (these belong to the initial fork bootstrap, not local customization).
+- Customizations made by editing the upstream file in a way that
+  preserves its byte signature (rare; not a real failure mode).
+
+---
+
 ## Version Parity Policy
 
 By default, `scripts/validation/validate-version-parity.sh` runs in
