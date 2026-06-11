@@ -39,7 +39,7 @@ Usage:
 
 Flags:
   --severity LEVEL       Issue severity: p1 (critical), p2 (high), p3 (low)
-  --component COMP       Component: provisioning, ci, claude-commands, patterns, docs, other
+  --component COMP       Component: provisioning, ci, claude-commands, sync, patterns, docs, other
   --title "TITLE"        Issue title (required)
   --non-interactive      Run without prompts (requires all flags)
   --body-file FILE       Read issue body from file (non-interactive only)
@@ -366,21 +366,22 @@ if [ -z "$COMPONENT" ]; then
       more)
         echo ""
         echo "Additional components:"
+        echo "  sync            template-sync.sh, /upgrade, overrides, .gembaflow-version"
         echo "  patterns        architectural patterns and practices"
         echo "  other           anything else"
         echo "  back            return to main components"
         printf "> "
         read -r COMPONENT
-        
+
         case "$COMPONENT" in
-          patterns|other)
+          sync|patterns|other)
             break
             ;;
           back)
             continue  # Go back to main component selection
             ;;
           *)
-            echo "ERROR: Please select 'patterns', 'other', or 'back'." >&2
+            echo "ERROR: Please select 'sync', 'patterns', 'other', or 'back'." >&2
             ;;
         esac
         ;;
@@ -392,9 +393,9 @@ if [ -z "$COMPONENT" ]; then
 fi
 
 case "$COMPONENT" in
-  provisioning|ci|claude-commands|patterns|docs|other) ;;
+  provisioning|ci|claude-commands|sync|patterns|docs|other) ;;
   *)
-    echo "ERROR: --component must be one of: provisioning, ci, claude-commands, patterns, docs, other." >&2
+    echo "ERROR: --component must be one of: provisioning, ci, claude-commands, sync, patterns, docs, other." >&2
     echo "Got: '$COMPONENT'" >&2
     exit 1
     ;;
