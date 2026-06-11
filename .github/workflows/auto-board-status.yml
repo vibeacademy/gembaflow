@@ -1,0 +1,124 @@
+name: Auto board status on PR merge
+
+# Closes the unticketed-but-linked workflow gap: when a PR closes an
+# issue via `Closes #N` (or `Fixes #N` / `Resolves #N`) but the branch
+# was not created via `/work-ticket`, GitHub auto-closes the linked
+# issue but the project board's Status field does not update. The
+# board status then lags the actual work by a full PR cycle.
+#
+# Opt-in: the workflow is a no-op unless the four config knobs below
+# are all set in the fork's repo settings. The framework default is
+# disabled (no env values set means no mutation runs).
+#
+# Configuration (Settings → Secrets and variables → Actions):
+#   Variables:
+#     BOARD_PROJECT_NODE_ID     ProjectV2 node ID (PVT_...) of the fork's board
+#     BOARD_STATUS_FIELD_ID     SingleSelect field ID (PVTSSF_...) for "Status"
+#     BOARD_STATUS_DONE_ID      Option ID (8 hex chars) for "Done"
+#   Secret:
+#     BOARD_PROJECTS_TOKEN      PAT with `project` scope (the default
+#                               GITHUB_TOKEN lacks Projects V2 write).
+#
+# To disable: clear any one of the four. To uninstall entirely: delete
+# this workflow file.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  update-board-status:
+    name: Update board status for closing-issue references
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate on opt-in config
+        id: gate
+        env:
+          BOARD_PROJECT_NODE_ID: ${{ vars.BOARD_PROJECT_NODE_ID }}
+          BOARD_STATUS_FIELD_ID: ${{ vars.BOARD_STATUS_FIELD_ID }}
+          BOARD_STATUS_DONE_ID: ${{ vars.BOARD_STATUS_DONE_ID }}
+          BOARD_PROJECTS_TOKEN: ${{ secrets.BOARD_PROJECTS_TOKEN }}
+        run: |
+          missing=()
+          [ -z "${BOARD_PROJECT_NODE_ID}" ] && missing+=("vars.BOARD_PROJECT_NODE_ID")
+          [ -z "${BOARD_STATUS_FIELD_ID}" ] && missing+=("vars.BOARD_STATUS_FIELD_ID")
+          [ -z "${BOARD_STATUS_DONE_ID}" ] && missing+=("vars.BOARD_STATUS_DONE_ID")
+          [ -z "${BOARD_PROJECTS_TOKEN}" ] && missing+=("secrets.BOARD_PROJECTS_TOKEN")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::notice::auto-board-status disabled — missing config: ${missing[*]}. See .github/workflows/auto-board-status.yml header for setup."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Move closing-issue board items to Done
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/github-script@v7
+        env:
+          BOARD_PROJECT_NODE_ID: ${{ vars.BOARD_PROJECT_NODE_ID }}
+          BOARD_STATUS_FIELD_ID: ${{ vars.BOARD_STATUS_FIELD_ID }}
+          BOARD_STATUS_DONE_ID: ${{ vars.BOARD_STATUS_DONE_ID }}
+        with:
+          github-token: ${{ secrets.BOARD_PROJECTS_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const projectId = process.env.BOARD_PROJECT_NODE_ID;
+            const fieldId = process.env.BOARD_STATUS_FIELD_ID;
+            const doneOptionId = process.env.BOARD_STATUS_DONE_ID;
+
+            const prDetail = await github.graphql(
+              `query($owner: String!, $repo: String!, $number: Int!) {
+                 repository(owner: $owner, name: $repo) {
+                   pullRequest(number: $number) {
+                     closingIssuesReferences(first: 20) {
+                       nodes {
+                         number
+                         projectItems(first: 10) {
+                           nodes { id project { id } }
+                         }
+                       }
+                     }
+                   }
+                 }
+               }`,
+              { owner, repo, number: pr.number },
+            );
+
+            const closingIssues = prDetail.repository.pullRequest.closingIssuesReferences.nodes;
+            if (closingIssues.length === 0) {
+              core.notice(`PR #${pr.number} merged but has no closing-issue references — nothing to update.`);
+              return;
+            }
+
+            let movedCount = 0;
+            for (const issue of closingIssues) {
+              const item = issue.projectItems.nodes.find((n) => n.project.id === projectId);
+              if (!item) {
+                core.notice(`Issue #${issue.number} is not on configured project board — skipping.`);
+                continue;
+              }
+              await github.graphql(
+                `mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                   updateProjectV2ItemFieldValue(input: {
+                     projectId: $projectId
+                     itemId: $itemId
+                     fieldId: $fieldId
+                     value: { singleSelectOptionId: $optionId }
+                   }) {
+                     projectV2Item { id }
+                   }
+                 }`,
+                { projectId, itemId: item.id, fieldId, optionId: doneOptionId },
+              );
+              core.notice(`Issue #${issue.number} → Done on board (PR #${pr.number}).`);
+              movedCount++;
+            }
+
+            core.notice(`auto-board-status: moved ${movedCount} item(s) to Done for PR #${pr.number}.`);
