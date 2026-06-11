@@ -28,6 +28,7 @@ BODY_FILE=""
 BODY=""
 FORCE_CODESPACES_TOKEN=false
 DRY_RUN=false
+FIXTURE_REPO=""
 
 show_help() {
   cat <<'HELP'
@@ -43,7 +44,8 @@ Flags:
   --non-interactive      Run without prompts (requires all flags)
   --body-file FILE       Read issue body from file (non-interactive only)
   --body "TEXT"          Provide issue body as text (non-interactive only)
-  --dry-run              Preview what would be created without submitting
+  --dry-run              Preview what would be created without submitting (zero network calls)
+  --fixture-repo SLUG    Target a test fixture repo (org/name) instead of upstream
   --force-codespaces-token  Continue despite Codespaces token limitations
   --help, -h             Show this help message
 
@@ -101,11 +103,29 @@ while [[ $# -gt 0 ]]; do
     --body-file)       BODY_FILE="$2";      shift 2 ;;
     --body)            BODY="$2";           shift 2 ;;
     --dry-run)         DRY_RUN=true;        shift ;;
+    --fixture-repo)    FIXTURE_REPO="$2";   shift 2 ;;
     --force-codespaces-token) FORCE_CODESPACES_TOKEN=true; shift ;;
     --help|-h)         show_help; exit 0 ;;
     *) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
   esac
 done
+
+# ── Validate --dry-run / --fixture-repo combinations ─────────────────────────
+
+if $DRY_RUN && [ -n "$FIXTURE_REPO" ]; then
+  echo "ERROR: --dry-run and --fixture-repo are mutually exclusive." >&2
+  echo "Use --dry-run to preview without any network call, or --fixture-repo to" >&2
+  echo "actually file an issue against a test repo. Not both." >&2
+  exit 1
+fi
+
+if [ -n "$FIXTURE_REPO" ]; then
+  if [[ ! "$FIXTURE_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+    echo "ERROR: --fixture-repo must match 'org/name' (e.g. va-worker/gembaflow-test-fixture)." >&2
+    echo "Got: '$FIXTURE_REPO'" >&2
+    exit 1
+  fi
+fi
 
 # ── Verify the version manifest exists ────────────────────────────────────────
 
@@ -152,6 +172,13 @@ else
   echo "ERROR: Cannot parse GitHub repo from: $UPSTREAM_URL" >&2
   echo "Expected format: https://github.com/org/repo" >&2
   exit 1
+fi
+
+# Override the upstream repo with the test-fixture slug if --fixture-repo is set.
+# Upstream URL/version are still read from .gembaflow-version so the report's YAML
+# front matter remains truthful about which fork issued it.
+if [ -n "$FIXTURE_REPO" ]; then
+  UPSTREAM_REPO="$FIXTURE_REPO"
 fi
 
 # ── Check for Codespaces token limitations ────────────────────────────────────
@@ -541,14 +568,11 @@ if $DRY_RUN; then
   echo ""
   echo "Repository: $UPSTREAM_REPO"
   echo "Title: [downstream-report] $TITLE"
-  
-  # Check if downstream-report label exists and show what labels would be applied
-  if check_downstream_label; then
-    echo "Labels: downstream-report"
-  else
-    echo "Labels: (none - downstream-report label not found in target repo)"
-  fi
-  
+
+  # Dry-run MUST make zero network calls. Skip the live label-existence probe
+  # (gh label list hits api.github.com); show both possible labels paths instead.
+  echo "Labels: downstream-report (applied if the label exists in the target repo; omitted otherwise)"
+
   echo ""
   echo "Body:"
   echo "────────────────────────────────────────────────────────"

@@ -87,6 +87,25 @@ bash scripts/report-issue.sh \
   --title "Provision script fails when roster has special characters"
 ```
 
+## Test / QE flags: `--dry-run` and `--fixture-repo`
+
+Two flags exist to keep the upstream tracker clean while iterating on this
+command or running QE checks. They never combine — pick one per invocation.
+
+| Flag | Use when | Behavior |
+|------|----------|----------|
+| `--dry-run` | Iterating on the command itself, or any QE pass that should not file a real issue. | Generates the report file under `.gembaflow-reports/`, prints the issue preview, and exits 0. **Zero `api.github.com` calls** — safe to run in tight loops. |
+| `--fixture-repo <slug>` | You actually want an issue created, but against a test repo (your own fork or a dedicated fixture), not the upstream. | Same flow as default mode, but `gh issue create --repo <slug>` is invoked instead of the upstream from `.gembaflow-version`. Slug must match `org/name`. |
+
+`--dry-run` and `--fixture-repo` are **mutually exclusive**: the script exits 1
+with a clear error if both are passed. Use `--dry-run` when you want to
+preview without touching anyone's tracker; use `--fixture-repo` when you want
+to exercise the real gh path against a repo you own.
+
+The `--dry-run` flag is the supported tool for QE re-runs that previously
+polluted upstream. If you want a recorded fixture issue (e.g. to test the
+auto-triage workflow), use `--fixture-repo va-worker/<your-fixture-repo>`.
+
 ## Report format reference
 
 The script generates a YAML front-matter Markdown file in .gembaflow-reports/:
