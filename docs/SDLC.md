@@ -217,7 +217,8 @@ Every PR against `gembaflow` main must satisfy this checklist before merge.
 | CI job | What it checks | Tool |
 |--------|---------------|------|
 | `lint` | Markdown files | markdownlint-cli2 |
-| `version-parity` | JSON files; version parity between `package.json` and `.gembaflow-version` (renamed from `typecheck` in #361 — does not run `tsc`) | custom scripts |
+| `json-validate` | JSON file validity | `validate-json.sh` |
+| `version-parity` | Version parity between `package.json` and `.gembaflow-version` (split from the former `typecheck` umbrella in #361, split again in #428 to separate JSON validation — does not run `tsc`) | `validate-version-parity.sh` |
 | `build` | Shell script syntax and style | shellcheck + bash -n |
 | `test` | Command file frontmatter; agent file structure and minimum length | validate-commands.sh, validate-agents.sh |
 | `template-cleanliness` | Framework stays cloud-provider-neutral | check-template-cleanliness.sh |
@@ -333,7 +334,8 @@ creation.
 A PR cannot merge unless all of the following pass:
 
 - `lint` (markdownlint)
-- `version-parity` (JSON validity, version parity) — renamed from `typecheck` in #361
+- `json-validate` (JSON file validity) — split out from the former `version-parity` umbrella in #428
+- `version-parity` (`.gembaflow-version` vs `package.json` parity) — renamed from `typecheck` in #361, scope narrowed in #428
 - `build` (shellcheck)
 - `test` (agent and command structure)
 - `template-cleanliness` (no cloud-provider terms)

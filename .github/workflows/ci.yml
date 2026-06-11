@@ -27,19 +27,26 @@ jobs:
             !starters/**
           config: '.markdownlint.json'
 
-  # Renamed from `typecheck` (vibeacademy/gembaflow#361) — this job validates
-  # JSON files and .gembaflow-version vs package.json parity. It does NOT run
-  # `tsc`; the real TypeScript typecheck lives in the `node` job below.
-  # Branch-protection required-status-checks may need updating to reference
-  # the new job name.
-  version-parity:
-    name: version-parity
+  # Split from the former `version-parity` umbrella (vibeacademy/gembaflow#428) — the
+  # umbrella was itself renamed from `typecheck` in #361. The two checks below run
+  # different things and each fails for different reasons, so they're now separate
+  # jobs whose failure messages match their purpose. Forks with branch protection
+  # should add `json-validate` to required-status-checks; `version-parity` keeps
+  # its existing name and required-check entry.
+  json-validate:
+    name: json-validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Validate JSON files
         run: ./scripts/validation/validate-json.sh
+
+  version-parity:
+    name: version-parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Validate version parity
         run: ./scripts/validation/validate-version-parity.sh

@@ -284,10 +284,13 @@ test_required_status_checks() {
     if [ -n "$checks" ]; then
         # `version-parity` was previously named `typecheck` (renamed in #361
         # because the job runs JSON + version-parity validation, not `tsc`).
+        # In #428 the umbrella was split: `json-validate` is now its own job,
+        # and `version-parity` runs only the .gembaflow-version vs package.json
+        # parity check. Forks with branch protection need BOTH in required-checks.
         # For future renames, see DEPRECATED_CHECK_ALIASES at the top of
         # this script — entries there let a deprecated old name satisfy
         # the corresponding new-name expectation for one release cycle.
-        local expected_checks="lint version-parity build test"
+        local expected_checks="lint json-validate version-parity build test"
         local missing=""
         local deprecated_accepted=""
 
@@ -314,7 +317,7 @@ test_required_status_checks() {
         done
 
         if [ -z "$missing" ]; then
-            pass "All required status checks configured (lint, version-parity, build, test)"
+            pass "All required status checks configured (lint, json-validate, version-parity, build, test)"
             if [ -n "$deprecated_accepted" ]; then
                 echo -e "  ${YELLOW}↳ accepted via deprecation alias:${NC}$deprecated_accepted"
                 echo -e "  ${YELLOW}  rename the fork's CI job to the canonical name before the alias is removed.${NC}"
