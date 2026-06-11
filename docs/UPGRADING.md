@@ -178,6 +178,51 @@ modern path above — this workaround is one-time only.
 
 ---
 
+## Version Parity Policy
+
+By default, `scripts/validation/validate-version-parity.sh` runs in
+**lenient mode**: it compares the version field in `.gembaflow-version`
+(the framework manifest) against `package.json` (the app manifest), and
+if they diverge, it emits a `WARN` line and exits 0 instead of failing
+the CI job.
+
+Forks that ship a product on a separate version cadence will see their
+framework and app versions diverge as a normal lifecycle event — the
+strict-parity policy that v1.0.x – v1.3.x shipped punished this
+common case. The new default lets framework upgrades and app releases
+move independently.
+
+### Opting into strict mode
+
+If your fork vendors the framework into a re-published package and the
+two versions MUST move together, opt back in by adding a single key to
+your fork's `.gembaflow-version`:
+
+```json
+{
+  "version": "1.2.3",
+  "enforceVersionParity": true,
+  "syncDirectories": ["…"]
+}
+```
+
+With `enforceVersionParity: true`, the validator behaves as it did in
+prior versions: any divergence between `.gembaflow-version` and
+`package.json` fails CI with exit 1.
+
+### Behavior summary
+
+| Opt-in flag | Versions match | Versions diverge |
+|---|---|---|
+| absent or `false` (default) | PASS (exit 0) | WARN, PASS (exit 0) |
+| `true` (strict) | PASS (exit 0) | FAIL (exit 1) |
+
+The validator continues to skip cleanly when either manifest is
+absent (non-Node projects, pre-bootstrap state) — those exit codes
+are unchanged.
+
+---
+
 ## Troubleshooting
 
 ### `KeyError: 'tag_name'` (pre-rebrand forks)
