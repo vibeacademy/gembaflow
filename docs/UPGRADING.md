@@ -8,6 +8,13 @@ configuration customizations are never modified.
 For the full list of what is and is not touched during an upgrade, see
 [DISTRIBUTION.md](DISTRIBUTION.md).
 
+> **On a pre-rebrand fork (v1.0.x)?** The first `/upgrade` will crash with
+> `KeyError: 'tag_name'` because the v1.0.x copy of `scripts/template-sync.sh`
+> does not follow HTTP redirects, and the `agile-flow → gembaflow` rename
+> returned `301 Moved Permanently`. Apply the
+> [one-line patch](#upgrading-from-v10x-pre-rebrand) below before running
+> `/upgrade`.
+
 ---
 
 ## Check Your Current Version
@@ -97,7 +104,87 @@ before running `/upgrade` to keep your local version.
 
 ---
 
+## Upgrading from v1.0.x (Pre-Rebrand)
+
+In June 2026 the framework was renamed from `agile-flow` to `gembaflow`
+and moved to `vibeacademy/gembaflow`. Forks bootstrapped on v1.0.x ship
+a copy of `scripts/template-sync.sh` whose `curl` call does **not**
+follow HTTP redirects:
+
+```bash
+curl -sf "https://api.github.com/repos/${UPSTREAM_REPO}/releases/latest"
+```
+
+After the rename, GitHub returns `301 Moved Permanently` for the old
+URL. Without `-L`, `curl` returns the redirect JSON body — which has
+no `tag_name` field — and the script crashes with
+`KeyError: 'tag_name'`. The fix shipped in v1.4.0 (`curl -sfL ...`),
+but a v1.0.x fork cannot reach v1.4.0 without first patching its local
+copy. This section is the one-time escape hatch.
+
+### The one-line patch
+
+Run this from your fork's repo root. It works on both macOS (BSD sed)
+and Linux (GNU sed):
+
+```bash
+sed -i.bak 's|curl -sf "https://api.github.com|curl -sfL "https://api.github.com|' scripts/template-sync.sh
+```
+
+The `.bak` suffix is required by BSD sed and accepted by GNU sed, so
+the same command is portable. A `scripts/template-sync.sh.bak` file is
+left behind for safety — delete it once `/upgrade` has run successfully.
+
+Verify the patch took effect:
+
+```bash
+grep "releases/latest" scripts/template-sync.sh
+# Expected: curl -sfL "https://api.github.com/repos/${UPSTREAM_REPO}/releases/latest"
+```
+
+The `L` after `-sf` is the load-bearing change.
+
+### Belt and braces: pin UPSTREAM_REPO
+
+The redirect is the root cause — eliminate it by pointing
+`UPSTREAM_REPO` at the new path directly. Add this to your shell
+before running `/upgrade`:
+
+```bash
+export UPSTREAM_REPO=vibeacademy/gembaflow
+```
+
+With both the `curl -L` patch and the `UPSTREAM_REPO` pin in place,
+neither the redirect nor the missing `tag_name` field can crash the
+upgrade.
+
+### After the patch
+
+1. Confirm `scripts/template-sync.sh` now contains `curl -sfL ...` on
+   the `releases/latest` line.
+2. Run `/upgrade` in a Claude Code session.
+3. Review the resulting PR for the framework-owned file changes.
+4. Merge the upgrade PR.
+
+The fork is now on the latest version. Subsequent upgrades use the
+modern path above — this workaround is one-time only.
+
+> **Long-term fix:** the structural propagation gap for
+> runtime-protected scripts (`scripts/template-sync.sh`,
+> `scripts/lib/overrides.sh`) is tracked in
+> [`gembaflow#371`](https://github.com/vibeacademy/gembaflow/issues/371).
+> Once that lands, future framework changes to these scripts reach
+> existing forks automatically without manual hand-patching.
+
+---
+
 ## Troubleshooting
+
+### `KeyError: 'tag_name'` (pre-rebrand forks)
+
+You're on v1.0.x and `/upgrade` hit the `agile-flow → gembaflow`
+rename redirect. Apply the
+[one-line patch](#the-one-line-patch) above, then re-run `/upgrade`.
 
 ### "Your working tree has uncommitted changes"
 

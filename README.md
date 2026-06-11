@@ -372,6 +372,14 @@ Scope lock is a formal checkpoint that signals MVP scope is finalized and develo
 - Ensure tickets are moved to "In Review" column
 - Check that PRs are linked to issues
 
+## Upgrading
+
+To pull the latest framework changes into your fork, run `/upgrade` from
+a Claude Code session in the fork's repo root. See
+[`docs/UPGRADING.md`](docs/UPGRADING.md) for the full guide, including a
+one-time workaround for forks bootstrapped on **v1.0.x** (pre-rebrand)
+that crashes on the first `/upgrade` due to a missing `curl -L` flag.
+
 ## Contributing
 
 This is a template project. To contribute:
