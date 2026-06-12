@@ -60,10 +60,10 @@ Posts a review reminder comment on new PRs, prompting the team to run
 ### Auto-close test fixtures (`auto-close-test-fixtures.yml`)
 
 Auto-closes downstream-report issues filed by `va-worker` whose titles start
-with `[downstream-report] Test ` — the QE-pollution pattern that the bulk-close
-on 2026-05-20 manually cleaned up. The workflow gates on the conjunction of
-three criteria (label `downstream-report` + author `va-worker` + the `Test `
-title prefix); any non-match is a no-op exit-0. Real downstream reports from
+with the bracketed prefix and a literal "Test " word — the QE-pollution pattern
+that the bulk-close on 2026-05-20 manually cleaned up. The workflow gates on
+the conjunction of three criteria (label `downstream-report` + author
+`va-worker` + the test-fixture title prefix); any non-match is a no-op exit-0. Real downstream reports from
 human authors or differently-titled issues are never touched. Companion to the
 `--dry-run` and `--fixture-repo` flags from #316 — those let `/report-issue` be
 run without filing anything, and this workflow catches any QE run that still
