@@ -323,3 +323,57 @@ free tier includes 5,000 errors per month.
 2. Add platform detection to `.claude/agents/devops-engineer.md`
 3. Add setup instructions to this guide
 4. Document required secrets in `docs/CI-CD-GUIDE.md`
+
+## Bootstrap-time templated values
+
+Some shipped skill specs reference fork-specific values through placeholders
+that the framework substitutes once during bootstrap. The framework ships one
+spec; every fork bends it to its own org / board / bot accounts without
+forking the file. The mechanism is consumed by `/work-ticket` (and `/drain`,
+once T3 lands).
+
+### The four placeholders
+
+| Placeholder | Meaning |
+|---|---|
+| `{{org}}` | GitHub org login that hosts the framework + this fork |
+| `{{board.id}}` | Project board number on the GitHub Project the team uses |
+| `{{bot.worker}}` | GitHub login of the worker bot (opens PRs, makes commits) |
+| `{{bot.reviewer}}` | GitHub login of the reviewer bot (posts `/review-pr` verdicts) |
+
+### How substitution happens
+
+1. **Config file.** `.gembaflow-config.json` (per-fork; gitignored) holds the
+   four values. `.gembaflow-config.example.json` is the committed template
+   that shows the schema.
+2. **Substitution script.** `scripts/substitute-config-placeholders.sh` reads
+   the config and runs in-place sed substitution across `.claude/commands/*.md`.
+   Idempotent: re-running after a clean substitution is a no-op.
+3. **When it runs.** `/bootstrap-workflow` step 7 runs the script once during
+   the initial setup. After `/upgrade` ships a new spec file containing fresh
+   placeholders, the operator re-runs the script to apply the existing
+   `.gembaflow-config.json` values to the new file.
+
+### CI smoke check
+
+Forks that customize `.claude/commands/` can wire a CI job that runs:
+
+```bash
+bash scripts/substitute-config-placeholders.sh --check
+```
+
+The `--check` flag dry-runs the substitution and exits non-zero if any
+unsubstituted placeholders remain. This catches the failure mode where a
+spec file ships fresh placeholders that the fork forgot to substitute after
+upgrade.
+
+### Why placeholders, not env vars
+
+Env vars work for runtime substitution but don't help here — the skill specs
+are read AS instructions by the agent, not executed as shell. Substituted
+files are the natural artifact: the agent reads concrete account names and
+project IDs, not template strings it would have to expand.
+
+The cost is one bootstrap step + one `/upgrade` re-run when new placeholders
+ship. The benefit is the framework's source-of-truth specs stay generic, and
+forks don't carry merge conflicts on these files every release cycle.

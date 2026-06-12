@@ -18,6 +18,11 @@ Thumbs.db
 # .claude/modes/README.md.
 .claude/mode.local
 
+# Per-fork bootstrap config — consumed by substitute-config-placeholders.sh.
+# Keep .gembaflow-config.example.json (template) committed; gitignore the
+# actual per-fork file so upstream never ships a fork's substituted values.
+.gembaflow-config.json
+
 # Environment and secrets
 .env
 .env.*
