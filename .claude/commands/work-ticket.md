@@ -23,6 +23,43 @@ the user if any check fails — do not continue with partial tooling.
 4. **Project board is accessible** — Attempt to read the project board. If
    access is denied or the board does not exist, STOP and report.
 
+## Drain Mode Pre-Flight (REQUIRED when `DRAIN_CONTEXT` is set)
+
+If `DRAIN_CONTEXT=true` is set in the environment (the signal that
+`/work-ticket` was invoked from `/drain` — the drain orchestrator),
+additionally verify:
+
+1. **Safety class is present** — Run `gh issue view <N> --json labels`
+   and confirm exactly **one** `safety:*` label is set. If zero or more
+   than one, STOP with `safety:unclassified — abort`, leave the ticket
+   in place, and signal the drain orchestrator to continue with the
+   next ticket (greedy failure semantics — a missing classification is
+   the operator's call to make, not the worker's).
+2. **Safety class is drain-eligible** — The single label must be one of
+   `safety:flagged`, `safety:internal`, or `safety:reversible`. If the
+   label is `safety:hot`, STOP with `safety:hot — refused by drain`,
+   leave the ticket in Ready, and signal continue. Hot tickets are a
+   feature, not a failure; they wait for the operator.
+
+Standalone `/work-ticket` (when `DRAIN_CONTEXT` is unset, e.g. a human
+runs the skill directly) does NOT require a safety label — this preserves
+backward compatibility for human-driven work. The two drain-mode checks
+above are gated on the env var exactly so this guarantee holds.
+
+See [`docs/safety-classes.md`](../../docs/safety-classes.md) for the
+taxonomy decision tree and worked examples.
+
+**Pre-substitution placeholder check.** If you see any of the four
+bootstrap-time templated values (documented in
+[`docs/PLATFORM-GUIDE.md`](../../docs/PLATFORM-GUIDE.md) §
+"Bootstrap-time templated values") still in their raw `{{ ... }}` form
+anywhere in this file or other `.claude/commands/*.md` files when you
+read them, STOP with a message pointing the operator at
+`bootstrap-workflow.md` — the substitution step hasn't run yet. Re-run
+`bash scripts/substitute-config-placeholders.sh` (or re-bootstrap)
+before proceeding. This avoids the failure mode where unsubstituted
+template strings leak into runtime instructions.
+
 ## Critical Rules
 
 1. **Branch from main**: `feature/issue-{number}-short-description`

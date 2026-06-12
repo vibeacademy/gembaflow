@@ -8,3 +8,13 @@
 
 # Metadata directory is always local — never stomped by upstream upgrades.
 .gembaflow-meta/
+
+# work-ticket.md contains substituted bootstrap-time templated values
+# ({{bot.worker}}, {{bot.reviewer}}, etc. — see docs/PLATFORM-GUIDE.md
+# "Bootstrap-time templated values"). Upstream sync overwriting it would
+# re-introduce the placeholders, breaking the spec until
+# substitute-config-placeholders.sh runs again. Forks that customize this
+# file should keep this line; forks that don't can remove it (sync will
+# then refresh placeholders, which the operator handles via a re-run of
+# the substitution script).
+.claude/commands/work-ticket.md
