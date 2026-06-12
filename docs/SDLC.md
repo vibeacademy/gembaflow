@@ -257,6 +257,19 @@ dry-runs.
 present. Running `doctor.sh` on a freshly bootstrapped repo is the primary
 verification step.
 
+**Bootstrap variants:** `/bootstrap-agents` ships in two variants. The default
+`--variant product` installs the customer-facing-product roster (`quality-engineer`,
+`github-ticket-worker`, `pr-reviewer`, `system-architect`, `product-manager`,
+`product-owner`). `--variant platform` installs the platform-shape roster
+(`framework-architect`, `github-ticket-worker`, `platform-backlog-prioritizer`,
+`pr-reviewer`, `release-engineer`, `swarm-planner`) and is appropriate for
+meta repos, development harnesses, and distribution pipelines whose primary
+output is platform shapes rather than user-facing features. See
+`.claude/commands/bootstrap-agents.md` § "Variant: Product vs Platform" for
+the decision criteria. The platform variant's template set lives under
+`.claude/commands/bootstrap-agents/platform/` and is derived from
+`vibeacademy/gembaflow-meta`'s calibrated roster.
+
 **What is not tested automatically:**
 The bootstrap script itself (the process of creating a new project from the
 template) has no automated test. The bootstrap flow is verified manually
