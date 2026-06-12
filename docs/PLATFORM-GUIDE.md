@@ -367,6 +367,10 @@ unsubstituted placeholders remain. This catches the failure mode where a
 spec file ships fresh placeholders that the fork forgot to substitute after
 upgrade.
 
+### Drain-specific customization
+
+The `/drain` skill consumes the four placeholders plus several env vars (`RENDER_*`, `SENTRY_*`, `PUBLIC_BASE_URL`, optional `SLACK_WEBHOOK_URL`) and requires installing the `drain-merge-bridge.yml` workflow per-fork. The full customization contract — every value an operator must supply, where to find it, and what scope is required — lives in [`docs/drain-customization.md`](drain-customization.md). Pair with [`docs/drain-known-limitations.md`](drain-known-limitations.md) for what v1 deliberately does NOT do, and [`docs/drain-institutional-knowledge.md`](drain-institutional-knowledge.md) for the patterns and lessons accumulated during empirical development. The architectural decisions are recorded in [`docs/adr/0001-drain-skill-wraps-claude-code-goal-primitive.md`](adr/0001-drain-skill-wraps-claude-code-goal-primitive.md) and [`docs/adr/0002-drain-autonomous-merge-via-bridge-workflow.md`](adr/0002-drain-autonomous-merge-via-bridge-workflow.md).
+
 ### Why placeholders, not env vars
 
 Env vars work for runtime substitution but don't help here — the skill specs
