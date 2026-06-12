@@ -26,7 +26,7 @@ TITLE=""
 NON_INTERACTIVE=false
 BODY_FILE=""
 BODY=""
-FORCE_CODESPACES_TOKEN=false
+TRY_ANYWAY=false
 DRY_RUN=false
 FIXTURE_REPO=""
 
@@ -46,7 +46,11 @@ Flags:
   --body "TEXT"          Provide issue body as text (non-interactive only)
   --dry-run              Preview what would be created without submitting (zero network calls)
   --fixture-repo SLUG    Target a test fixture repo (org/name) instead of upstream
-  --force-codespaces-token  Continue despite Codespaces token limitations
+  --try-anyway           Skip the Codespaces preflight and try `gh CLI` normally.
+                         Use this when you know your token can reach the upstream
+                         repo (e.g. you've set GH_TOKEN to a ghp_* PAT). The
+                         preferred fix is the PAT path — `--try-anyway` is the
+                         escape hatch for ad-hoc one-offs.
   --help, -h             Show this help message
 
 Description Entry Modes:
@@ -104,7 +108,9 @@ while [[ $# -gt 0 ]]; do
     --body)            BODY="$2";           shift 2 ;;
     --dry-run)         DRY_RUN=true;        shift ;;
     --fixture-repo)    FIXTURE_REPO="$2";   shift 2 ;;
-    --force-codespaces-token) FORCE_CODESPACES_TOKEN=true; shift ;;
+    --try-anyway)      TRY_ANYWAY=true;     shift ;;
+    # Hidden backward-compat alias for the pre-#296 name.
+    --force-codespaces-token) TRY_ANYWAY=true; shift ;;
     --help|-h)         show_help; exit 0 ;;
     *) echo "ERROR: Unknown flag: $1" >&2; exit 1 ;;
   esac
@@ -207,7 +213,7 @@ check_codespaces_token() {
   fi
   
   # Return status: 0 if we should use fallback, 1 if we can proceed normally
-  if $is_codespaces && $has_ghu_token && ! $FORCE_CODESPACES_TOKEN; then
+  if $is_codespaces && $has_ghu_token && ! $TRY_ANYWAY; then
     return 0  # Use fallback
   else
     return 1  # Proceed normally
