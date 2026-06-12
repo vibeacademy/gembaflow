@@ -1,0 +1,35 @@
+name: Auto-close test fixtures
+
+# Auto-closes downstream-report issues that match the `va-worker` test-fixture
+# pattern, so QE runs of `/report-issue` don't leave the upstream tracker with
+# noise. Sibling to the `--dry-run` + `--fixture-repo` flags shipped in #316.
+#
+# Match criteria (ALL three must hold):
+#   1. Label `downstream-report` present on the issue
+#   2. Issue author login == `va-worker`
+#   3. Title starts with `[downstream-report] Test ` (case-sensitive)
+#
+# Non-matches are no-ops: the job's `if:` guard means the workflow exits 0
+# without doing anything when any criterion fails. No noise on real reports.
+
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  auto-close:
+    name: Auto-close test fixture
+    runs-on: ubuntu-latest
+    if: >-
+      contains(github.event.issue.labels.*.name, 'downstream-report')
+      && github.event.issue.user.login == 'va-worker'
+      && startsWith(github.event.issue.title, '[downstream-report] Test ')
+    permissions:
+      issues: write
+    steps:
+      - name: Close the test fixture
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --comment "Auto-closed: matches the va-worker + 'Test ' test-fixture pattern. If this is a real downstream report, please re-file from a non-test context."
