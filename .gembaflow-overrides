@@ -18,3 +18,13 @@
 # then refresh placeholders, which the operator handles via a re-run of
 # the substitution script).
 .claude/commands/work-ticket.md
+
+# drain.md is the same shape as work-ticket.md — placeholders for
+# {{org}}, {{board.id}}, {{bot.worker}} are substituted at bootstrap
+# (see docs/PLATFORM-GUIDE.md). Same override rationale: protect a fork's
+# substituted values from being reverted to placeholders on next sync.
+.claude/commands/drain.md
+
+# Note: .github/workflows/drain-merge-bridge.yml is NOT in syncDirectories
+# (.github/ doesn't sync), so it never needs an override entry. The bridge
+# workflow exists meta-only per repo — each fork installs its own.
