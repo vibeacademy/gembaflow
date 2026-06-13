@@ -653,6 +653,70 @@ if [ "${#FILES_SKIPPED_RUNTIME[@]}" -gt 0 ]; then
 fi
 
 ###############################################################################
+# 7.5. Self-healing post-sync refresh of runtime-protected files (#371)
+###############################################################################
+# The main sync loop above skips runtime-protected files (template-sync.sh and
+# scripts/lib/overrides.sh) — correctly, because the running script cannot
+# safely overwrite itself mid-execution. But that means bug fixes to those
+# files never reach forks via the normal sync path.
+#
+# This post-loop block closes the gap. By the time we get here:
+#   - The sync loop is finished — the currently-running script's main work is
+#     done. The script process is still in memory; the next /upgrade
+#     invocation is what reads the on-disk file.
+#   - $EXTRACTED_DIR still holds the release tarball's contents (cleanup
+#     happens after this block).
+#
+# For each path in RUNTIME_PROTECTED_PATHS, compare the local file's content
+# to the tarball version. If different AND the path is not in
+# .gembaflow-overrides, copy the tarball version over the local file and stage
+# it. The change rides the same sync PR; the operator reviews and merges
+# normally. The next /upgrade reads the refreshed file.
+
+RUNTIME_REFRESHED=()
+
+for protected in "${RUNTIME_PROTECTED_PATHS[@]}"; do
+  normalized_protected="$(normalize_rel_path "$protected")"
+
+  # Respect operator's explicit override choice: if the fork has added this
+  # path to .gembaflow-overrides, the operator wants their local divergence
+  # preserved across sync. Don't refresh.
+  if is_override "$normalized_protected"; then
+    echo "SKIP refresh (override): $normalized_protected"
+    continue
+  fi
+
+  tarball_file="$EXTRACTED_DIR/$normalized_protected"
+  if [ ! -f "$tarball_file" ]; then
+    # Upstream tarball doesn't contain the file — unusual but bail safely.
+    continue
+  fi
+
+  if [ ! -f "$normalized_protected" ]; then
+    # Local file is missing; refresh = add.
+    mkdir -p "$(dirname "$normalized_protected")"
+    cp "$tarball_file" "$normalized_protected"
+    git add "$normalized_protected" 2>/dev/null || true
+    RUNTIME_REFRESHED+=("$normalized_protected")
+    FILES_CHANGED+=("$normalized_protected")
+    echo "REFRESHED (post-run, added): $normalized_protected"
+    continue
+  fi
+
+  if ! diff -q "$tarball_file" "$normalized_protected" >/dev/null 2>&1; then
+    cp "$tarball_file" "$normalized_protected"
+    git add "$normalized_protected" 2>/dev/null || true
+    RUNTIME_REFRESHED+=("$normalized_protected")
+    FILES_CHANGED+=("$normalized_protected")
+    echo "REFRESHED (post-run): $normalized_protected"
+  fi
+done
+
+if [ "${#RUNTIME_REFRESHED[@]}" -gt 0 ]; then
+  echo "Refreshed ${#RUNTIME_REFRESHED[@]} runtime-protected file(s) post-run. The on-disk versions are now current; the next /upgrade will read the refreshed code."
+fi
+
+###############################################################################
 # 8. Clean up
 ###############################################################################
 [ -n "$WORK_DIR" ] && rm -rf "$WORK_DIR"
@@ -768,13 +832,28 @@ ${LEGACY_LIST}> Run \`/bootstrap-agents\` to re-establish markers and re-apply y
 "
 fi
 
+# Build runtime-protected refresh section for PR body (#371).
+RUNTIME_REFRESH_SECTION=""
+if [ "${#RUNTIME_REFRESHED[@]}" -gt 0 ]; then
+  REFRESH_LIST=""
+  for f in "${RUNTIME_REFRESHED[@]}"; do
+    REFRESH_LIST="${REFRESH_LIST}  - \`${f}\`
+"
+  done
+  RUNTIME_REFRESH_SECTION="
+> [!IMPORTANT]
+> Runtime-protected files refreshed (post-run):
+${REFRESH_LIST}> These files are skipped during the main sync loop because the running script cannot overwrite itself mid-execution. The post-run refresh re-copies them after the loop completes, so the next \`/upgrade\` invocation reads the current code. The currently-running script process is unaffected — only the on-disk file is updated. Review the diff before merging.
+"
+fi
+
 PR_BODY="## Gemba Flow Framework Update
 
 Updates framework files from \`v${LOCAL_VERSION}\` to \`v${LATEST_VERSION}\`.
 
 ### Updated files
 
-${FILE_LIST}${HYBRID_SECTION}
+${FILE_LIST}${HYBRID_SECTION}${RUNTIME_REFRESH_SECTION}
 ### Release notes
 
 See the full release notes: ${RELEASE_URL}
