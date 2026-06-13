@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No unreleased changes._
+
+## [1.5.0] - 2026-06-13
+
+**Major release. Headline pairing: `/drain` ships AND the upgrade pipeline can actually deliver it.** Lands the four-ticket drain port (T1–T4) plus the keystone self-healing-sync fix (#371) that closes the long-standing upgrade-pipeline gap. 28 PRs ship between v1.4.0 (2026-06-01) and v1.5.0 (2026-06-13).
+
+**Migration: every existing fork needs a one-time manual refresh of `scripts/template-sync.sh` and `scripts/lib/overrides.sh` on first `/upgrade` to v1.5.0** — see the v1.5.0 GitHub Release notes § "Propagation note" for the exact commands. Fresh forks (provisioned after v1.5.0) get the self-heal automatically. Subsequent runtime-protected fixes propagate without manual intervention.
+
+**Branch-protected forks must also add `json-validate` to their required-status-checks list on the `main` ruleset** (#471 split the `version-parity` umbrella job). Existing `version-parity` entry stays.
+
+Full release narrative + per-PR detail: [v1.5.0 release notes](https://github.com/vibeacademy/gembaflow/releases/tag/v1.5.0). Per-entry detail below.
+
 ### Added
 
 - **`scripts/template-sync.sh` self-heals runtime-protected files after the sync loop — closes the self-upgrade gap** — until now, bug fixes landed in `scripts/template-sync.sh` or `scripts/lib/overrides.sh` (the two `RUNTIME_PROTECTED_PATHS` entries) could not reach forks via the normal sync. The main sync loop correctly skips these files because the running script cannot safely overwrite itself mid-execution; but that meant every fork bootstrapped before #361 (package.json auto-bump) hit red CI on its first `/upgrade` because the bumped-script was stuck on the pre-fix version. New post-sync-loop block in `template-sync.sh` (between the main loop and `WORK_DIR` cleanup) re-copies each runtime-protected file from the already-extracted release tarball IF (a) the local file differs from the tarball version AND (b) the path is NOT in `.gembaflow-overrides`. The currently-running script process is unaffected — it's in memory; only the on-disk file is updated, so the next `/upgrade` invocation reads the refreshed code. Refreshed files appear in `FILES_CHANGED`, ride the same sync PR, and surface in a new `> [!IMPORTANT] Runtime-protected files refreshed` callout on the PR body. Operators reviewing the sync PR see the refresh explicitly and can decide. `scripts/template-sync.test.sh` gains 2 new scenarios (Scenario 9 positive: both runtime-protected files refresh + PR body callout; Scenario 9b negative: file listed in `.gembaflow-overrides` is preserved while the non-overridden file still refreshes) plus updated assertions on Scenario 1 to reflect the post-#371 contract — 48 total test assertions PASS. Fork operators bootstrapped before #361 will see this PR's sync update both `template-sync.sh` and `overrides.sh` cleanly on their first `/upgrade` to this version; subsequent fixes to either file propagate normally. (#371)
