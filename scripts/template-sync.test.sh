@@ -83,18 +83,48 @@ git push -u origin HEAD >/dev/null
 
 SCRIPT_BEFORE_SUM=$(sha256sum scripts/template-sync.sh | awk '{print $1}')
 
+# Scenario 1's assertions reflect the post-#371 contract:
+#   - The mid-loop runtime-protected guard still fires (SKIP log present).
+#   - The post-loop self-healing refresh (#371) now overwrites the on-disk
+#     file with the upstream version. This is the intended behavior; the
+#     full refresh contract is tested in Scenarios 9 / 9b.
+# A `gh` shim is needed because the refresh adds template-sync.sh to
+# FILES_CHANGED, which pushes the script past the "Already up to date"
+# early-exit and into the PR-create branch.
+cat > "$WORK_DIR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "auth" && "${2:-}" == "token" ]]; then echo "fake-token"; exit 0; fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "create" ]]; then
+  echo "https://example.invalid/pr/371-scenario-1"
+  exit 0
+fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "list" ]]; then
+  echo '[]'
+  exit 0
+fi
+exit 0
+SH
+chmod +x "$WORK_DIR/bin/gh"
+
 if TEST_UPSTREAM_TARBALL="$WORK_DIR/upstream.tar.gz" PATH="$WORK_DIR/bin:$PATH" bash scripts/template-sync.sh > "$WORK_DIR/run.log" 2>&1; then
-  SCRIPT_AFTER_SUM=$(sha256sum scripts/template-sync.sh | awk '{print $1}')
-  if [ "$SCRIPT_BEFORE_SUM" = "$SCRIPT_AFTER_SUM" ]; then
-    pass "runtime-protected template-sync.sh is not overwritten"
+  if grep -q "SKIP (runtime-protected): scripts/template-sync.sh" "$WORK_DIR/run.log"; then
+    pass "mid-loop runtime-protected skip is reported (guard fires)"
   else
-    fail "template-sync.sh changed despite runtime protection"
+    fail "expected mid-loop runtime-protected skip log entry"
   fi
 
-  if grep -q "SKIP (runtime-protected): scripts/template-sync.sh" "$WORK_DIR/run.log"; then
-    pass "runtime-protected skip is reported"
+  if grep -q "REFRESHED (post-run): scripts/template-sync.sh" "$WORK_DIR/run.log"; then
+    pass "post-loop self-healing refresh fires for template-sync.sh (#371)"
   else
-    fail "expected runtime-protected skip log entry"
+    fail "expected post-loop refresh log entry for template-sync.sh"
+  fi
+
+  SCRIPT_AFTER_SUM=$(sha256sum scripts/template-sync.sh | awk '{print $1}')
+  if [ "$SCRIPT_BEFORE_SUM" != "$SCRIPT_AFTER_SUM" ]; then
+    pass "on-disk template-sync.sh updated to upstream version via post-loop refresh"
+  else
+    fail "on-disk template-sync.sh was NOT refreshed (sha256 unchanged)"
   fi
 else
   cat "$WORK_DIR/run.log"
@@ -997,6 +1027,203 @@ if TEST_BEHIND_TARBALL="$WORK_DIR/behind-upstream.tar.gz" \
 else
   cat "$WORK_DIR/behind.log"
   fail "behind-fork scenario script exited non-zero"
+fi
+popd >/dev/null
+
+###############################################################################
+# Scenario 9: self-healing post-sync refresh of runtime-protected files (#371)
+###############################################################################
+# Verifies that after the sync loop runs, runtime-protected files
+# (scripts/template-sync.sh, scripts/lib/overrides.sh) are refreshed from the
+# tarball if (a) they differ from upstream and (b) they are NOT in
+# .gembaflow-overrides. Closes the self-upgrade gap that left every fork
+# bootstrapped before #361 stuck on the pre-fix sync script.
+echo ""
+echo "Scenario 9: runtime-protected files self-heal post-sync"
+
+RP_DIR="$WORK_DIR/rp-refresh"
+mkdir -p "$RP_DIR/scripts/lib"
+# The fork's local template-sync.sh — this is the script that runs.
+cp scripts/template-sync.sh "$RP_DIR/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$RP_DIR/scripts/lib/overrides.sh"
+chmod +x "$RP_DIR/scripts/template-sync.sh"
+: > "$RP_DIR/.gembaflow-overrides"
+
+cat > "$RP_DIR/.gembaflow-version" <<'JSON'
+{
+  "version": "0.0.1",
+  "syncDirectories": ["./scripts"]
+}
+JSON
+
+# Upstream tarball: MODIFIED copies of both runtime-protected files (so the
+# refresh has a real diff to apply), plus a non-protected marker.sh whose
+# absence in the fork forces FILES_CHANGED to be non-empty.
+RP_UPSTREAM="$WORK_DIR/rp-upstream/vibeacademy-agile-flow-release"
+mkdir -p "$RP_UPSTREAM/scripts/lib"
+cp scripts/template-sync.sh "$RP_UPSTREAM/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$RP_UPSTREAM/scripts/lib/overrides.sh"
+# Inject a sentinel into both runtime-protected files so the fork-vs-upstream
+# diff is real and detectable.
+echo "# RP371_SENTINEL_TS=upstream-modified" >> "$RP_UPSTREAM/scripts/template-sync.sh"
+echo "# RP371_SENTINEL_OV=upstream-modified" >> "$RP_UPSTREAM/scripts/lib/overrides.sh"
+printf '#!/usr/bin/env bash\necho marker\n' > "$RP_UPSTREAM/scripts/marker.sh"
+chmod +x "$RP_UPSTREAM/scripts/marker.sh"
+tar -czf "$WORK_DIR/rp-upstream.tar.gz" -C "$WORK_DIR/rp-upstream" vibeacademy-agile-flow-release
+
+mkdir -p "$WORK_DIR/rp-bin"
+cat > "$WORK_DIR/rp-bin/curl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == *"/releases/latest"* ]]; then
+  printf '{"tag_name":"v1.3.0","html_url":"https://example.invalid/release","tarball_url":"https://example.invalid/rp-upstream.tar.gz"}'
+  exit 0
+fi
+if [[ "$*" == *"rp-upstream.tar.gz"* ]]; then
+  out=''
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "-o" ]; then out="$2"; shift 2; continue; fi
+    shift
+  done
+  cp "$TEST_RP_TARBALL" "$out"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$WORK_DIR/rp-bin/curl"
+
+cat > "$WORK_DIR/rp-bin/gh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "auth" && "${2:-}" == "token" ]]; then echo "fake-token"; exit 0; fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "create" ]]; then
+  # Capture full PR body to a file so the test can assert on its content.
+  body=""
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "--body" ]; then body="$2"; shift 2; continue; fi
+    shift
+  done
+  printf '%s' "$body" > "$TEST_RP_PR_BODY"
+  echo "https://example.invalid/pr/371"
+  exit 0
+fi
+if [[ "${1:-}" == "pr" && "${2:-}" == "list" ]]; then
+  echo '[]'
+  exit 0
+fi
+exit 0
+SH
+chmod +x "$WORK_DIR/rp-bin/gh"
+
+pushd "$RP_DIR" >/dev/null
+git init >/dev/null
+git -c user.name=test -c user.email=t@t.invalid add .
+git -c user.name=test -c user.email=t@t.invalid commit -m "init rp-refresh" >/dev/null
+git init --bare "$WORK_DIR/rp-origin.git" >/dev/null
+git remote add origin "$WORK_DIR/rp-origin.git"
+git push -u origin HEAD >/dev/null
+
+if TEST_RP_TARBALL="$WORK_DIR/rp-upstream.tar.gz" \
+   TEST_RP_PR_BODY="$WORK_DIR/rp-pr-body.md" \
+   PATH="$WORK_DIR/rp-bin:$PATH" \
+   bash scripts/template-sync.sh > "$WORK_DIR/rp-run.log" 2>&1; then
+
+  if grep -q "REFRESHED (post-run): scripts/template-sync.sh" "$WORK_DIR/rp-run.log"; then
+    pass "runtime-protected: template-sync.sh refresh logged"
+  else
+    cat "$WORK_DIR/rp-run.log"
+    fail "expected 'REFRESHED (post-run): scripts/template-sync.sh' in log"
+  fi
+
+  if grep -q "REFRESHED (post-run): scripts/lib/overrides.sh" "$WORK_DIR/rp-run.log"; then
+    pass "runtime-protected: overrides.sh refresh logged"
+  else
+    fail "expected 'REFRESHED (post-run): scripts/lib/overrides.sh' in log"
+  fi
+
+  if grep -q "RP371_SENTINEL_TS=upstream-modified" scripts/template-sync.sh; then
+    pass "runtime-protected: on-disk template-sync.sh matches upstream after sync"
+  else
+    fail "on-disk template-sync.sh was NOT refreshed (sentinel missing)"
+  fi
+
+  if grep -q "RP371_SENTINEL_OV=upstream-modified" scripts/lib/overrides.sh; then
+    pass "runtime-protected: on-disk overrides.sh matches upstream after sync"
+  else
+    fail "on-disk overrides.sh was NOT refreshed (sentinel missing)"
+  fi
+
+  if grep -q "Runtime-protected files refreshed" "$WORK_DIR/rp-pr-body.md"; then
+    pass "PR body includes 'Runtime-protected files refreshed' callout"
+  else
+    fail "PR body missing 'Runtime-protected files refreshed' callout"
+  fi
+else
+  cat "$WORK_DIR/rp-run.log"
+  fail "rp-refresh scenario exited non-zero"
+fi
+popd >/dev/null
+
+# Scenario 9b: override path — runtime-protected file listed in
+# .gembaflow-overrides should NOT be refreshed (operator's explicit local
+# divergence is preserved).
+echo ""
+echo "Scenario 9b: runtime-protected file in .gembaflow-overrides is NOT refreshed"
+
+RP2_DIR="$WORK_DIR/rp-refresh-override"
+mkdir -p "$RP2_DIR/scripts/lib"
+cp scripts/template-sync.sh "$RP2_DIR/scripts/template-sync.sh"
+cp scripts/lib/overrides.sh "$RP2_DIR/scripts/lib/overrides.sh"
+chmod +x "$RP2_DIR/scripts/template-sync.sh"
+# Operator has explicitly opted out of template-sync.sh refresh.
+echo "scripts/template-sync.sh" > "$RP2_DIR/.gembaflow-overrides"
+
+cat > "$RP2_DIR/.gembaflow-version" <<'JSON'
+{
+  "version": "0.0.1",
+  "syncDirectories": ["./scripts"]
+}
+JSON
+
+pushd "$RP2_DIR" >/dev/null
+git init >/dev/null
+git -c user.name=test -c user.email=t@t.invalid add .
+git -c user.name=test -c user.email=t@t.invalid commit -m "init rp-override" >/dev/null
+git init --bare "$WORK_DIR/rp2-origin.git" >/dev/null
+git remote add origin "$WORK_DIR/rp2-origin.git"
+git push -u origin HEAD >/dev/null
+
+# Snapshot the local template-sync.sh hash before sync.
+RP2_TS_HASH_BEFORE=$(sha256sum scripts/template-sync.sh | awk '{print $1}')
+
+if TEST_RP_TARBALL="$WORK_DIR/rp-upstream.tar.gz" \
+   TEST_RP_PR_BODY="$WORK_DIR/rp2-pr-body.md" \
+   PATH="$WORK_DIR/rp-bin:$PATH" \
+   bash scripts/template-sync.sh > "$WORK_DIR/rp2-run.log" 2>&1; then
+
+  if grep -q "SKIP refresh (override): scripts/template-sync.sh" "$WORK_DIR/rp2-run.log"; then
+    pass "override path: template-sync.sh refresh skipped per .gembaflow-overrides"
+  else
+    cat "$WORK_DIR/rp2-run.log"
+    fail "expected 'SKIP refresh (override): scripts/template-sync.sh' in log"
+  fi
+
+  RP2_TS_HASH_AFTER=$(sha256sum scripts/template-sync.sh | awk '{print $1}')
+  if [ "$RP2_TS_HASH_BEFORE" = "$RP2_TS_HASH_AFTER" ]; then
+    pass "override path: on-disk template-sync.sh unchanged"
+  else
+    fail "override path: template-sync.sh was unexpectedly refreshed"
+  fi
+
+  # overrides.sh is NOT in the override list, so it SHOULD still refresh.
+  if grep -q "REFRESHED (post-run): scripts/lib/overrides.sh" "$WORK_DIR/rp2-run.log"; then
+    pass "override path: non-overridden overrides.sh still refreshes"
+  else
+    fail "override path: overrides.sh should have refreshed but didn't"
+  fi
+else
+  cat "$WORK_DIR/rp2-run.log"
+  fail "rp-override scenario exited non-zero"
 fi
 popd >/dev/null
 
