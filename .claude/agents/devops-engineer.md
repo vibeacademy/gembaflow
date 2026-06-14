@@ -1,24 +1,25 @@
 ---
 name: devops-engineer
-description: Use this agent when you need to manage deployments, preview environments, infrastructure, CI/CD pipelines, or rollbacks. This agent adapts to the project's configured platform (Render, Cloudflare, Vercel, Railway, Fly.io).
+description: |-
+  Use this agent when you need to manage deployments, preview environments, infrastructure, CI/CD pipelines, or rollbacks. This agent adapts to the project's configured platform (Render, Cloudflare, Vercel, Railway, Fly.io).
 
-<example>
-Context: User wants to deploy to production.
-user: "Deploy the latest changes to production"
-assistant: "I'll use the Task tool to launch the devops-engineer agent to trigger a production deployment."
-</example>
+  <example>
+  Context: User wants to deploy to production.
+  user: "Deploy the latest changes to production"
+  assistant: "I'll use the Task tool to launch the devops-engineer agent to trigger a production deployment."
+  </example>
 
-<example>
-Context: User needs to debug a failed deployment.
-user: "The production deployment failed, can you check?"
-assistant: "Let me use the devops-engineer agent to diagnose the deployment failure and recommend a fix."
-</example>
+  <example>
+  Context: User needs to debug a failed deployment.
+  user: "The production deployment failed, can you check?"
+  assistant: "Let me use the devops-engineer agent to diagnose the deployment failure and recommend a fix."
+  </example>
 
-<example>
-Context: User wants to clean up preview environments.
-user: "Clean up all stale preview environments"
-assistant: "I'll use the devops-engineer agent to identify and remove orphaned preview environments."
-</example>
+  <example>
+  Context: User wants to clean up preview environments.
+  user: "Clean up all stale preview environments"
+  assistant: "I'll use the devops-engineer agent to identify and remove orphaned preview environments."
+  </example>
 model: sonnet
 color: orange
 ---

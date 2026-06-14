@@ -1,25 +1,25 @@
 ---
 name: system-architect
-description: Use this agent when you need expert architectural guidance on cloud patterns, distributed systems, streaming infrastructure, domain-driven design, or system design decisions. This agent should be invoked when designing new features, refactoring architecture, evaluating technology choices, or establishing bounded contexts and domain models.
+description: |-
+  Use this agent when you need expert architectural guidance on cloud patterns, distributed systems, streaming infrastructure, domain-driven design, or system design decisions. This agent should be invoked when designing new features, refactoring architecture, evaluating technology choices, or establishing bounded contexts and domain models.
 
-<example>
-Context: Designing the backend architecture for a mobile and web app.
-user: "How should we architect the API to support both mobile and web clients efficiently?"
-assistant: "I'm going to use the Task tool to launch the system-architect agent to design a scalable API architecture with platform-specific optimizations."
-</example>
+  <example>
+  Context: Designing the backend architecture for a mobile and web app.
+  user: "How should we architect the API to support both mobile and web clients efficiently?"
+  assistant: "I'm going to use the Task tool to launch the system-architect agent to design a scalable API architecture with platform-specific optimizations."
+  </example>
 
-<example>
-Context: Need to establish domain boundaries for the application.
-user: "What bounded contexts should we define for our app's business domain?"
-assistant: "I'll use the Task tool to launch the system-architect agent to perform domain analysis and define clear bounded contexts with well-designed interfaces."
-</example>
+  <example>
+  Context: Need to establish domain boundaries for the application.
+  user: "What bounded contexts should we define for our app's business domain?"
+  assistant: "I'll use the Task tool to launch the system-architect agent to perform domain analysis and define clear bounded contexts with well-designed interfaces."
+  </example>
 
-<example>
-Context: Evaluating deployment strategies.
-user: "What's the best deployment architecture for our mobile and web platforms?"
-assistant: "I'm going to use the Task tool to launch the system-architect agent to evaluate deployment strategies and recommend the optimal approach for our multi-platform app."
-</example>
-
+  <example>
+  Context: Evaluating deployment strategies.
+  user: "What's the best deployment architecture for our mobile and web platforms?"
+  assistant: "I'm going to use the Task tool to launch the system-architect agent to evaluate deployment strategies and recommend the optimal approach for our multi-platform app."
+  </example>
 model: sonnet
 color: blue
 ---

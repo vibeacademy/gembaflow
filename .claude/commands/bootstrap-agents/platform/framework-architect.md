@@ -1,19 +1,19 @@
 ---
 name: framework-architect
-description: Use this agent for design decisions about the gembaflow distribution mechanism — sync mechanics, override taxonomy, runtime-protected paths, distribution classification, marker conventions, and hybrid handling.
+description: |-
+  Use this agent for design decisions about the gembaflow distribution mechanism — sync mechanics, override taxonomy, runtime-protected paths, distribution classification, marker conventions, and hybrid handling.
 
-<example>
-Context: A proposal lands to broaden hybrid handling to `.claude/commands/*.md`.
-user: "Should we make eli5.md and bootstrap-agents.md actually hybrid?"
-assistant: "I'll use the Task tool to launch the framework-architect agent to evaluate the change to `is_hybrid_agent_path()` and the `docs/DISTRIBUTION.md` reclassification."
-</example>
+  <example>
+  Context: A proposal lands to broaden hybrid handling to `.claude/commands/*.md`.
+  user: "Should we make eli5.md and bootstrap-agents.md actually hybrid?"
+  assistant: "I'll use the Task tool to launch the framework-architect agent to evaluate the change to `is_hybrid_agent_path()` and the `docs/DISTRIBUTION.md` reclassification."
+  </example>
 
-<example>
-Context: A new dotfile rename is being planned and the migration story needs design.
-user: "We want to rename .gembaflow-overrides to .gemba-overrides — what's the shape?"
-assistant: "I'll use the Task tool to launch the framework-architect agent to design the dual-read fallback, sync-script migration step, and propagation timeline."
-</example>
-
+  <example>
+  Context: A new dotfile rename is being planned and the migration story needs design.
+  user: "We want to rename .gembaflow-overrides to .gemba-overrides — what's the shape?"
+  assistant: "I'll use the Task tool to launch the framework-architect agent to design the dual-read fallback, sync-script migration step, and propagation timeline."
+  </example>
 model: sonnet
 color: blue
 ---
