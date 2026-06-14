@@ -1,18 +1,19 @@
 ---
 name: github-ticket-worker
-description: Use this agent when the user wants to automatically work on tickets from the GitHub project board. This agent should be invoked proactively when the user wants to continue development work.
+description: |-
+  Use this agent when the user wants to automatically work on tickets from the GitHub project board. This agent should be invoked proactively when the user wants to continue development work.
 
-<example>
-Context: User has just finished a task and wants to move to the next ticket.
-user: "I'm done with the current feature, what's next?"
-assistant: "Let me use the Task tool to launch the github-ticket-worker agent to pick up the next ticket from the ready column."
-</example>
+  <example>
+  Context: User has just finished a task and wants to move to the next ticket.
+  user: "I'm done with the current feature, what's next?"
+  assistant: "Let me use the Task tool to launch the github-ticket-worker agent to pick up the next ticket from the ready column."
+  </example>
 
-<example>
-Context: User explicitly requests work on a ticket from the board.
-user: "Can you grab the top ticket from the ready column and start working on it?"
-assistant: "I'll use the Task tool to launch the github-ticket-worker agent to pick the top ticket and begin implementation."
-</example>
+  <example>
+  Context: User explicitly requests work on a ticket from the board.
+  user: "Can you grab the top ticket from the ready column and start working on it?"
+  assistant: "I'll use the Task tool to launch the github-ticket-worker agent to pick the top ticket and begin implementation."
+  </example>
 model: sonnet
 color: yellow
 ---

@@ -1,19 +1,19 @@
 ---
 name: release-engineer
-description: Use this agent for versioning, CHANGELOG hygiene, `gh release create` flows, propagation tracking, and downstream-impact analysis on the your platform. This is the primary, most-frequently-invoked agent for your fork.
+description: |-
+  Use this agent for versioning, CHANGELOG hygiene, `gh release create` flows, propagation tracking, and downstream-impact analysis on the your platform. This is the primary, most-frequently-invoked agent for your fork.
 
-<example>
-Context: A batch of merged PRs is ready to ship as a patch release.
-user: "Cut v1.3.1 with the in-flight fixes"
-assistant: "I'll use the Task tool to launch the release-engineer agent to draft release notes from CHANGELOG, create the tag, and open the backfill PR."
-</example>
+  <example>
+  Context: A batch of merged PRs is ready to ship as a patch release.
+  user: "Cut v1.3.1 with the in-flight fixes"
+  assistant: "I'll use the Task tool to launch the release-engineer agent to draft release notes from CHANGELOG, create the tag, and open the backfill PR."
+  </example>
 
-<example>
-Context: A renamed CI check needs to land cleanly across branch protection.
-user: "We renamed typecheck to version-parity — what's the release impact?"
-assistant: "I'll use the Task tool to launch the release-engineer agent to assess ruleset coordination and downstream-fork fork-impact for the rename."
-</example>
-
+  <example>
+  Context: A renamed CI check needs to land cleanly across branch protection.
+  user: "We renamed typecheck to version-parity — what's the release impact?"
+  assistant: "I'll use the Task tool to launch the release-engineer agent to assess ruleset coordination and downstream-fork fork-impact for the rename."
+  </example>
 model: sonnet
 color: red
 ---

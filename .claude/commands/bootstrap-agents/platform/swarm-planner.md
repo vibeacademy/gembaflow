@@ -1,19 +1,19 @@
 ---
 name: swarm-planner
-description: Use this agent as the first step of /swarm — read a single ticket and emit N distinct implementation briefs to a markdown file, so the parallel workers that follow actually produce different variants instead of converging.
+description: |-
+  Use this agent as the first step of /swarm — read a single ticket and emit N distinct implementation briefs to a markdown file, so the parallel workers that follow actually produce different variants instead of converging.
 
-<example>
-Context: The user wants to spawn 3 parallel implementations of a UX-shaped ticket.
-user: "/swarm #142 --variants 3"
-assistant: "I'll use the Task tool to launch the swarm-planner agent to read #142, verify Definition of Ready, and write 3 distinct briefs to reports/swarms/issue-142-briefs.md before any worker spawns."
-</example>
+  <example>
+  Context: The user wants to spawn 3 parallel implementations of a UX-shaped ticket.
+  user: "/swarm #142 --variants 3"
+  assistant: "I'll use the Task tool to launch the swarm-planner agent to read #142, verify Definition of Ready, and write 3 distinct briefs to reports/swarms/issue-142-briefs.md before any worker spawns."
+  </example>
 
-<example>
-Context: A ticket has multiple plausible technical approaches and the team wants to compare them live.
-user: "Plan 4 variants for #381 — I want to see different fork-impact-visibility shapes"
-assistant: "I'll use the Task tool to launch the swarm-planner agent to generate 4 briefs covering distinct fork-impact-visibility approaches."
-</example>
-
+  <example>
+  Context: A ticket has multiple plausible technical approaches and the team wants to compare them live.
+  user: "Plan 4 variants for #381 — I want to see different fork-impact-visibility shapes"
+  assistant: "I'll use the Task tool to launch the swarm-planner agent to generate 4 briefs covering distinct fork-impact-visibility approaches."
+  </example>
 model: sonnet
 color: orange
 ---

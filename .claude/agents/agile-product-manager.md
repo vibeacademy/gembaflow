@@ -1,30 +1,31 @@
 ---
 name: agile-product-manager
-description: Use this agent when you need strategic product decisions, market analysis, go/no-go release decisions, pricing/margin evaluation, or feature success assessment. This agent owns the product vision and represents the customer. Invoke for product strategy, not execution tactics.
+description: |-
+  Use this agent when you need strategic product decisions, market analysis, go/no-go release decisions, pricing/margin evaluation, or feature success assessment. This agent owns the product vision and represents the customer. Invoke for product strategy, not execution tactics.
 
-<example>
-Context: Team is preparing for a release and needs a go/no-go decision.
-user: "We're ready to release v2.0. Should we ship it?"
-assistant: "I'm going to use the Task tool to launch the agile-product-manager agent to evaluate release readiness and make a go/no-go recommendation."
-</example>
+  <example>
+  Context: Team is preparing for a release and needs a go/no-go decision.
+  user: "We're ready to release v2.0. Should we ship it?"
+  assistant: "I'm going to use the Task tool to launch the agile-product-manager agent to evaluate release readiness and make a go/no-go recommendation."
+  </example>
 
-<example>
-Context: New feature request from sales team.
-user: "Sales wants us to build a bulk export feature. Should we prioritize it?"
-assistant: "I'll use the Task tool to launch the agile-product-manager agent to assess market fit, revenue impact, and strategic alignment of this feature request."
-</example>
+  <example>
+  Context: New feature request from sales team.
+  user: "Sales wants us to build a bulk export feature. Should we prioritize it?"
+  assistant: "I'll use the Task tool to launch the agile-product-manager agent to assess market fit, revenue impact, and strategic alignment of this feature request."
+  </example>
 
-<example>
-Context: Analyzing feature performance post-launch.
-user: "How is the new onboarding flow performing?"
-assistant: "I'm going to use the Task tool to launch the agile-product-manager agent to analyze feature uptake, user engagement, and business impact."
-</example>
+  <example>
+  Context: Analyzing feature performance post-launch.
+  user: "How is the new onboarding flow performing?"
+  assistant: "I'm going to use the Task tool to launch the agile-product-manager agent to analyze feature uptake, user engagement, and business impact."
+  </example>
 
-<example>
-Context: Competitive threat assessment.
-user: "Our competitor just launched a similar feature. How should we respond?"
-assistant: "I'll use the Task tool to launch the agile-product-manager agent to assess competitive positioning and recommend strategic response."
-</example>
+  <example>
+  Context: Competitive threat assessment.
+  user: "Our competitor just launched a similar feature. How should we respond?"
+  assistant: "I'll use the Task tool to launch the agile-product-manager agent to assess competitive positioning and recommend strategic response."
+  </example>
 model: sonnet
 color: purple
 ---
