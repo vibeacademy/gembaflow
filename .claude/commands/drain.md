@@ -202,22 +202,32 @@ turn picks up the next ticket.
 
    ```bash
    # Poll every 30s for up to 10 minutes; --slack and --post-issue not used here.
+   # The deploy-status check goes through scripts/deploy-status/interface.mjs
+   # (per #420), which dispatches to the per-plane adapter selected by
+   # DRAIN_DEPLOY_PLANE (default: render). Existing Render forks see zero
+   # behavior change; Cloud Run / other-plane forks ship their own adapter
+   # (see scripts/deploy-status/interface.mjs § "Adding a new adapter" and
+   # the Cloud Run adapter tracked in #495).
+   #
    # Per #194: after 5 consecutive pending results AND no deploy ever
    # started for our merge SHA, fall back to manually triggering the
    # deploy via Render API (Render's GH integration is empirically
    # unreliable; auto-deploy intermittently doesn't fire). Opt-out via
-   # DRAIN_RENDER_AUTO_TRIGGER=false.
+   # DRAIN_RENDER_AUTO_TRIGGER=false. The auto-trigger is Render-API-specific
+   # and only fires when DRAIN_DEPLOY_PLANE is unset or "render"; other planes'
+   # adapters should implement their own retry semantics internally.
    PENDING_COUNT=0
    AUTO_TRIGGERED=false
    for i in $(seq 1 20); do
-     RESULT=$(node scripts/render-deploy-status.mjs "$MERGE_SHA")
+     RESULT=$(node scripts/deploy-status/interface.mjs "$MERGE_SHA")
      LIVE=$(echo "$RESULT" | jq -r '.live')
      SOURCE=$(echo "$RESULT" | jq -r '.source')
      STATUS=$(echo "$RESULT" | jq -r '.status')
      if [ "$LIVE" = "true" ]; then break; fi
      if [ "$SOURCE" = "unavailable" ]; then
-       # Token unconfigured OR Render API unreachable — fall back to the v1
-       # curl liveness probe (per docs/testing/render-gating.md §Fallback)
+       # Token unconfigured OR adapter unreachable OR no adapter for this plane —
+       # fall back to the v1 curl liveness probe
+       # (per docs/testing/render-gating.md §Fallback).
        break
      fi
      if [ "$STATUS" = "pending" ]; then
@@ -225,7 +235,7 @@ turn picks up the next ticket.
      else
        PENDING_COUNT=0
      fi
-     if [ "$PENDING_COUNT" -ge 5 ] && [ "$AUTO_TRIGGERED" = "false" ] && [ "${DRAIN_RENDER_AUTO_TRIGGER:-true}" != "false" ]; then
+     if [ "${DRAIN_DEPLOY_PLANE:-render}" = "render" ] && [ "$PENDING_COUNT" -ge 5 ] && [ "$AUTO_TRIGGERED" = "false" ] && [ "${DRAIN_RENDER_AUTO_TRIGGER:-true}" != "false" ]; then
        # 5 consecutive pending (~2.5 minutes) with no deploy ever found
        # for this SHA — auto-deploy webhook didn't fire. Trigger manually.
        echo "[drain] step 9: auto-deploy didn't fire for ${MERGE_SHA:0:7}; triggering manually (per #194)"
