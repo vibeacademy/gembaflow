@@ -29,6 +29,38 @@ Verify ALL of the following BEFORE setting the `/goal` condition. STOP and
 report to the user if any check fails — do not begin the loop with partial
 or unhealthy state.
 
+**Step 0 — Resolve config placeholders (RUNS FIRST, before any other check).**
+
+Steps 1, 3, and 5 below reference the four canonical placeholders documented
+in [`docs/PLATFORM-GUIDE.md`](../../docs/PLATFORM-GUIDE.md) §
+"Bootstrap-time templated values". If substitution has not run on this fork,
+those steps fail with opaque `account not found` or `gh: 404` errors that
+mask the real cause. Run the substitution check FIRST so the rest of
+pre-flight can give honest signals:
+
+```bash
+bash scripts/substitute-config-placeholders.sh --check
+```
+
+- **Exit 0 (zero unsubstituted placeholders).** Proceed to step 1.
+- **Exit 1 (unsubstituted placeholders found) AND `.gembaflow-config.json`
+  exists with all four fields populated.** Run
+  `bash scripts/substitute-config-placeholders.sh` (without `--check`) to
+  apply substitution, then proceed to step 1.
+- **Exit 1 AND `.gembaflow-config.json` missing or has empty fields.**
+  STOP with this message:
+
+  ```
+  Drain cannot run: drain.md still has unsubstituted {{...}} placeholders
+  and .gembaflow-config.json is missing or incomplete. Run /bootstrap-workflow
+  step 7, OR copy .gembaflow-config.example.json to .gembaflow-config.json,
+  fill in the four values, and re-run /drain. See docs/PLATFORM-GUIDE.md
+  § "Bootstrap-time templated values" for the convention.
+  ```
+
+  Do not start the drain loop until substitution succeeds. Per #493 (closes
+  the opaque-failure cause-of-confusion surfaced in downstream-report #492).
+
 1. **`gh` CLI is authenticated as `{{bot.worker}}`** — `gh auth status` shows
    `{{bot.worker}}` as the active account. If not, run `gh auth switch -u {{bot.worker}}`.
 2. **Repository accessible** — `gh repo view --json nameWithOwner` succeeds.
