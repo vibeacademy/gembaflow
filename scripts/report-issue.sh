@@ -168,15 +168,19 @@ else
   fi
 fi
 
-# Extract org/repo from https or git@ GitHub URLs
+# Extract org/repo from https or git@ GitHub URLs, OR from a bare slug.
+# template-sync.sh writes the bare slug form on bootstrap/upgrade, so consumers
+# must accept it (see #323).
 # Strip .git suffix before matching (bash 3.2 doesn't support non-greedy regex)
 UPSTREAM_URL_CLEAN="${UPSTREAM_URL%.git}"
 UPSTREAM_REPO=""
 if [[ "$UPSTREAM_URL_CLEAN" =~ github\.com[:/]([^/]+/[^/]+)$ ]]; then
   UPSTREAM_REPO="${BASH_REMATCH[1]}"
+elif [[ "$UPSTREAM_URL_CLEAN" =~ ^([^/[:space:]]+/[^/[:space:]]+)$ ]]; then
+  UPSTREAM_REPO="${BASH_REMATCH[1]}"
 else
   echo "ERROR: Cannot parse GitHub repo from: $UPSTREAM_URL" >&2
-  echo "Expected format: https://github.com/org/repo" >&2
+  echo "Expected format: https://github.com/org/repo or bare slug org/repo" >&2
   exit 1
 fi
 
