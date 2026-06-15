@@ -78,7 +78,7 @@ No migration required. `/swarm` is a new opt-in command; existing `/work-ticket`
 
 ### Fork-maintained files you must update
 
-_None this release._
+*None this release.*
 
 ### Propagation note
 
