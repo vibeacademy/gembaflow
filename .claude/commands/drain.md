@@ -66,9 +66,15 @@ bash scripts/substitute-config-placeholders.sh --check
 2. **Repository accessible** — `gh repo view --json nameWithOwner` succeeds.
 3. **Project board accessible** — `gh project view {{board.id}} --owner {{org}}`
    succeeds. Board operations during the drain require this scope.
-4. **`agent-merge.yml` exists on `main`** — the merge gate from `#129` must be
-   discoverable on the default branch (otherwise `gh workflow run agent-merge.yml`
-   returns HTTP 404 — see `Lesson-workflow-dispatch-default-branch`).
+4. **Manual-install drain artifacts** — these don't propagate via template-sync
+   by design (workflow files aren't in `syncDirectories`, so forks can
+   customize their own workflows without sync clobber). Each fork installs
+   them once per `docs/drain-customization.md`. STOP with the relevant install
+   pointer if any sub-check fails.
+
+   - **4a. `agent-merge.yml` exists on `main`** — `gh api repos/{owner}/{repo}/contents/.github/workflows/agent-merge.yml --jq .name` returns the file name. If missing: see `docs/drain-customization.md` § "Bridge workflow installation" for the install command. Without this, `gh workflow run agent-merge.yml` returns HTTP 404 mid-cycle (see `Lesson-workflow-dispatch-default-branch`).
+   - **4b. `drain-merge-bridge.yml` exists on `main`** — same probe shape, different file. If missing: same doc pointer. Without this, the per-iteration cycle step 7 fails to dispatch.
+   - **4c. `safety:*` label vocabulary exists on the fork's repo** — `bash scripts/setup-safety-labels.sh --check` must report all four labels present (`safety:internal`, `safety:reversible`, `safety:hot`, `safety:flagged`). If any missing: run `bash scripts/setup-safety-labels.sh` (no `--check`) to create them idempotently — single command, the helper is safe to re-run.
 5. **Production baseline is healthy** — run `node scripts/sentry-baseline.mjs`
    and compare the returned `baseline_errors_per_min` against the 24-hour
    median. If the current baseline is >2× the 24h median, **abort with a
