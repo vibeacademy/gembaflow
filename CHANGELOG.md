@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+
+- **CI fleet gated behind `.github/workflows/_detect-changes.yml` — docs-only PRs skip ~6 of 7+ jobs (incl. ~5min Render preview compute)** — new reusable workflow returns a single `should-run-ci` boolean output computed via `dorny/paths-filter@v3` against a positive allowlist (`app/`, `components/`, `lib/`, `worker/`, `types/`, `__tests__/`, `scripts/`, `.claude/{agents,commands,skills,hooks}/**`, `.gembaflow-{meta,overrides,version,config.example.json}`, `.github/workflows/**`, validation toolchains). Anything outside the allowlist is treated as docs-only; CI fleet skips. Every job except `lint` (markdown lint, ~5s, runs UNGATED so docs-only PRs still catch broken tables / MD038 / MD049) and `detect` (the gate itself) inherits the gate via `needs: detect` + `if: needs.detect.outputs.should-run-ci == 'true'`. Touches `.github/workflows/_detect-changes.yml` (new), `ci.yml`, `auto-review.yml`, `preview-deploy.yml` (8 jobs gated total). **`.claude/{agents,commands,skills,hooks}/**` are validated config — NOT docs** — `lint-agent-policies`, `test`, and `template-cleanliness` jobs invoke validators against these paths; the carve-out keeps a malformed agent (e.g. #488's YAML bug) from merging green via the docs-only path. Skipped-as-passing semantics correctly cited (GitHub May 2022 status-check change); branch protection still resolves green on docs-only PRs. Job names preserved across the board so branch-protection rules pinning specific check names are unaffected. `auto-review.yml`'s "Trigger PR Review" job now also skips on docs-only PRs — operators wanting an agent review on a docs PR invoke `/review-pr <N>` manually. `docs/CI-CD-GUIDE.md` § "Active by Default → CI" gains a "Docs-only PR gate" subsection documenting the allowlist + carve-outs. Closes #491. (#485)
+
+> [!IMPORTANT]
+> **Fork-maintained files you must update:** branch-protected forks pinning required-status-checks on the `main` ruleset gain a new check name: **`detect / detect-changes`**. The check is informational by default (it always runs and always passes), so forks that don't pin it explicitly see no change. Forks that DO pin their required-status-checks list — and want the new check enforced — should add `detect / detect-changes` to the list via `repo settings → rules → rulesets → main → require status checks to pass`. Same shape as #428's `version-parity`/`json-validate` callout. The check is safe to leave un-pinned — the gate works whether it's required or informational; pinning just makes the gate's presence explicit in the protection rule.
 
 ## [1.5.0] - 2026-06-13
 
