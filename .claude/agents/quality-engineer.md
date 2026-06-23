@@ -1,44 +1,45 @@
 ---
 name: quality-engineer
-description: Use this agent when you need to create test plans, execute testing workflows, generate test reports, or validate system behavior against specifications. This agent should be invoked after receiving BDD specifications, user stories, PRDs, or other project artifacts that define expected system behavior.
+description: |-
+  Use this agent when you need to create test plans, execute testing workflows, generate test reports, or validate system behavior against specifications. This agent should be invoked after receiving BDD specifications, user stories, PRDs, or other project artifacts that define expected system behavior.
 
-Examples:
+  Examples:
 
-<example>
-Context: User has just completed implementing a new feature.
-user: "I've finished implementing the push notification preferences screen. Can you help validate it?"
-assistant: "I'm going to use the Task tool to launch the quality-engineer agent to create a comprehensive test plan and execute validation for the push notification preferences feature."
-<commentary>
-Since the user has completed a feature implementation, use the quality-engineer agent to create test plans based on specifications and execute thorough testing of the new feature.
-</commentary>
-</example>
+  <example>
+  Context: User has just completed implementing a new feature.
+  user: "I've finished implementing the push notification preferences screen. Can you help validate it?"
+  assistant: "I'm going to use the Task tool to launch the quality-engineer agent to create a comprehensive test plan and execute validation for the push notification preferences feature."
+  <commentary>
+  Since the user has completed a feature implementation, use the quality-engineer agent to create test plans based on specifications and execute thorough testing of the new feature.
+  </commentary>
+  </example>
 
-<example>
-Context: User is planning to implement a new feature.
-user: "Before I start coding the payment flow, what testing approach should we take?"
-assistant: "Let me use the quality-engineer agent to develop a test strategy for the payment flow based on the feature specifications."
-<commentary>
-Since the user is in the planning phase, use the quality-engineer agent to proactively create a test plan that aligns with the architecture, ensuring quality is built in from the start.
-</commentary>
-</example>
+  <example>
+  Context: User is planning to implement a new feature.
+  user: "Before I start coding the payment flow, what testing approach should we take?"
+  assistant: "Let me use the quality-engineer agent to develop a test strategy for the payment flow based on the feature specifications."
+  <commentary>
+  Since the user is in the planning phase, use the quality-engineer agent to proactively create a test plan that aligns with the architecture, ensuring quality is built in from the start.
+  </commentary>
+  </example>
 
-<example>
-Context: User has made changes to a core component.
-user: "I've updated the authentication service to add biometric authentication."
-assistant: "I'm going to use the quality-engineer agent to create a test plan for validating the biometric authentication and its impact on existing auth flows."
-<commentary>
-Since core component changes can have cascading effects, use the quality-engineer agent to ensure comprehensive testing of the new feature and dependent functionality.
-</commentary>
-</example>
+  <example>
+  Context: User has made changes to a core component.
+  user: "I've updated the authentication service to add biometric authentication."
+  assistant: "I'm going to use the quality-engineer agent to create a test plan for validating the biometric authentication and its impact on existing auth flows."
+  <commentary>
+  Since core component changes can have cascading effects, use the quality-engineer agent to ensure comprehensive testing of the new feature and dependent functionality.
+  </commentary>
+  </example>
 
-<example>
-Context: Proactive quality check after a logical implementation milestone.
-user: "The user profile screen is now complete with edit functionality and image upload."
-assistant: "Excellent work! Let me proactively use the quality-engineer agent to validate the profile screen against specifications and generate a test report."
-<commentary>
-Proactively invoke the quality-engineer agent to ensure quality validation happens immediately after feature completion, catching issues early.
-</commentary>
-</example>
+  <example>
+  Context: Proactive quality check after a logical implementation milestone.
+  user: "The user profile screen is now complete with edit functionality and image upload."
+  assistant: "Excellent work! Let me proactively use the quality-engineer agent to validate the profile screen against specifications and generate a test report."
+  <commentary>
+  Proactively invoke the quality-engineer agent to ensure quality validation happens immediately after feature completion, catching issues early.
+  </commentary>
+  </example>
 model: sonnet
 ---
 

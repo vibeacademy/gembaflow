@@ -29,14 +29,52 @@ Verify ALL of the following BEFORE setting the `/goal` condition. STOP and
 report to the user if any check fails — do not begin the loop with partial
 or unhealthy state.
 
+**Step 0 — Resolve config placeholders (RUNS FIRST, before any other check).**
+
+Steps 1, 3, and 5 below reference the four canonical placeholders documented
+in [`docs/PLATFORM-GUIDE.md`](../../docs/PLATFORM-GUIDE.md) §
+"Bootstrap-time templated values". If substitution has not run on this fork,
+those steps fail with opaque `account not found` or `gh: 404` errors that
+mask the real cause. Run the substitution check FIRST so the rest of
+pre-flight can give honest signals:
+
+```bash
+bash scripts/substitute-config-placeholders.sh --check
+```
+
+- **Exit 0 (zero unsubstituted placeholders).** Proceed to step 1.
+- **Exit 1 (unsubstituted placeholders found) AND `.gembaflow-config.json`
+  exists with all four fields populated.** Run
+  `bash scripts/substitute-config-placeholders.sh` (without `--check`) to
+  apply substitution, then proceed to step 1.
+- **Exit 1 AND `.gembaflow-config.json` missing or has empty fields.**
+  STOP with this message:
+
+  ```
+  Drain cannot run: drain.md still has unsubstituted {{...}} placeholders
+  and .gembaflow-config.json is missing or incomplete. Run /bootstrap-workflow
+  step 7, OR copy .gembaflow-config.example.json to .gembaflow-config.json,
+  fill in the four values, and re-run /drain. See docs/PLATFORM-GUIDE.md
+  § "Bootstrap-time templated values" for the convention.
+  ```
+
+  Do not start the drain loop until substitution succeeds. Per #493 (closes
+  the opaque-failure cause-of-confusion surfaced in downstream-report #492).
+
 1. **`gh` CLI is authenticated as `{{bot.worker}}`** — `gh auth status` shows
    `{{bot.worker}}` as the active account. If not, run `gh auth switch -u {{bot.worker}}`.
 2. **Repository accessible** — `gh repo view --json nameWithOwner` succeeds.
 3. **Project board accessible** — `gh project view {{board.id}} --owner {{org}}`
    succeeds. Board operations during the drain require this scope.
-4. **`agent-merge.yml` exists on `main`** — the merge gate from `#129` must be
-   discoverable on the default branch (otherwise `gh workflow run agent-merge.yml`
-   returns HTTP 404 — see `Lesson-workflow-dispatch-default-branch`).
+4. **Manual-install drain artifacts** — these don't propagate via template-sync
+   by design (workflow files aren't in `syncDirectories`, so forks can
+   customize their own workflows without sync clobber). Each fork installs
+   them once per `docs/drain-customization.md`. STOP with the relevant install
+   pointer if any sub-check fails.
+
+   - **4a. `agent-merge.yml` exists on `main`** — `gh api repos/{owner}/{repo}/contents/.github/workflows/agent-merge.yml --jq .name` returns the file name. If missing: see `docs/drain-customization.md` § "Bridge workflow installation" for the install command. Without this, `gh workflow run agent-merge.yml` returns HTTP 404 mid-cycle (see `Lesson-workflow-dispatch-default-branch`).
+   - **4b. `drain-merge-bridge.yml` exists on `main`** — same probe shape, different file. If missing: same doc pointer. Without this, the per-iteration cycle step 7 fails to dispatch.
+   - **4c. `safety:*` label vocabulary exists on the fork's repo** — `bash scripts/setup-safety-labels.sh --check` must report all four labels present (`safety:internal`, `safety:reversible`, `safety:hot`, `safety:flagged`). If any missing: run `bash scripts/setup-safety-labels.sh` (no `--check`) to create them idempotently — single command, the helper is safe to re-run.
 5. **Production baseline is healthy** — run `node scripts/sentry-baseline.mjs`
    and compare the returned `baseline_errors_per_min` against the 24-hour
    median. If the current baseline is >2× the 24h median, **abort with a
@@ -164,22 +202,32 @@ turn picks up the next ticket.
 
    ```bash
    # Poll every 30s for up to 10 minutes; --slack and --post-issue not used here.
+   # The deploy-status check goes through scripts/deploy-status/interface.mjs
+   # (per #420), which dispatches to the per-plane adapter selected by
+   # DRAIN_DEPLOY_PLANE (default: render). Existing Render forks see zero
+   # behavior change; Cloud Run / other-plane forks ship their own adapter
+   # (see scripts/deploy-status/interface.mjs § "Adding a new adapter" and
+   # the Cloud Run adapter tracked in #495).
+   #
    # Per #194: after 5 consecutive pending results AND no deploy ever
    # started for our merge SHA, fall back to manually triggering the
    # deploy via Render API (Render's GH integration is empirically
    # unreliable; auto-deploy intermittently doesn't fire). Opt-out via
-   # DRAIN_RENDER_AUTO_TRIGGER=false.
+   # DRAIN_RENDER_AUTO_TRIGGER=false. The auto-trigger is Render-API-specific
+   # and only fires when DRAIN_DEPLOY_PLANE is unset or "render"; other planes'
+   # adapters should implement their own retry semantics internally.
    PENDING_COUNT=0
    AUTO_TRIGGERED=false
    for i in $(seq 1 20); do
-     RESULT=$(node scripts/render-deploy-status.mjs "$MERGE_SHA")
+     RESULT=$(node scripts/deploy-status/interface.mjs "$MERGE_SHA")
      LIVE=$(echo "$RESULT" | jq -r '.live')
      SOURCE=$(echo "$RESULT" | jq -r '.source')
      STATUS=$(echo "$RESULT" | jq -r '.status')
      if [ "$LIVE" = "true" ]; then break; fi
      if [ "$SOURCE" = "unavailable" ]; then
-       # Token unconfigured OR Render API unreachable — fall back to the v1
-       # curl liveness probe (per docs/testing/render-gating.md §Fallback)
+       # Token unconfigured OR adapter unreachable OR no adapter for this plane —
+       # fall back to the v1 curl liveness probe
+       # (per docs/testing/render-gating.md §Fallback).
        break
      fi
      if [ "$STATUS" = "pending" ]; then
@@ -187,7 +235,7 @@ turn picks up the next ticket.
      else
        PENDING_COUNT=0
      fi
-     if [ "$PENDING_COUNT" -ge 5 ] && [ "$AUTO_TRIGGERED" = "false" ] && [ "${DRAIN_RENDER_AUTO_TRIGGER:-true}" != "false" ]; then
+     if [ "${DRAIN_DEPLOY_PLANE:-render}" = "render" ] && [ "$PENDING_COUNT" -ge 5 ] && [ "$AUTO_TRIGGERED" = "false" ] && [ "${DRAIN_RENDER_AUTO_TRIGGER:-true}" != "false" ]; then
        # 5 consecutive pending (~2.5 minutes) with no deploy ever found
        # for this SHA — auto-deploy webhook didn't fire. Trigger manually.
        echo "[drain] step 9: auto-deploy didn't fire for ${MERGE_SHA:0:7}; triggering manually (per #194)"

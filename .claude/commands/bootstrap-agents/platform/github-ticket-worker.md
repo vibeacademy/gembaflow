@@ -1,19 +1,19 @@
 ---
 name: github-ticket-worker
-description: Use this agent to implement tickets on your platform team — picks up a ticket from Ready, runs platform pre-flight checks, implements, opens a PR with fork-impact called out, and moves the ticket to In Review.
+description: |-
+  Use this agent to implement tickets on your platform team — picks up a ticket from Ready, runs platform pre-flight checks, implements, opens a PR with fork-impact called out, and moves the ticket to In Review.
 
-<example>
-Context: Ready has a top-priority ticket and the user wants to start it.
-user: "Pick up the top ticket from Ready and work it"
-assistant: "I'll use the Task tool to launch the github-ticket-worker agent to run the platform pre-flight checks, implement, and open the PR."
-</example>
+  <example>
+  Context: Ready has a top-priority ticket and the user wants to start it.
+  user: "Pick up the top ticket from Ready and work it"
+  assistant: "I'll use the Task tool to launch the github-ticket-worker agent to run the platform pre-flight checks, implement, and open the PR."
+  </example>
 
-<example>
-Context: A specific ticket needs implementing.
-user: "Work ticket #381"
-assistant: "I'll use the Task tool to launch the github-ticket-worker agent to implement #381 with the platform guardrails."
-</example>
-
+  <example>
+  Context: A specific ticket needs implementing.
+  user: "Work ticket #381"
+  assistant: "I'll use the Task tool to launch the github-ticket-worker agent to implement #381 with the platform guardrails."
+  </example>
 model: sonnet
 color: green
 ---

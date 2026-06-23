@@ -64,6 +64,17 @@ logs/
 .gembaflow-reports/
 .agile-flow-reports/
 .agile-flow-version
+
+# Operator-facing Codespaces welcome surface — written on every postCreate
+# by scripts/codespace-postcreate.sh; carries any non-blocking-setup warnings.
+# Gitignored so it stays per-Codespace and never lands in the repo.
+WELCOME.md
+
+# Per-fork MCP server config — generated from .mcp.example.json by
+# bootstrap.sh / codespace-postcreate.sh on first install. Keep the example
+# committed; gitignore the operator-local copy so fork-specific MCP server
+# additions (e.g. supabase, custom servers) don't propagate upstream.
+.mcp.json
 # FRAMEWORK:END
 
 # Project-specific ignores (add below this line)

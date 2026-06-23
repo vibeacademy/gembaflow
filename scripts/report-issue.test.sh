@@ -55,12 +55,14 @@ SHIM
 chmod +x "$SHIM_DIR/gh"
 
 # Fresh workspace + fake .gembaflow-version pointing at the canonical upstream.
+# Default form is URL; callers can pass an upstream value to exercise other shapes.
 make_workspace() {
   local dir="$1"
+  local upstream="${2:-https://github.com/vibeacademy/gembaflow}"
   mkdir -p "$dir"
   ( cd "$dir" && git init --quiet && git commit --allow-empty -m init --quiet )
   cat > "$dir/.gembaflow-version" <<JSON
-{"upstream": "https://github.com/vibeacademy/gembaflow", "version": "v1.4.0"}
+{"upstream": "$upstream", "version": "v1.4.0"}
 JSON
 }
 
@@ -206,6 +208,102 @@ if grep -q "mutually exclusive" "$TEST_DIR/out.log"; then
   pass "error message includes 'mutually exclusive'"
 else
   fail "missing 'mutually exclusive' wording"
+  cat "$TEST_DIR/out.log"
+fi
+
+# Test (f): bare-slug `upstream` (written by template-sync.sh) is accepted.
+# Regression coverage for #323.
+TEST_DIR="$WORK_DIR/f-slug"
+make_workspace "$TEST_DIR" "vibeacademy/gembaflow"
+set +e
+run_under_stub "$TEST_DIR" \
+  --non-interactive --severity p2 --component docs --title "slug-form test" \
+  --body "Test body" > "$TEST_DIR/out.log" 2>&1
+rc=$?
+set -e
+echo ""
+echo "(f) Bare-slug upstream (\"org/repo\") is accepted — #323"
+if [ "$rc" -eq 0 ]; then
+  pass "exit 0"
+else
+  fail "expected exit 0, got $rc"
+  cat "$TEST_DIR/out.log"
+fi
+if grep -q "issue create --repo vibeacademy/gembaflow " "$TEST_DIR/gh.log"; then
+  pass "gh issue create --repo vibeacademy/gembaflow was attempted from slug-form upstream"
+else
+  fail "did not see 'gh issue create --repo vibeacademy/gembaflow' in shim log"
+  cat "$TEST_DIR/gh.log"
+fi
+
+# Test (g): SSH-form upstream still parses (no regression on existing forks).
+TEST_DIR="$WORK_DIR/g-ssh"
+make_workspace "$TEST_DIR" "git@github.com:vibeacademy/gembaflow.git"
+set +e
+run_under_stub "$TEST_DIR" \
+  --non-interactive --severity p2 --component docs --title "ssh-form test" \
+  --body "Test body" > "$TEST_DIR/out.log" 2>&1
+rc=$?
+set -e
+echo ""
+echo "(g) SSH-form upstream still works"
+if [ "$rc" -eq 0 ]; then
+  pass "exit 0"
+else
+  fail "expected exit 0, got $rc"
+  cat "$TEST_DIR/out.log"
+fi
+if grep -q "issue create --repo vibeacademy/gembaflow " "$TEST_DIR/gh.log"; then
+  pass "gh issue create --repo vibeacademy/gembaflow was attempted from SSH-form upstream"
+else
+  fail "did not see 'gh issue create --repo vibeacademy/gembaflow' in shim log"
+  cat "$TEST_DIR/gh.log"
+fi
+
+# Test (h): URL form with .git suffix still parses.
+TEST_DIR="$WORK_DIR/h-url-git"
+make_workspace "$TEST_DIR" "https://github.com/vibeacademy/gembaflow.git"
+set +e
+run_under_stub "$TEST_DIR" \
+  --non-interactive --severity p2 --component docs --title "url+git test" \
+  --body "Test body" > "$TEST_DIR/out.log" 2>&1
+rc=$?
+set -e
+echo ""
+echo "(h) URL with .git suffix still works"
+if [ "$rc" -eq 0 ]; then
+  pass "exit 0"
+else
+  fail "expected exit 0, got $rc"
+  cat "$TEST_DIR/out.log"
+fi
+if grep -q "issue create --repo vibeacademy/gembaflow " "$TEST_DIR/gh.log"; then
+  pass "gh issue create --repo vibeacademy/gembaflow was attempted from URL-with-.git upstream"
+else
+  fail "did not see 'gh issue create --repo vibeacademy/gembaflow' in shim log"
+  cat "$TEST_DIR/gh.log"
+fi
+
+# Test (i): garbage upstream still errors loudly (no silent fall-through).
+TEST_DIR="$WORK_DIR/i-garbage"
+make_workspace "$TEST_DIR" "not a valid upstream string"
+set +e
+run_under_stub "$TEST_DIR" \
+  --non-interactive --severity p2 --component docs --title "garbage" \
+  --body "Test body" > "$TEST_DIR/out.log" 2>&1
+rc=$?
+set -e
+echo ""
+echo "(i) Garbage upstream is rejected with a clear error"
+if [ "$rc" -ne 0 ]; then
+  pass "exit non-zero on garbage upstream"
+else
+  fail "expected non-zero exit, got $rc"
+fi
+if grep -q "Cannot parse GitHub repo from:" "$TEST_DIR/out.log"; then
+  pass "error message names the parser failure"
+else
+  fail "missing parser-failure marker in stderr"
   cat "$TEST_DIR/out.log"
 fi
 

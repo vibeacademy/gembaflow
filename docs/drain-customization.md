@@ -115,8 +115,9 @@ Before the first real `/drain` run on your fork:
 - [ ] `RENDER_API_KEY`, `RENDER_SERVICE_ID` set in your shell or skill-invocation env (if using Render)
 - [ ] `SENTRY_AUTH_TOKEN` (org-scoped), `SENTRY_API_URL`, `SENTRY_ORG_SLUG`, `SENTRY_PROJECT_SLUG` set (if using Sentry)
 - [ ] `PUBLIC_BASE_URL` set to your fork's deploy URL
-- [ ] `.github/workflows/drain-merge-bridge.yml` installed
-- [ ] All four `safety:*` labels created on the fork's primary repo (the gate reads these)
+- [ ] `.github/workflows/drain-merge-bridge.yml` installed (see § "Bridge workflow installation")
+- [ ] `.github/workflows/agent-merge.yml` installed (same flow as above; copy from upstream `.github/workflows/`)
+- [ ] All four `safety:*` labels created on the fork's primary repo (the gate reads these) — run `bash scripts/setup-safety-labels.sh` once on the repo; the helper is idempotent and can be re-run safely. Verify with `bash scripts/setup-safety-labels.sh --check`.
 - [ ] At least one `/drain --dry-run` against a non-empty Ready column passed before any unattended overnight run (see [[Pattern-dryrun-before-first-overnight-automation]])
 
 See [docs/drain-known-limitations.md](drain-known-limitations.md) for what `/drain` v1 deliberately does NOT do.

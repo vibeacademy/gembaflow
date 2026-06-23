@@ -1,19 +1,19 @@
 ---
 name: platform-backlog-prioritizer
-description: Use this agent for backlog grooming on your platform team — sequencing tickets by platform heuristics (fork-impact, breakage windows, release-window proximity), not product-shape roadmap phases.
+description: |-
+  Use this agent for backlog grooming on your platform team — sequencing tickets by platform heuristics (fork-impact, breakage windows, release-window proximity), not product-shape roadmap phases.
 
-<example>
-Context: A new release just shipped and the next batch of tickets needs sequencing.
-user: "v1.3.0 is out — what's next in Ready?"
-assistant: "I'll use the Task tool to launch the platform-backlog-prioritizer agent to groom the Backlog and populate Ready with platform-shape sequencing."
-</example>
+  <example>
+  Context: A new release just shipped and the next batch of tickets needs sequencing.
+  user: "v1.3.0 is out — what's next in Ready?"
+  assistant: "I'll use the Task tool to launch the platform-backlog-prioritizer agent to groom the Backlog and populate Ready with platform-shape sequencing."
+  </example>
 
-<example>
-Context: A downstream report came in and triaged tickets are sitting in Backlog.
-user: "We just filed #371, #372, #373, #374 from the gembaflow-site report — sequence them."
-assistant: "I'll use the Task tool to launch the platform-backlog-prioritizer agent to sequence these by fork-impact and runtime-protected-path dependency order."
-</example>
-
+  <example>
+  Context: A downstream report came in and triaged tickets are sitting in Backlog.
+  user: "We just filed #371, #372, #373, #374 from the gembaflow-site report — sequence them."
+  assistant: "I'll use the Task tool to launch the platform-backlog-prioritizer agent to sequence these by fork-impact and runtime-protected-path dependency order."
+  </example>
 model: sonnet
 color: purple
 ---

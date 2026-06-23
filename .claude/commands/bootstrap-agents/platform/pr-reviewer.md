@@ -1,19 +1,19 @@
 ---
 name: pr-reviewer
-description: Use this agent to review PRs on the your platform with a GO/NO-GO verdict posted directly to GitHub via `gh pr review`. Adds platform-specific checks (ruleset rename, runtime-protected files, hybrid markers, removed shims, CHANGELOG presence) on top of standard code review.
+description: |-
+  Use this agent to review PRs on the your platform with a GO/NO-GO verdict posted directly to GitHub via `gh pr review`. Adds platform-specific checks (ruleset rename, runtime-protected files, hybrid markers, removed shims, CHANGELOG presence) on top of standard code review.
 
-<example>
-Context: A PR is in the In Review column and needs a verdict.
-user: "Review PR #382 on gembaflow"
-assistant: "I'll use the Task tool to launch the pr-reviewer agent to assess the diff, run the platform checklist, and post GO or NO-GO."
-</example>
+  <example>
+  Context: A PR is in the In Review column and needs a verdict.
+  user: "Review PR #382 on gembaflow"
+  assistant: "I'll use the Task tool to launch the pr-reviewer agent to assess the diff, run the platform checklist, and post GO or NO-GO."
+  </example>
 
-<example>
-Context: A PR renames a CI check name.
-user: "PR #390 renames typecheck to version-parity — review it"
-assistant: "I'll use the Task tool to launch the pr-reviewer agent to verify ruleset coordination and post the verdict."
-</example>
-
+  <example>
+  Context: A PR renames a CI check name.
+  user: "PR #390 renames typecheck to version-parity — review it"
+  assistant: "I'll use the Task tool to launch the pr-reviewer agent to verify ruleset coordination and post the verdict."
+  </example>
 model: sonnet
 color: yellow
 ---

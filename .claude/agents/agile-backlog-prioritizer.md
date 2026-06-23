@@ -1,24 +1,25 @@
 ---
 name: agile-backlog-prioritizer
-description: Use this agent when you need to prioritize work items, manage the project backlog, or ensure development tickets accurately reflect team priorities. This agent should be invoked proactively when new issues are created, priorities shift, or the Ready column needs population.
+description: |-
+  Use this agent when you need to prioritize work items, manage the project backlog, or ensure development tickets accurately reflect team priorities. This agent should be invoked proactively when new issues are created, priorities shift, or the Ready column needs population.
 
-<example>
-Context: New feature tickets have been added to the backlog.
-user: "I just created three new feature tickets"
-assistant: "I'm going to use the Task tool to launch the agile-backlog-prioritizer agent to analyze these new tickets and determine their priority."
-</example>
+  <example>
+  Context: New feature tickets have been added to the backlog.
+  user: "I just created three new feature tickets"
+  assistant: "I'm going to use the Task tool to launch the agile-backlog-prioritizer agent to analyze these new tickets and determine their priority."
+  </example>
 
-<example>
-Context: Ready column is empty and development team needs work.
-user: "The Ready column is empty, what should we work on next?"
-assistant: "I'll use the Task tool to launch the agile-backlog-prioritizer agent to evaluate the backlog and move the highest priority items to Ready."
-</example>
+  <example>
+  Context: Ready column is empty and development team needs work.
+  user: "The Ready column is empty, what should we work on next?"
+  assistant: "I'll use the Task tool to launch the agile-backlog-prioritizer agent to evaluate the backlog and move the highest priority items to Ready."
+  </example>
 
-<example>
-Context: Regular backlog health check.
-user: "Can you review the project board and make sure priorities are correct?"
-assistant: "I'm going to use the Task tool to launch the agile-backlog-prioritizer agent to perform a comprehensive backlog review."
-</example>
+  <example>
+  Context: Regular backlog health check.
+  user: "Can you review the project board and make sure priorities are correct?"
+  assistant: "I'm going to use the Task tool to launch the agile-backlog-prioritizer agent to perform a comprehensive backlog review."
+  </example>
 model: sonnet
 color: red
 ---

@@ -58,15 +58,22 @@ Meta has no feature-flag mechanism (it's docs/plans/dotfiles, not an application
 
 ## Deploy validation is provider-shaped
 
-`scripts/render-deploy-status.mjs` and `scripts/sentry-baseline.mjs` are Render-specific and Sentry-specific respectively. Each carries a `// provider: <name>-only` docstring at the top of the file that marks it as a candidate for the future provider-plugin generalization.
+`scripts/sentry-baseline.mjs` is Sentry-specific (carries a `// provider: sentry-only` docstring at the top of the file marking it as a candidate for the future provider-plugin generalization in `#421`).
 
-A fork that uses a different deploy or observability provider can:
+`scripts/render-deploy-status.mjs` is the Render adapter and now sits behind `scripts/deploy-status/interface.mjs` — the provider-plugin dispatcher landed in `#420`. The dispatcher reads `DRAIN_DEPLOY_PLANE` (default: `render`) and routes drain's per-iteration step 9 to the matching adapter. Existing Render forks see zero behavior change; non-Render forks ship their adapter at `scripts/<plane>-deploy-status.mjs` and add an entry to the dispatcher's `PLANE_ADAPTERS` map. The Cloud Run adapter is tracked in `#495`.
+
+A fork that uses a different deploy provider can:
 
 1. Set the relevant env vars to empty so the drain skips those pre-flight checks gracefully (no failure, just no signal).
-2. Replace the scripts with a provider-specific equivalent and update the env var contract.
-3. Wait for the provider-plugin generalization tickets (`vibeacademy/gembaflow#420` for deploy, `#421` for observability) to ship a generic interface.
+2. Ship a per-plane adapter conforming to the contract in `scripts/deploy-status/interface.mjs` § "Interface contract", and set `DRAIN_DEPLOY_PLANE=<plane>` in their shell or `.gembaflow-config.json`.
 
-**Resolution:** `#420` and `#421` are filed and unblocked by T3's ship, but parked pending the empirical-grounding trigger (a second concrete deploy/observability provider materializing on a real downstream fork). Premature generalization risk otherwise.
+A fork that uses a different observability provider can still:
+
+1. Set the relevant env vars to empty (same graceful-skip behavior).
+2. Replace `scripts/sentry-baseline.mjs` with a provider-specific equivalent.
+3. Wait for `#421` (observability-side abstraction) to ship a generic interface.
+
+**Resolution:** `#420` shipped the deploy-plane dispatcher. `#421` (observability) remains parked pending the empirical-grounding trigger (a second concrete observability provider materializing on a real downstream fork) — same rationale that gated `#420` until reticle's GCP fork supplied the demand on `#492`.
 
 ## Sentry baseline of zero is ambiguous
 
