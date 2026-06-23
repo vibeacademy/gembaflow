@@ -4,7 +4,7 @@
   // Eliminates Windows shell incompatibility, tool-version drift, and
   // env-var propagation gotchas. Works for founders on any platform
   // (Render, Vercel, Railway, etc.) — no cloud-provider lock-in.
-  "name": "agile-flow",
+  "name": "gembaflow",
 
   // Lean Ubuntu base — features below add Python / Node / gh.
   // Pinned to noble (24.04 LTS) so the underlying OS doesn't drift.
@@ -32,18 +32,47 @@
     "GEMBAFLOW_SOLO_MODE": "true"
   },
 
-  // Preinstall Claude Code extension — provides `claude` CLI and sidebar UI.
+  // Customizations:
+  //   - codespaces.repositories."*".permissions: requests broader GitHub-App
+  //     installation token scopes so /bootstrap Phase 4's ruleset POST and
+  //     /bootstrap-workflow's project-board calls succeed against the
+  //     Codespaces-injected GITHUB_TOKEN. Operator pays a one-time
+  //     "Approve these permissions?" dialog on first Codespace creation.
+  //     Defaults (without this block) exclude `administration` and
+  //     `repository_projects` — both required for the happy path.
+  //   - vscode.extensions: preinstall Claude Code (provides `claude` CLI and
+  //     sidebar UI). Pinned to ^1 so the workshop experience stays stable
+  //     across minor extension releases.
   "customizations": {
+    "codespaces": {
+      "repositories": {
+        "*": {
+          "permissions": {
+            "contents": "write",
+            "issues": "write",
+            "pull_requests": "write",
+            "metadata": "read",
+            "administration": "write",
+            "repository_projects": "write",
+            "workflows": "write"
+          }
+        }
+      }
+    },
     "vscode": {
       "extensions": [
-        "anthropic.claude-code"
+        "anthropic.claude-code@^1"
       ]
     }
   },
 
-  // Install Python deps. Solo mode is set via containerEnv above.
-  // If setup-solo-mode.sh exists, run it; otherwise just sync deps.
-  "postCreateCommand": "[ -f scripts/setup-solo-mode.sh ] && bash scripts/setup-solo-mode.sh; uv sync --extra dev || true",
+  // Single postCreate orchestrator. Idempotent, non-interactive,
+  // fail-tolerant on non-blocking warnings (surfaced via WELCOME.md).
+  // Handles: git identity (post-2017 noreply email), local hooksPath,
+  // .mcp.json from .mcp.example.json, .gembaflow-version stamp,
+  // .gembaflow-config.json (solo_mode default), uv sync --extra dev,
+  // WELCOME.md write.
+  "postCreateCommand": "bash scripts/codespace-postcreate.sh",
 
   // Next.js dev server (default starter).
   "forwardPorts": [3000],
