@@ -72,12 +72,38 @@ If `gh auth status` exits non-zero (no authenticated account), STOP with:
 If `.gembaflow-version` is missing, STOP with:
 `→ .gembaflow-version not found — this directory is not a Gemba Flow fork. Re-template from vibeacademy/gembaflow.`
 
-#### 1d. Read `.gembaflow-config.json`
+#### 1d. Read `.gembaflow-config.json` + multi-bot secrets check
 
-Read `solo_mode` (default `true` in Codespaces — `scripts/codespace-postcreate.sh`
-writes this). If `solo_mode` is `false`, expect bot-PAT secrets to be wired;
-multi-bot-secrets validation is delegated to T5's preflight wiring and is
-not part of this skill's contract. Note the mode in the closing summary.
+Read `solo_mode` from `.gembaflow-config.json` (default `true` in Codespaces
+— `scripts/codespace-postcreate.sh` writes this). Apply this table:
+
+| `solo_mode` value | Secrets present? | Action |
+|---|---|---|
+| `true` (or field absent) | n/a | Proceed in **solo mode**. Note in closing summary. |
+| `false` | both `GEMBAFLOW_WORKER_TOKEN` and `GEMBAFLOW_REVIEWER_TOKEN` present | Proceed in **multi-bot mode**. Note in closing summary. |
+| `false` | either secret missing | **STOP** with the actionable error below. Do NOT silently downgrade to solo mode — the operator explicitly set `solo_mode: false`. |
+
+The actionable error on the missing-secrets path:
+
+```
+→ Multi-bot mode is configured (.gembaflow-config.json: solo_mode: false)
+  but one or both Codespaces secrets are missing:
+
+    GEMBAFLOW_WORKER_TOKEN  : <present|MISSING>
+    GEMBAFLOW_REVIEWER_TOKEN: <present|MISSING>
+
+  Set the missing secret(s) at:
+    https://github.com/settings/codespaces
+
+  Then wait 1-2 minutes for propagation, restart this Codespace via
+  the Codespaces menu, and re-invoke /bootstrap.
+
+  See docs/codespaces-secrets.md for fine-grained PAT scopes, rotation
+  discipline, and blast-radius guidance.
+```
+
+Substitute the actual `<present|MISSING>` values from the env check so
+the operator sees which specific secret needs setting.
 
 #### 1e. Mark phase0 complete
 
