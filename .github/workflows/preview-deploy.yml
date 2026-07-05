@@ -5,14 +5,23 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
+  # Docs-only PRs skip the entire preview-deploy chain (CI Checks reuse,
+  # Supabase branch wait, AND the Render preview build itself — which is
+  # the largest single compute item at ~5 minutes/run). See
+  # `_detect-changes.yml` for the allowlist.
+  detect:
+    uses: ./.github/workflows/_detect-changes.yml
+
   ci:
     name: CI Checks
-    if: github.repository != 'vibeacademy/gembaflow'
+    needs: detect
+    if: github.repository != 'vibeacademy/gembaflow' && needs.detect.outputs.should-run-ci == 'true'
     uses: ./.github/workflows/ci.yml
 
   wait-for-supabase:
     name: Wait for Supabase Branch
-    if: github.repository != 'vibeacademy/gembaflow'
+    needs: detect
+    if: github.repository != 'vibeacademy/gembaflow' && needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     outputs:
       branch_ready: ${{ steps.check.outputs.conclusion || 'skipped' }}
@@ -36,9 +45,14 @@ jobs:
 
   deploy-preview:
     name: Deploy to Render Preview
-    needs: [ci, wait-for-supabase]
-    # Run even if wait-for-supabase was skipped, but require CI to pass
-    if: always() && needs.ci.result == 'success'
+    needs: [detect, ci, wait-for-supabase]
+    # `always()` lets us evaluate even if wait-for-supabase failed via its
+    # continue-on-error. Hard gates: CI must have succeeded AND the diff
+    # must touch a code path (docs-only PRs skip the Render compute).
+    if: |
+      always() &&
+      needs.detect.outputs.should-run-ci == 'true' &&
+      needs.ci.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read

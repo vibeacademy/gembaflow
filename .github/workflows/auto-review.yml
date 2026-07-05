@@ -5,10 +5,16 @@ on:
     types: [opened, ready_for_review]
 
 jobs:
+  # Gate: docs-only PRs skip the review nudge (an agent code review of a
+  # markdown diff is wasted context). See `_detect-changes.yml`.
+  detect:
+    uses: ./.github/workflows/_detect-changes.yml
+
   auto-review:
     name: Trigger PR Review
+    needs: detect
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false && needs.detect.outputs.should-run-ci == 'true'
     permissions:
       contents: read
       pull-requests: write
