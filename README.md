@@ -5,8 +5,6 @@
 
 A Claude Code project template that bootstraps a complete agile development workflow with specialized AI agents.
 
-[![Watch the video](https://img.youtube.com/vi/rkHxmnsyTiM/maxresdefault.jpg)](https://youtu.be/rkHxmnsyTiM)
-
 ## Why This Exists
 
 In lean manufacturing, a **gemba walk** is when a manager goes to the
