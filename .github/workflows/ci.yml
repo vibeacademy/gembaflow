@@ -12,6 +12,19 @@ on:
   workflow_call:
 
 jobs:
+  # Leading gate: docs-only PRs (CHANGELOG bumps, README edits,
+  # framework doc updates) skip the full CI fleet. See
+  # `_detect-changes.yml` for the allowlist. GitHub treats
+  # `if:`-skipped jobs as passing for required status checks, so branch
+  # protection still resolves green.
+  detect:
+    uses: ./.github/workflows/_detect-changes.yml
+
+  # Markdown lint runs UNGATED. Docs-only PRs are exactly the class
+  # that most benefits from this check (broken tables, MD004 violations)
+  # and the action takes ~5 seconds — cheaper than the detect gate's
+  # overhead. Gating it would let malformed markdown merge with a green
+  # check.
   lint:
     name: lint
     runs-on: ubuntu-latest
@@ -35,6 +48,8 @@ jobs:
   # its existing name and required-check entry.
   json-validate:
     name: json-validate
+    needs: detect
+    if: needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +59,8 @@ jobs:
 
   version-parity:
     name: version-parity
+    needs: detect
+    if: needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +70,8 @@ jobs:
 
   build:
     name: build
+    needs: detect
+    if: needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,6 +84,8 @@ jobs:
 
   test:
     name: test
+    needs: detect
+    if: needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,6 +98,8 @@ jobs:
 
   template-cleanliness:
     name: template-cleanliness
+    needs: detect
+    if: needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -86,6 +109,8 @@ jobs:
 
   lint-agent-policies:
     name: lint-agent-policies
+    needs: detect
+    if: needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,6 +126,8 @@ jobs:
 
   python:
     name: python
+    needs: detect
+    if: needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -136,6 +163,8 @@ jobs:
 
   node:
     name: node
+    needs: detect
+    if: needs.detect.outputs.should-run-ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
