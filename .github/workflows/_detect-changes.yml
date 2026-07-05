@@ -1,0 +1,123 @@
+name: Detect Changes (reusable)
+
+# Reusable workflow that computes a single boolean output: whether the
+# PR / push diff touches any code path that should trigger CI. Used by
+# every PR-triggered workflow as a leading gate, so docs-only PRs
+# (CHANGELOG bumps, README edits, framework doc updates) skip the full
+# CI fleet.
+#
+# Skipped-via-`if` semantics: since GitHub's May 2022 status-check
+# update, jobs that don't run because their `if` evaluated to false are
+# treated as PASSING for required-status-check purposes. That's what
+# makes the gate safe — required checks still resolve green on
+# docs-only PRs.
+#
+# Downstream-friendliness: forks override the allowlist by editing this
+# single file. Job/workflow names are preserved so branch-protection
+# rules that pin specific check names are unaffected.
+#
+# Filter mechanism: dorny/paths-filter@v3 — widely audited, used by
+# tens of thousands of repos.
+
+on:
+  workflow_call:
+    outputs:
+      should-run-ci:
+        description: '"true" if the diff touches any code path; "false" otherwise.'
+        value: ${{ jobs.detect.outputs.should-run-ci }}
+
+jobs:
+  detect:
+    name: detect-changes
+    runs-on: ubuntu-latest
+    outputs:
+      should-run-ci: ${{ steps.filter.outputs.should-run-ci }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # Positive allowlist: anything NOT matching here is treated as
+          # docs-only and the rest of CI skips. New top-level directories
+          # default to triggering CI — moving a path into the docs-only
+          # category is an explicit, reviewable change to this file.
+          #
+          # The two carve-outs (documented in CI-CD-GUIDE.md):
+          #  - `lint` (markdown lint) runs UNGATED in ci.yml. Docs-only
+          #    PRs benefit from it; the action is ~5s.
+          #  - `.claude/agents/**`, `.claude/commands/**`, `.claude/skills/**`,
+          #    `.claude/hooks/**` are validated config (not docs) — five
+          #    ci.yml scripts walk those paths. They MUST trigger CI or
+          #    a malformed agent / command / skill / hook merges green.
+          filters: |
+            should-run-ci:
+              # ── Application source ────────────────────────────────────
+              - 'app/**'
+              - 'components/**'
+              - 'lib/**'
+              - 'worker/**'
+              # Root-level Next.js / framework source
+              - 'middleware.ts'
+              - 'instrumentation.ts'
+              - 'next-env.d.ts'
+              - 'components.json'
+              - 'bootstrap.sh'
+              - 'types/**'
+
+              # ── Tests ────────────────────────────────────────────────
+              - '__tests__/**'
+
+              # ── Build + lint config that changes CI signal ────────────
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig.json'
+              - 'next.config.*'
+              - 'eslint.config.*'
+              - '.eslintrc*'
+              - 'vitest.config.*'
+              - 'vitest.setup.*'
+              - 'postcss.config.*'
+              - 'tailwind.config.*'
+
+              # ── Database (forks) ─────────────────────────────────────
+              - 'supabase/migrations/**'
+              - 'supabase/seed.sql'
+
+              # ── Operational helpers ──────────────────────────────────
+              - 'Aptfile'
+              - 'render.yaml'
+              - 'scripts/**'
+
+              # ── Validated agent + skill config (NOT docs) ────────────
+              # ci.yml's `lint-agent-policies` and `test` jobs invoke the
+              # validators against these paths. A change here MUST
+              # trigger CI or a malformed agent / command / skill / hook
+              # merges with a green check.
+              - '.claude/agents/**'
+              - '.claude/commands/**'
+              - '.claude/skills/**'
+              - '.claude/hooks/**'
+
+              # ── Framework meta + template content ─────────────────────
+              # Starters and template state files affect downstream forks
+              # — changes here should run the full validation chain.
+              - 'starters/**'
+              - '.gembaflow-meta/**'
+              - '.gembaflow-overrides'
+              - '.gembaflow-version'
+              - '.gembaflow-config.example.json'
+
+              # ── Python (BDD + framework forks that use it) ───────────
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'features/**'
+
+              # ── CI itself: changes to workflows must run CI ──────────
+              - '.github/workflows/**'
+              - '.github/actions/**'
+
+              # ── Validation toolchains read by ci.yml ─────────────────
+              - '.markdownlint.json'
+              - '.shellcheckrc'
+              - '.mcp.json'

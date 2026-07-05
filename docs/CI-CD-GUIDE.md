@@ -47,6 +47,65 @@ job runs and the `python` job skips. If you swap to the FastAPI starter
 Coverage threshold for the Python job defaults to 80% and can be overridden
 via the `COVERAGE_THRESHOLD` environment variable.
 
+#### Docs-only PR gate
+
+Every CI job except `lint` and the gate itself is gated behind a reusable
+workflow at `.github/workflows/_detect-changes.yml` that computes a single
+`should-run-ci` boolean via `dorny/paths-filter@v3`. PRs touching only
+documentation (README, CHANGELOG, `docs/**`, etc.) skip the full CI fleet,
+saving ~6 of 7+ jobs plus the ~5-minute Render preview compute.
+
+**Positive allowlist — anything matching triggers CI:**
+
+- `app/**`, `components/**`, `lib/**`, `worker/**`, `types/**`,
+  `__tests__/**` (code)
+- `scripts/**` (framework scripts)
+- `.claude/{agents,commands,skills,hooks}/**` (validated config — see
+  carve-out below)
+- `.gembaflow-meta/**`, `.gembaflow-overrides`, `.gembaflow-version`,
+  `.gembaflow-config.example.json` (framework state files affecting
+  downstream-fork sync)
+- `.github/workflows/**`, `.github/actions/**` (self-referential — a
+  workflow change must run CI against itself)
+- `package.json`, `package-lock.json`, `pyproject.toml`, `uv.lock`,
+  `tsconfig.json`, `vitest.config.ts`, `eslint.config.mjs`,
+  `next.config.ts`, `tailwind.config.ts`, `postcss.config.mjs`,
+  `.markdownlint.json` (validation toolchain configs)
+
+Anything NOT matching the allowlist is treated as docs-only.
+
+**Two carve-outs — these run UNGATED:**
+
+- **`lint` (markdown lint).** Runs on every PR including docs-only.
+  Docs-only PRs are exactly the class that benefits most from markdown
+  lint (broken tables, MD004/MD038/MD049 traps); the action takes ~5s.
+- **`detect / detect-changes` (the gate itself).** Always runs so its
+  output is available to gated jobs downstream. Always passes.
+
+**`.claude/{agents,commands,skills,hooks}/**` is validated config, NOT
+docs.** Despite living in a directory that looks docs-shaped, these
+files are consumed by `lint-agent-policies`, `test`, and
+`template-cleanliness` jobs which run validators against them. Edits
+here trigger the full CI fleet. Without this carve-out, a malformed
+agent (e.g. #488's YAML frontmatter bug) could merge green via the
+docs-only path.
+
+**Skipped-as-passing semantics.** Per GitHub's May 2022 status-check
+update, jobs that don't run because their `if:` evaluated to false are
+treated as PASSING for required-status-check purposes. Branch
+protection rules still resolve green on docs-only PRs.
+
+**Job names preserved.** No existing check name was renamed by the
+gating change. Branch-protection rules pinning specific check names
+(`build`, `test`, `lint`, `node`, `python`, `version-parity`,
+`json-validate`, etc.) are unaffected.
+
+**For forks:** the allowlist is a single-file override surface
+(`.github/workflows/_detect-changes.yml`). Forks that need to add or
+remove path patterns edit that one file. New top-level directories
+default to triggering CI — moving a path into the docs-only category
+is an explicit, reviewable change.
+
 ### Release (`release.yml`)
 
 Triggers when a `v*` tag is pushed. Extracts the matching section from
