@@ -1,0 +1,199 @@
+[
+  {
+    "id": "ea-1",
+    "title": "Infrastructure Epic",
+    "description": "All infrastructure work.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "epic",
+    "created_at": "2026-07-10T10:00:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:00:00Z",
+    "labels": ["track:infrastructure"],
+    "dependencies": [],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": null
+  },
+  {
+    "id": "eb-1",
+    "title": "Library Epic",
+    "description": "All library work.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "epic",
+    "created_at": "2026-07-10T10:01:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:01:00Z",
+    "labels": ["track:library"],
+    "dependencies": [],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": null
+  },
+  {
+    "id": "ec-1",
+    "title": "Core Library Epic",
+    "description": "Core library work.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "epic",
+    "created_at": "2026-07-10T10:02:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:02:00Z",
+    "labels": ["track:library"],
+    "dependencies": [],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": null
+  },
+  {
+    "id": "ea-t1",
+    "title": "Infra task 1",
+    "description": "First infra task. Blocks library work.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:03:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:03:00Z",
+    "labels": ["track:infrastructure"],
+    "dependencies": [
+      {
+        "issue_id": "ea-t1",
+        "depends_on_id": "ea-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T10:03:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "ea-1"
+  },
+  {
+    "id": "eb-t1",
+    "title": "Library task 1",
+    "description": "First library task. Blocked by infra task 1.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:05:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:05:00Z",
+    "labels": ["track:library"],
+    "dependencies": [
+      {
+        "issue_id": "eb-t1",
+        "depends_on_id": "ea-t1",
+        "type": "blocks",
+        "created_at": "2026-07-10T10:05:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "eb-t1",
+        "depends_on_id": "eb-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T10:05:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "eb-1"
+  },
+  {
+    "id": "ec-t1",
+    "title": "Core lib task 1",
+    "description": "First core lib task.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:08:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:08:00Z",
+    "labels": ["track:library"],
+    "dependencies": [
+      {
+        "issue_id": "ec-t1",
+        "depends_on_id": "ec-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T10:08:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "ec-1"
+  },
+  {
+    "id": "loose-1",
+    "title": "Loose bead one",
+    "description": "No parent epic.",
+    "status": "open",
+    "priority": 3,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:10:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:10:00Z",
+    "labels": [],
+    "dependencies": [],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": null
+  },
+  {
+    "id": "ed-1",
+    "title": "<script>alert(1)</script>",
+    "description": "Hostile-title epic for XSS regression testing.",
+    "status": "open",
+    "priority": 3,
+    "issue_type": "epic",
+    "created_at": "2026-07-10T10:20:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:20:00Z",
+    "labels": ["track:infrastructure"],
+    "dependencies": [],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": null
+  },
+  {
+    "id": "ed-t1",
+    "title": "\"><img src=x onerror=alert(2)>",
+    "description": "Hostile-title task under hostile-title epic.",
+    "status": "open",
+    "priority": 3,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:21:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:21:00Z",
+    "labels": ["track:infrastructure"],
+    "dependencies": [
+      {
+        "issue_id": "ed-t1",
+        "depends_on_id": "ed-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T10:21:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "ed-1"
+  }
+]

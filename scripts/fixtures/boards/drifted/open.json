@@ -1,0 +1,22 @@
+[
+  {
+    "id": "dr-1",
+    "title": "Bead with a dependency type this renderer does not know",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "labels": [],
+    "dependencies": [
+      { "issue_id": "dr-1", "depends_on_id": "dr-2", "type": "supersedes" }
+    ]
+  },
+  {
+    "id": "dr-2",
+    "title": "Blocker bead",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "labels": [],
+    "dependencies": []
+  }
+]

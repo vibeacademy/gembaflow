@@ -65,6 +65,12 @@ logs/
 .agile-flow-reports/
 .agile-flow-version
 
+# Board projections — read-only HTML regenerated from bd (beads) state by
+# .claude/hooks/render-boards-on-bd.sh; never committed, never hand-edited.
+# Note: .gembaflow-boards.config.json (repo root) IS committed — only the
+# generated output directory is ignored.
+.gembaflow-boards/
+
 # Operator-facing Codespaces welcome surface — written on every postCreate
 # by scripts/codespace-postcreate.sh; carries any non-blocking-setup warnings.
 # Gitignored so it stays per-Codespace and never lands in the repo.

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "el-11",
+    "title": "Pilot acceptance quarter goals",
+    "description": "Icebox: revisit next quarter.",
+    "status": "deferred",
+    "priority": 3,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:38:04Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:04Z",
+    "labels": [
+      "campaign:pilot"
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  }
+]
