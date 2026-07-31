@@ -88,7 +88,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-boards-on-bd.sh --refresh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-boards-on-bd.sh --refresh",
+            "timeout": 30
           }
         ]
       }

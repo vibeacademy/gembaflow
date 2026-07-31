@@ -644,3 +644,43 @@ describe("failure behavior", () => {
     expect(existsSync(join(outDir, "kanban.html"))).toBe(true); // empty state renders
   });
 });
+
+describe("--check shape validator", () => {
+  /** Run `render-boards.mjs --check` against a fixture; never throws. */
+  function check(fixture) {
+    try {
+      const stdout = execFileSync(
+        process.execPath,
+        [ENTRY, "--check", "--fixture", join(FIXTURES, fixture)],
+        { encoding: "utf8" },
+      );
+      return { status: 0, stdout, stderr: "" };
+    } catch (err) {
+      return {
+        status: err.status,
+        stdout: err.stdout ?? "",
+        stderr: err.stderr ?? "",
+      };
+    }
+  }
+
+  it("exits 0 with an OK message on a healthy fixture", () => {
+    const result = check("happy");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("--check OK");
+  });
+
+  it("exits 0 on an empty tracker (valid shape)", () => {
+    const result = check("empty");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("--check OK");
+  });
+
+  it("exits 1 and names the drift when bd emits an unknown dependency type", () => {
+    const result = check("drifted");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("--check FAILED");
+    expect(result.stderr).toContain('unknown dependency type "supersedes"');
+    expect(result.stderr).toContain("dr-1");
+  });
+});
