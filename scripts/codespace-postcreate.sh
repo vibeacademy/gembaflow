@@ -90,6 +90,25 @@ EOF
 fi
 
 # ---------------------------------------------------------------------------
+# bd (beads) CLI — pinned install. The version constant lives in
+# scripts/lib/bd-version.sh; scripts/check-bd.sh is the gate that fails
+# loudly on missing/mismatched versions. Here (non-interactive postCreate)
+# failures downgrade to WELCOME.md warnings. See docs/BEADS.md.
+# ---------------------------------------------------------------------------
+# shellcheck source=scripts/lib/bd-version.sh
+source "${SCRIPT_DIR}/lib/bd-version.sh"
+if ! bash "${SCRIPT_DIR}/check-bd.sh" --quiet 2>/dev/null; then
+    if command -v npm >/dev/null 2>&1; then
+        npm install -g "@beads/bd@${GEMBAFLOW_BD_VERSION}" >/dev/null 2>&1 \
+            || note_warning "\`npm install -g @beads/bd@${GEMBAFLOW_BD_VERSION}\` failed; install bd manually, then run \`scripts/check-bd.sh\` to verify."
+        bash "${SCRIPT_DIR}/check-bd.sh" --quiet 2>/dev/null \
+            || note_warning "bd version gate still failing after install — run \`scripts/check-bd.sh\` for details (pin: scripts/lib/bd-version.sh)."
+    else
+        note_warning "npm not found; bd (beads) was not installed. Install \`@beads/bd@${GEMBAFLOW_BD_VERSION}\` and verify with \`scripts/check-bd.sh\`."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Python dev deps — fail-tolerant (per SC5 of the quickstart plan)
 # ---------------------------------------------------------------------------
 if [ -f "pyproject.toml" ] && command -v uv >/dev/null 2>&1; then

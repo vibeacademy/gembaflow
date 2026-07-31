@@ -70,7 +70,9 @@
   // fail-tolerant on non-blocking warnings (surfaced via WELCOME.md).
   // Handles: git identity (post-2017 noreply email), local hooksPath,
   // .mcp.json from .mcp.example.json, .gembaflow-version stamp,
-  // .gembaflow-config.json (solo_mode default), uv sync --extra dev,
+  // .gembaflow-config.json (solo_mode default), pinned bd (beads) CLI
+  // install + version gate (pin: scripts/lib/bd-version.sh, gate:
+  // scripts/check-bd.sh — see docs/BEADS.md), uv sync --extra dev,
   // WELCOME.md write.
   "postCreateCommand": "bash scripts/codespace-postcreate.sh",
 
