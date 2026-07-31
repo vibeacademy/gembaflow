@@ -210,11 +210,12 @@ phase0_environment() {
     echo "  - Git identity configuration"
     echo "  - Git hooks for policy enforcement"
     echo "  - MCP server configuration for Claude Code"
+    echo "  - Pinned bd (beads) CLI install + version gate"
     echo ""
     echo "Every step is idempotent — you can re-run this phase safely."
     echo ""
 
-    local total_steps=9
+    local total_steps=10
     local failed=0
 
     # -----------------------------------------------------------------------
@@ -571,16 +572,58 @@ phase0_environment() {
     fi
 
     # -----------------------------------------------------------------------
-    #  Step 9: Smoke test
+    #  Step 9: Install pinned bd (beads) CLI
     # -----------------------------------------------------------------------
-    print_step 9 $total_steps "Smoke test"
+    print_step 9 $total_steps "Install pinned bd (beads) CLI"
+
+    echo "  Gemba Flow pins the bd (beads) issue tracker to one exact version"
+    echo "  (constant: scripts/lib/bd-version.sh) because bd is an active 1.x"
+    echo "  whose CLI surface moves between releases. The version gate fails"
+    echo "  loudly on any mismatch."
+    echo ""
+
+    # shellcheck source=scripts/lib/bd-version.sh
+    source "${BOOTSTRAP_DIR}/scripts/lib/bd-version.sh"
+
+    if "${BOOTSTRAP_DIR}/scripts/check-bd.sh" --quiet 2>/dev/null; then
+        print_success "bd ${GEMBAFLOW_BD_VERSION} (pinned version) is installed."
+    else
+        print_warning "bd is missing or does not match the pin (${GEMBAFLOW_BD_VERSION})."
+        if command -v npm &>/dev/null; then
+            echo ""
+            echo "  The pinned version installs with:"
+            echo "    npm install -g @beads/bd@${GEMBAFLOW_BD_VERSION}"
+            echo ""
+            read -p "  Install it now? (Y/n): " install_bd
+            if [[ ! "$install_bd" =~ ^[Nn]$ ]]; then
+                npm install -g "@beads/bd@${GEMBAFLOW_BD_VERSION}" || true
+            fi
+        fi
+        if "${BOOTSTRAP_DIR}/scripts/check-bd.sh"; then
+            print_success "bd ${GEMBAFLOW_BD_VERSION} (pinned version) is installed."
+        else
+            print_error "bd version gate failed."
+            echo ""
+            echo "  Install the pinned version manually:"
+            echo "    npm install -g @beads/bd@${GEMBAFLOW_BD_VERSION}"
+            echo ""
+            echo "  Then re-run this script. See docs/BEADS.md for details,"
+            echo "  including the upgrade procedure if you meant to move the pin."
+            return 1
+        fi
+    fi
+
+    # -----------------------------------------------------------------------
+    #  Step 10: Smoke test
+    # -----------------------------------------------------------------------
+    print_step 10 $total_steps "Smoke test"
 
     echo "  Running a quick check to make sure everything hangs together."
     echo ""
 
     local smoke_pass=true
 
-    # 9a: Is this a git repo?
+    # 10a: Is this a git repo?
     if git rev-parse --is-inside-work-tree &>/dev/null; then
         print_success "This directory is a git repository."
     else
@@ -589,7 +632,7 @@ phase0_environment() {
         smoke_pass=false
     fi
 
-    # 9b: Does the hook exist?
+    # 10b: Does the hook exist?
     local effective_hooks
     effective_hooks=$(git config --local core.hooksPath 2>/dev/null || echo ".git/hooks")
     if [ -f "${effective_hooks}/pre-push" ]; then
@@ -599,7 +642,7 @@ phase0_environment() {
         print_info "This is OK if you have not created it yet."
     fi
 
-    # 9c: Can gh access the repo?
+    # 10c: Can gh access the repo?
     local remote_url
     remote_url=$(git remote get-url origin 2>/dev/null || true)
     if [ -n "$remote_url" ]; then

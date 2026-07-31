@@ -71,6 +71,34 @@ logs/
 # generated output directory is ignored.
 .gembaflow-boards/
 
+# beads (bd) tracker — machine-local Dolt runtime under .beads/ is never
+# committed. Committed tracker files (durable, mergeable): .beads/config.yaml,
+# .beads/issues.jsonl (auto-export mirror), .beads/metadata.json,
+# .beads/interactions.jsonl. bd also writes its own committed
+# .beads/.gitignore; this block mirrors the reference fork's as defense in
+# depth. The root-level patterns at the end (.dolt/, *.db,
+# .beads-credential-key — plus .beads/proxieddb/ above) match what `bd init`
+# would append when absent — shipping them here keeps bd init from editing
+# the user area of this file. See docs/BEADS.md.
+.beads/dolt/
+.beads/embeddeddolt/
+.beads/proxieddb/
+.beads/backup/
+.beads/export-state/
+.beads/export-state.json
+.beads/daemon.*
+.beads/dolt-server.*
+.beads/ephemeral.sqlite3*
+.beads/*.lock
+.beads/.exclusive-lock
+.beads/.sync.lock
+.beads/bd.sock*
+.beads/last-touched
+.beads/.local_version
+.dolt/
+*.db
+.beads-credential-key
+
 # Operator-facing Codespaces welcome surface — written on every postCreate
 # by scripts/codespace-postcreate.sh; carries any non-blocking-setup warnings.
 # Gitignored so it stays per-Codespace and never lands in the repo.

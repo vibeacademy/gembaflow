@@ -102,6 +102,10 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `scripts/render-boards.test.mjs` | framework | Board renderer tests (fixture-driven) | Overwrite |
 | `scripts/__tests__/data-loadfrombd.test.mjs` | framework | Board data-layer tests | Overwrite |
 | `scripts/fixtures/boards/**` | framework | Captured bd JSON fixtures for board tests | Overwrite |
+| `scripts/lib/bd-version.sh` | framework | Single source of truth for the pinned bd (beads) version | Overwrite |
+| `scripts/check-bd.sh` | framework | bd version gate (fails loudly on missing/mismatched bd) | Overwrite |
+| `scripts/init-beads.sh` | framework | Framework-compatible bd tracker init sequence | Overwrite |
+| `scripts/__tests__/check-bd.test.mjs` | framework | Version-gate tests (stubbed bd on PATH) | Overwrite |
 
 ## `docs/`
 
@@ -125,6 +129,7 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `docs/FAQ.md` | framework | Common questions | Overwrite |
 | `docs/GETTING-STARTED.md` | framework | Onboarding guide | Overwrite |
 | `docs/UPGRADING.md` | framework | Upgrade guide for participants | Overwrite |
+| `docs/BEADS.md` | framework | bd (beads) dependency management — pin, install, init, upgrade procedure | Overwrite |
 | `docs/testing/agent-restriction-tests.md` | framework | Test documentation | Overwrite |
 | `docs/PRODUCT-REQUIREMENTS.md` | user-content | Bootstrap-generated, user-owned | Never touch |
 | `docs/PRODUCT-ROADMAP.md` | user-content | Bootstrap-generated, user-owned | Never touch |
