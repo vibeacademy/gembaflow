@@ -1,0 +1,101 @@
+[
+  {
+    "id": "el-7",
+    "title": "Errored-evaluator measurement shape",
+    "description": "Reality-proofing when a judge call flakes.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "task",
+    "assignee": "fixture-bot",
+    "created_at": "2026-07-10T21:38:01Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:01Z",
+    "started_at": "2026-07-10T21:38:01Z",
+    "labels": [
+      "campaign:pilot",
+      "in-review",
+      "pr:41",
+      "track:library",
+      "verdict:go"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-7",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:09Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "el-1"
+  },
+  {
+    "id": "el-10",
+    "title": "Taxonomy actionable errors",
+    "description": "S3 write-failure taxonomy.",
+    "status": "in_progress",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "fixture-bot",
+    "created_at": "2026-07-10T21:38:03Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:03Z",
+    "started_at": "2026-07-10T21:38:03Z",
+    "labels": [
+      "campaign:pilot",
+      "track:chain"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-10",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:09Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "el-1"
+  },
+  {
+    "id": "el-8",
+    "title": "Conformance tier validation",
+    "description": "Reject malformed events at the boundary.",
+    "status": "in_progress",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "fixture-bot",
+    "created_at": "2026-07-10T21:38:02Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:02Z",
+    "started_at": "2026-07-10T21:38:02Z",
+    "labels": [
+      "campaign:pilot",
+      "in-review",
+      "pr:44",
+      "track:library",
+      "verdict:no-go"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-8",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:09Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "el-1"
+  }
+]

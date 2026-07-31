@@ -1,0 +1,36 @@
+[
+  {
+    "id": "eb-t2",
+    "title": "Library task 2",
+    "description": "Second library task, in progress.",
+    "status": "in_progress",
+    "priority": 1,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:06:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:30:00Z",
+    "labels": ["track:library"],
+    "dependencies": [
+      {
+        "issue_id": "eb-t2",
+        "depends_on_id": "eb-t1",
+        "type": "blocks",
+        "created_at": "2026-07-10T10:06:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "eb-t2",
+        "depends_on_id": "eb-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T10:06:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "eb-1"
+  }
+]

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "el-5",
+    "title": "Sink writes real S3",
+    "description": "The write half. LocalLakeSink stops assuming local paths.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:37:58Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:37:58Z",
+    "labels": [
+      "campaign:pilot",
+      "track:chain"
+    ],
+    "dependencies": [
+      {
+        "id": "el-2",
+        "title": "ADR: account topology",
+        "description": "Decide the account topology before any Terraform ships.",
+        "status": "closed",
+        "priority": 0,
+        "issue_type": "decision",
+        "created_at": "2026-07-10T21:37:57Z",
+        "created_by": "fixture-bot",
+        "updated_at": "2026-07-10T21:38:06Z",
+        "closed_at": "2026-07-10T21:38:06Z",
+        "close_reason": "PR #38 merged to main after GO review",
+        "labels": [
+          "campaign:pilot",
+          "track:gates"
+        ],
+        "dependency_type": "blocks"
+      },
+      {
+        "id": "el-1",
+        "title": "Beads adoption campaign",
+        "description": "Umbrella epic for the pilot campaign.",
+        "status": "open",
+        "priority": 1,
+        "issue_type": "epic",
+        "created_at": "2026-07-10T21:37:56Z",
+        "created_by": "fixture-bot",
+        "updated_at": "2026-07-10T21:37:56Z",
+        "labels": [
+          "campaign:pilot"
+        ],
+        "dependency_type": "parent-child"
+      },
+      {
+        "id": "el-4",
+        "title": "Wire credential chain",
+        "description": "AWS credential chain pickup via MinIO/local paths.",
+        "status": "open",
+        "priority": 0,
+        "issue_type": "task",
+        "created_at": "2026-07-10T21:37:58Z",
+        "created_by": "fixture-bot",
+        "updated_at": "2026-07-10T21:37:58Z",
+        "labels": [
+          "campaign:pilot",
+          "track:chain"
+        ],
+        "dependency_type": "blocks"
+      }
+    ],
+    "parent": "el-1",
+    "dependent_count": 0,
+    "dependency_count": 3,
+    "comment_count": 0
+  }
+]

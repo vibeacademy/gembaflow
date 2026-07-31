@@ -1,0 +1,49 @@
+[
+  {
+    "id": "el-2",
+    "title": "ADR: account topology",
+    "description": "Decide the account topology before any Terraform ships.",
+    "status": "closed",
+    "priority": 0,
+    "issue_type": "decision",
+    "created_at": "2026-07-10T21:37:57Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:06Z",
+    "closed_at": "2026-07-10T21:38:06Z",
+    "close_reason": "PR #38 merged to main after GO review",
+    "labels": [
+      "campaign:pilot",
+      "track:gates"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-2",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:07Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 2,
+    "comment_count": 0,
+    "parent": "el-1"
+  },
+  {
+    "id": "el-13",
+    "title": "Pre-campaign closed item",
+    "description": "Closed before the campaign started.",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:38:05Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:05Z",
+    "closed_at": "2026-07-10T21:38:05Z",
+    "close_reason": "Done before campaign kickoff",
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  }
+]

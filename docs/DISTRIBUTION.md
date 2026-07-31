@@ -53,6 +53,7 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `vitest.config.ts` | user-content | User may customize test config | Never touch |
 | `vitest.setup.ts` | user-content | User may customize test setup | Never touch |
 | `.gembaflow-version` | hybrid | Framework version; user gets installedAt stamped | Update framework fields only |
+| `.gembaflow-boards.config.json` | user-content | Fork-owned board-projection config (campaign, title, phase label, victory bead, tracks); framework ships it once with null placeholders | Never touch |
 
 ## `.claude/`
 
@@ -61,6 +62,7 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `.claude/agents/*.md` | hybrid | Framework persona + restrictions in marked sections; user-supplied project specialization outside markers | Update marked sections only |
 | `.claude/commands/*.md` | framework | Slash commands ship with template | Overwrite |
 | `.claude/hooks/ensure-github-account.sh` | framework | Account-switching hook | Overwrite |
+| `.claude/hooks/render-boards-on-bd.sh` | framework | Board-projection regen hook (Stop + SessionStart) | Overwrite |
 | `.claude/skills/commit.md` | framework | Commit conventions | Overwrite |
 | `.claude/README.md` | framework | Directory documentation | Overwrite |
 | `.claude/settings.template.json` | framework | Reference settings | Overwrite |
@@ -95,6 +97,11 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `scripts/verify-agent-restrictions.sh` | framework | Restriction verifier | Overwrite |
 | `scripts/verify-bot-permissions.sh` | framework | Permission verifier | Overwrite |
 | `scripts/validation/*.sh` | framework | Validation scripts | Overwrite |
+| `scripts/render-boards.mjs` | framework | Deterministic board renderer (bd state → HTML projections) | Overwrite |
+| `scripts/lib/boards/*.mjs` | framework | Board renderer library (data/graph/kanban/techtree/theme) | Overwrite |
+| `scripts/render-boards.test.mjs` | framework | Board renderer tests (fixture-driven) | Overwrite |
+| `scripts/__tests__/data-loadfrombd.test.mjs` | framework | Board data-layer tests | Overwrite |
+| `scripts/fixtures/boards/**` | framework | Captured bd JSON fixtures for board tests | Overwrite |
 
 ## `docs/`
 

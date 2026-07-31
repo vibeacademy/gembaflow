@@ -20,6 +20,7 @@
       "Bash(find:*)",
       "Bash(curl:*)",
       "Bash(open http://localhost:*)",
+      "Bash(bd:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:npmjs.com)",
@@ -45,9 +46,16 @@
       "Read(*secret*)",
       "Write(.env)",
       "Write(.env.*)",
-      "Bash(gh pr merge:*)"
+      "Bash(gh pr merge:*)",
+      "Bash(bd edit:*)",
+      "Bash(bd create-form:*)",
+      "Bash(bd delete:*)"
     ],
-    "ask": []
+    "ask": [
+      "Bash(bd dolt push:*)",
+      "Bash(bd dolt pull:*)",
+      "Bash(bd init:*)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
@@ -59,6 +67,31 @@
     "deny_merge": "IMPORTANT: Bash(gh pr merge:*) is intentionally DENIED to enforce trunk-based development workflow. Only humans can merge PRs. Agents can review (gh pr review) but cannot finalize merges.",
     "deny_secrets": "Secret files (.env, *.key, credentials) are denied to prevent accidental exposure of sensitive data.",
     "bot_accounts": "This template assumes separate bot accounts for worker and reviewer agents. See .claude/README.md for setup instructions.",
-    "assistantMode": "Canonical, version-controlled selection of the main-session assistant mode. Set to one of the names in .claude/modes/ (e.g. \"scaffolded\", \"socratic\", \"terse-expert\", \"shipping-coach\") to share a mode with the team. Leave null to fall back to .claude/mode.local (personal, gitignored) or to the framework default. See .claude/modes/README.md for the registry and CLAUDE.md for the resolution chain."
+    "assistantMode": "Canonical, version-controlled selection of the main-session assistant mode. Set to one of the names in .claude/modes/ (e.g. \"scaffolded\", \"socratic\", \"terse-expert\", \"shipping-coach\") to share a mode with the team. Leave null to fall back to .claude/mode.local (personal, gitignored) or to the framework default. See .claude/modes/README.md for the registry and CLAUDE.md for the resolution chain.",
+    "beads": "bd (beads) is the issue tracker. bd:* allowed broadly; DENIED: bd edit / bd create-form (interactive, hang headless agents — use bd update flags instead) and bd delete (destructive; close beads, don't delete them). ASK: bd dolt push/pull (a write against the git remote's hidden ref — treat like git push; agents never sync autonomously) and bd init (re-init can destroy tracker data). Prefix denies are best-effort — Bash-level deny matching does not cover every invocation shape. The Stop + SessionStart hooks regenerate .gembaflow-boards/*.html from bd state (render-boards-on-bd.sh --refresh) — once per assistant turn, not per bd mutation; the renderer never blocks and logs to .gembaflow-boards/render.log."
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-boards-on-bd.sh --refresh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-boards-on-bd.sh --refresh"
+          }
+        ]
+      }
+    ]
   }
 }

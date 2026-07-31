@@ -1,0 +1,114 @@
+[
+  {
+    "id": "cd-epic-1",
+    "title": "Mixed-Campaign Epic",
+    "description": "Epic whose children span two campaigns: one child in boards-v2, one not.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "epic",
+    "created_at": "2026-07-10T10:00:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:00:00Z",
+    "labels": ["campaign:boards-v2", "track:infrastructure"],
+    "dependencies": [],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": null
+  },
+  {
+    "id": "cd-epic-2",
+    "title": "Campaign-Only Epic",
+    "description": "Epic whose children are all in the boards-v2 campaign.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "epic",
+    "created_at": "2026-07-10T10:01:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:01:00Z",
+    "labels": ["campaign:boards-v2", "track:library"],
+    "dependencies": [],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": null
+  },
+  {
+    "id": "cd-task-a",
+    "title": "Campaign task in mixed epic",
+    "description": "This task is in the boards-v2 campaign and belongs to cd-epic-1.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:02:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:02:00Z",
+    "labels": ["campaign:boards-v2", "track:infrastructure"],
+    "dependencies": [
+      {
+        "issue_id": "cd-task-a",
+        "depends_on_id": "cd-epic-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T10:02:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "cd-epic-1"
+  },
+  {
+    "id": "cd-task-b",
+    "title": "Non-campaign task in mixed epic",
+    "description": "This task is NOT in the boards-v2 campaign but still belongs to cd-epic-1.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:03:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:03:00Z",
+    "labels": ["track:infrastructure"],
+    "dependencies": [
+      {
+        "issue_id": "cd-task-b",
+        "depends_on_id": "cd-epic-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T10:03:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "cd-epic-1"
+  },
+  {
+    "id": "cd-task-c",
+    "title": "Campaign task in campaign-only epic",
+    "description": "This task is in the boards-v2 campaign and belongs to cd-epic-2.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-07-10T10:04:00Z",
+    "created_by": "fixture",
+    "updated_at": "2026-07-10T10:04:00Z",
+    "labels": ["campaign:boards-v2", "track:library"],
+    "dependencies": [
+      {
+        "issue_id": "cd-task-c",
+        "depends_on_id": "cd-epic-2",
+        "type": "parent-child",
+        "created_at": "2026-07-10T10:04:00Z",
+        "created_by": "fixture",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "cd-epic-2"
+  }
+]

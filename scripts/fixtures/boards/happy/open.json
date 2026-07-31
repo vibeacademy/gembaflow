@@ -1,0 +1,268 @@
+[
+  {
+    "id": "el-4",
+    "title": "Wire credential chain",
+    "description": "AWS credential chain pickup via MinIO/local paths.",
+    "status": "open",
+    "priority": 0,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:37:58Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:37:58Z",
+    "labels": [
+      "campaign:pilot",
+      "track:chain"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-4",
+        "depends_on_id": "el-3",
+        "type": "blocks",
+        "created_at": "2026-07-10T16:37:58Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "el-4",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:07Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "el-1"
+  },
+  {
+    "id": "el-3",
+    "title": "Provision buckets",
+    "description": "Terraform the buckets. Needs console click-ops.",
+    "notes": "Operator: accept the amended ADR and run terraform apply in the console.",
+    "status": "open",
+    "priority": 0,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:37:57Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:37:57Z",
+    "labels": [
+      "campaign:pilot",
+      "human-ops",
+      "track:chain"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-3",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:07Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "el-3",
+        "depends_on_id": "el-2",
+        "type": "blocks",
+        "created_at": "2026-07-10T16:37:58Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 1,
+    "comment_count": 0,
+    "parent": "el-1"
+  },
+  {
+    "id": "el-6",
+    "title": "git-URL install packaging",
+    "description": "The front door. pip install from git URL.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:38:00Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:00Z",
+    "labels": [
+      "campaign:pilot",
+      "track:library"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-6",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:08Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "el-6",
+        "depends_on_id": "el-9",
+        "type": "relates-to",
+        "created_at": "2026-07-10T16:38:02Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "el-1"
+  },
+  {
+    "id": "el-5",
+    "title": "Sink writes real S3",
+    "description": "The write half. LocalLakeSink stops assuming local paths.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:37:58Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:37:58Z",
+    "labels": [
+      "campaign:pilot",
+      "track:chain"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-5",
+        "depends_on_id": "el-2",
+        "type": "blocks",
+        "created_at": "2026-07-10T16:37:59Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "el-5",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:08Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "el-5",
+        "depends_on_id": "el-4",
+        "type": "blocks",
+        "created_at": "2026-07-10T16:37:59Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 2,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "el-1"
+  },
+  {
+    "id": "el-1",
+    "title": "Beads adoption campaign",
+    "description": "Umbrella epic for the pilot campaign.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "epic",
+    "created_at": "2026-07-10T21:37:56Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:37:56Z",
+    "labels": [
+      "campaign:pilot"
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "el-15",
+    "title": "Drifted: labeled in-review, unclaimed",
+    "description": "Anti-pattern 5: label without claim; PR-open is the operative signal.",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:38:07Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:07Z",
+    "labels": [
+      "campaign:pilot",
+      "in-review",
+      "pr:47",
+      "track:gates"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-15",
+        "depends_on_id": "el-1",
+        "type": "parent-child",
+        "created_at": "2026-07-10T16:38:10Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0,
+    "parent": "el-1"
+  },
+  {
+    "id": "el-14",
+    "title": "Escape \u003cscript\u003ealert(1)\u003c/script\u003e \u0026 entities",
+    "description": "Description with \u003c/script\u003e\u003cimg src=x onerror=alert(2)\u003e and \"quotes\" \u0026 ampersands.",
+    "status": "open",
+    "priority": 3,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:38:06Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:06Z",
+    "labels": [
+      "campaign:pilot",
+      "track:gates"
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "el-12",
+    "title": "Unrelated backlog item",
+    "description": "Not part of the campaign; tests the campaign filter.",
+    "status": "open",
+    "priority": 3,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:38:05Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:05Z",
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "el-9",
+    "title": "Query adapter chore",
+    "description": "S3 credentials plumbing for the scan CLI.",
+    "status": "open",
+    "priority": 3,
+    "issue_type": "chore",
+    "created_at": "2026-07-10T21:38:02Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:02Z",
+    "labels": [
+      "campaign:pilot",
+      "track:library"
+    ],
+    "dependencies": [
+      {
+        "issue_id": "el-9",
+        "depends_on_id": "el-6",
+        "type": "relates-to",
+        "created_at": "2026-07-10T16:38:02Z",
+        "created_by": "fixture-bot",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  }
+]

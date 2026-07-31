@@ -1,0 +1,7 @@
+{
+  "campaign": "pilot",
+  "title": "Eval Lake",
+  "phaseLabel": "pilot campaign · wave 2 in flight",
+  "victoryBeadId": "el-5",
+  "tracks": ["chain", "gates", "library"]
+}
