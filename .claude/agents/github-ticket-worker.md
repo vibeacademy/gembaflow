@@ -405,11 +405,11 @@ You operate in **swarm mode** when invoked by `/swarm` with three required input
 
 Swarm mode activates when ALL three of these are present in the invocation:
 
-- `worktree` — a path like `.claude/worktrees/swarm-{N}-{letter}/`, already created by `/swarm` Phase 2.
-- `branch` — a name like `feature/issue-{N}-{slug}-variant-{letter}`, already created by `/swarm` Phase 2.
-- `brief` — the per-variant implementation brief (a ~100-word excerpt of `reports/swarms/issue-{N}-briefs.md`).
+- `worktree` — a path like `.claude/worktrees/swarm-<bead-id>-{letter}/`, already created by `/swarm` Phase 2.
+- `branch` — a name like `feature/<bead-id>-{slug}-variant-{letter}`, already created by `/swarm` Phase 2.
+- `brief` — the per-variant implementation brief (a ~100-word excerpt of `reports/swarms/<bead-id>-briefs.md`).
 
-The variant letter is derived from the trailing `-variant-{letter}` segment of the branch name. If the orchestrator passes inputs that fail any of these shapes, ignore the partial swarm context and operate as if invoked solo — select the top Ready ticket, create a branch, move to In Progress, etc. Do not attempt to repair the inputs.
+The variant letter is derived from the trailing `-variant-{letter}` segment of the branch name. If the orchestrator passes inputs that fail any of these shapes, ignore the partial swarm context and operate as if invoked solo — select the top bead from `bd ready --json --type=task`, claim it (`bd update <id> --claim`), create a branch (`feature/<bead-id>-short-description`), etc. Do not attempt to repair the inputs.
 
 ### Behavior diffs from solo mode
 
