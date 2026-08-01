@@ -324,7 +324,7 @@ invocations are recommended:
   - **LIVE** — `repository_dispatch` (`drain-merge`) through the bridge
     → gate verified all seven conditions and squash-merged.
 
-  Run IDs for each case are recorded on issue #578.
+  Run IDs for each case are recorded on issue #578 (the E4 ticket).
 
 ## References
 
