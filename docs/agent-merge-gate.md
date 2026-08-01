@@ -305,6 +305,27 @@ invocations are recommended:
 - **Deliberate failure 2** — dispatch against a non-existent PR
   number → fetch step fails → exit non-zero.
 
+### Validation log
+
+- **2026-08-01** — post-merge validation per PR #586's plan, executed
+  against this repo's own gate (the live-merge case is the *first*
+  agent-merged PR on this repository). Test artifact: branch
+  `chore/gate-validation-001` (this change). Cases:
+  - **DENY/citation** — malformed `Bead:` citation in the PR body →
+    condition 1 FAIL (dry-run dispatch).
+  - **DENY/labels** — second `safety:*` label added → condition 2 FAIL
+    (dry-run dispatch).
+  - **DENY/stale-approval** — reviewer approval bound to a pre-push
+    head commit → condition 6 FAIL naming both commit oids (dry-run
+    dispatch).
+  - **HAPPY/dry-run** — fresh approval at head, all conditions
+    satisfied → PASS with the dry-run "skipping the actual merge"
+    outcome.
+  - **LIVE** — `repository_dispatch` (`drain-merge`) through the bridge
+    → gate verified all seven conditions and squash-merged.
+
+  Run IDs for each case are recorded on issue #578 (the E4 ticket).
+
 ## References
 
 - [`.github/workflows/agent-merge.yml`](../.github/workflows/agent-merge.yml) —
