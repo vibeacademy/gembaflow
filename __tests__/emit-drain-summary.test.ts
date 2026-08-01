@@ -41,7 +41,7 @@ describe("render", () => {
       ...baseState(),
       shipped: [
         {
-          number: 131,
+          bead: "va-131",
           title: "drain wake-up summary",
           safetyClass: "internal",
           prNumber: 200,
@@ -51,7 +51,7 @@ describe("render", () => {
           auditCommentUrl: "https://github.com/example/issues/131#issuecomment-1",
         },
         {
-          number: 166,
+          bead: "va-166",
           title: "dark-deploy demonstration",
           safetyClass: "flagged",
           prNumber: 201,
@@ -63,7 +63,7 @@ describe("render", () => {
       ],
       blocked: [
         {
-          number: 132,
+          bead: "va-132",
           title: "drain hardening",
           reason: "NO-GO review — missing rate-limit test",
           prNumber: 202,
@@ -72,7 +72,7 @@ describe("render", () => {
       ],
       rolledBack: [
         {
-          number: 999,
+          bead: "va-999",
           title: "regression sample",
           prNumber: 203,
           rollbackRunId: "run-7",
@@ -80,8 +80,8 @@ describe("render", () => {
         },
       ],
       skipped: [
-        { number: 500, title: "auth change", reason: "safety:hot" },
-        { number: 501, title: "second reversible", reason: "rate-limited" },
+        { bead: "va-500", title: "auth change", reason: "safety:hot" },
+        { bead: "va-501", title: "second reversible", reason: "rate-limited" },
       ],
     };
 
@@ -92,7 +92,7 @@ describe("render", () => {
     expect(md).toContain("**Duration:** 2h 30m");
 
     expect(md).toContain("## Tickets shipped (2)");
-    expect(md).toContain("#131");
+    expect(md).toContain("va-131");
     expect(md).toContain("drain wake-up summary");
     expect(md).toContain("flagged");
     expect(md).toContain("abcdef1");
@@ -128,7 +128,7 @@ describe("render", () => {
       ...baseState(),
       mergedNotDeployed: [
         {
-          number: 178,
+          bead: "va-178",
           title: "--post-issue shorthand",
           safetyClass: "internal",
           prNumber: 187,
@@ -140,7 +140,7 @@ describe("render", () => {
     };
     const md = render(state);
     expect(md).toContain("## Tickets merged but not deployed (1)");
-    expect(md).toContain("#178");
+    expect(md).toContain("va-178");
     expect(md).toContain("internal");
     expect(md).toContain("#187");
     expect(md).toContain("6cb9717"); // short SHA
@@ -209,7 +209,7 @@ describe("render", () => {
 
   it("flags large drains (>20 shipped) for daytime human review", () => {
     const shipped = Array.from({ length: 21 }, (_, i) => ({
-      number: 1000 + i,
+      bead: `va-${1000 + i}`,
       title: `ticket ${i}`,
       safetyClass: "internal",
       prNumber: 2000 + i,
@@ -224,7 +224,7 @@ describe("render", () => {
 
   it("does NOT flag at threshold (exactly 20 shipped)", () => {
     const shipped = Array.from({ length: 20 }, (_, i) => ({
-      number: 1000 + i,
+      bead: `va-${1000 + i}`,
       title: `ticket ${i}`,
       safetyClass: "internal",
       prNumber: 2000 + i,
@@ -271,7 +271,7 @@ describe("render", () => {
   it("escapes pipe characters in title and reason cells", () => {
     const state = {
       ...baseState(),
-      blocked: [{ number: 1, title: "weird | title", reason: "had | pipes", prNumber: 100 }],
+      blocked: [{ bead: "va-1", title: "weird | title", reason: "had | pipes", prNumber: 100 }],
     };
     const md = render(state);
     expect(md).toContain("weird \\| title");
@@ -283,18 +283,18 @@ describe("recommendedActions", () => {
   it("emits release-flip prompt for safety:flagged shipped tickets", () => {
     const state = {
       ...baseState(),
-      shipped: [{ number: 166, safetyClass: "flagged" }],
+      shipped: [{ bead: "va-166", safetyClass: "flagged" }],
     };
     const recs = recommendedActions(state);
     expect(recs).toEqual([
-      expect.stringContaining("Review release flip for #166"),
+      expect.stringContaining("Review release flip for va-166"),
     ]);
   });
 
   it("does NOT emit release-flip for safety:internal shipped tickets", () => {
     const state = {
       ...baseState(),
-      shipped: [{ number: 131, safetyClass: "internal" }],
+      shipped: [{ bead: "va-131", safetyClass: "internal" }],
     };
     expect(recommendedActions(state)).toEqual([]);
   });
@@ -302,17 +302,17 @@ describe("recommendedActions", () => {
   it("emits manual-queue promotion for skipped safety:hot tickets", () => {
     const state = {
       ...baseState(),
-      skipped: [{ number: 500, reason: "safety:hot" }],
+      skipped: [{ bead: "va-500", reason: "safety:hot" }],
     };
     expect(recommendedActions(state)).toEqual([
-      expect.stringContaining("Promote #500 to the morning manual queue"),
+      expect.stringContaining("Promote va-500 to the morning manual queue"),
     ]);
   });
 
   it("does NOT emit manual-queue promotion for rate-limited skips", () => {
     const state = {
       ...baseState(),
-      skipped: [{ number: 501, reason: "rate-limited" }],
+      skipped: [{ bead: "va-501", reason: "rate-limited" }],
     };
     expect(recommendedActions(state)).toEqual([]);
   });
@@ -320,20 +320,20 @@ describe("recommendedActions", () => {
   it("emits triage prompt for blocked tickets including the reason", () => {
     const state = {
       ...baseState(),
-      blocked: [{ number: 132, reason: "agent-merge gate denied" }],
+      blocked: [{ bead: "va-132", reason: "agent-merge gate denied" }],
     };
     expect(recommendedActions(state)).toEqual([
-      expect.stringContaining("Triage blocked #132 — agent-merge gate denied."),
+      expect.stringContaining("Triage blocked va-132 — agent-merge gate denied."),
     ]);
   });
 
   it("emits investigation prompt for rolled-back tickets", () => {
     const state = {
       ...baseState(),
-      rolledBack: [{ number: 999, rollbackRunId: "run-7" }],
+      rolledBack: [{ bead: "va-999", rollbackRunId: "run-7" }],
     };
     expect(recommendedActions(state)).toEqual([
-      expect.stringContaining("Investigate rolled-back #999"),
+      expect.stringContaining("Investigate rolled-back va-999"),
     ]);
   });
 
@@ -342,7 +342,7 @@ describe("recommendedActions", () => {
       ...baseState(),
       mergedNotDeployed: [
         {
-          number: 178,
+          bead: "va-178",
           prNumber: 187,
           mergeSha: "6cb9717ab",
           reason: "Render build_failed",
@@ -351,7 +351,7 @@ describe("recommendedActions", () => {
     };
     const recs = recommendedActions(state);
     expect(recs.length).toBe(1);
-    expect(recs[0]).toContain("Investigate Render deploy for #178");
+    expect(recs[0]).toContain("Investigate Render deploy for va-178");
     expect(recs[0]).toContain("6cb9717");
     expect(recs[0]).toContain("not live");
     expect(recs[0]).toContain("not a code issue");
@@ -395,8 +395,8 @@ describe("postSlackSummary (env-gated)", () => {
     );
     const state = {
       ...baseState(),
-      shipped: [{ number: 1 }, { number: 2 }],
-      blocked: [{ number: 3 }],
+      shipped: [{ bead: "va-1" }, { bead: "va-2" }],
+      blocked: [{ bead: "va-3" }],
     };
     const result = await postSlackSummary("md", state);
     expect(result).toEqual({ posted: true });

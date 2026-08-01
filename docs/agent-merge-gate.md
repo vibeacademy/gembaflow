@@ -10,36 +10,56 @@ Reverting the unlock is a one-line operation: delete that file. The
 drain workflow's call then fails, and merge permission is back to
 humans-only with no other code changes.
 
-This workflow ships in the framework's v2-hardened state — the gating
-logic, `IGNORED_CHECKS` allowlist, and `caller` input have been
-empirically validated in the `gembaflow-site` downstream fork during
-the autonomous-drain validation phase (2026-06-08 → 2026-06-10).
-Downstream forks pull the workflow via `/upgrade` and customize the
-`IGNORED_CHECKS` env-var to match their own observed CI flakiness.
+This workflow ships in the framework's beads-native state (epic #574
+E4) — the gating logic, `IGNORED_CHECKS` allowlist, and `caller` input
+were empirically validated in the `gembaflow-site` downstream fork
+during the autonomous-drain validation phase (2026-06-08 →
+2026-06-10), and the beads adaptation (PR-carried safety label + bead
+citation) in the reference fork's first autonomous drain under beads
+(run va-17h, 2026-07-11: 3/3 shipped, 0 claim races). Downstream forks
+install the workflow per `docs/drain-customization.md` and customize
+the `IGNORED_CHECKS` env-var to match their own observed CI flakiness.
 
 ## What it does
 
-When invoked with a PR number, the workflow re-verifies seven
-conditions in sequence. Any single failure aborts the workflow
-non-zero before the merge step runs. Only when all seven pass does
-the workflow execute `gh pr merge <PR> --squash --delete-branch`.
+When invoked with a PR number, the workflow re-verifies six
+conditions. Any single failure aborts the workflow non-zero before
+the merge step runs. Only when all six pass does the workflow execute
+`gh pr merge <PR> --squash --delete-branch`.
 
-The seven conditions are deliberately **defense in depth** — the
+The six conditions are deliberately **defense in depth** — the
 calling workflow (drain) is expected to have already checked them.
 This gate re-checks anyway, on the principle that the callable
 surface should self-protect.
 
-## The seven conditions
+Conditions 1-5 live in [`scripts/check-merge-gate.sh`](../scripts/check-merge-gate.sh)
+(unit-tested in `scripts/__tests__/check-merge-gate.test.mjs`); the
+workflow fetches the PR state JSON and delegates, so the condition
+logic is exercisable without dispatching a workflow run.
+
+## The six conditions
 
 | # | Condition | How it's checked |
 |---|---|---|
-| 1 | The PR's linked issue has a `safety:*` label | Read `closingIssuesReferences` from the PR, `gh issue view <N> --json labels`, filter for `safety:` prefix |
-| 2 | The safety class is not `safety:hot` | Same query; refuse if class is `:hot` |
-| 3 | The PR has an `APPROVED` review from `va-reviewer` | Latest review by `va-reviewer` must have `state == APPROVED` |
-| 4 | All status checks on the PR are `SUCCESS`/NEUTRAL/SKIPPED, **excluding any check names in the workflow-level `IGNORED_CHECKS` env var** | `gh pr view --json statusCheckRollup`; filter rollup by name against `IGNORED_CHECKS`; reject if any remaining check is `FAILURE`, `CANCELLED`, `TIMED_OUT`, `PENDING`, `IN_PROGRESS`, or `QUEUED`. See "Informational checks" section below |
-| 5 | The PR is `OPEN` and its base is `main` | Standard PR state check |
-| 6 | The caller is the drain workflow | Audit-logged from the `caller` input; emits a warning (not an error) if `caller != goal-drain` because the called workflow cannot cryptographically prove its parent. The other six conditions remain the load-bearing safety. |
-| 7 | The PR has no `do-not-merge` label | Standard label exclusion |
+| 1 | The PR body cites a bead | A line matching `Bead: <id>` in the PR's own body. Work items live in the local bd (beads) tracker, which Actions runners cannot query — the citation is the PR's link back to its work item |
+| 2 | The PR carries exactly one `safety:*` label, and it is not `safety:hot` | Read the PR's own labels; the worker copies the bead's safety label onto the PR at creation (label authority: the bead is the source of truth) |
+| 3 | All status checks on the PR are `SUCCESS`/NEUTRAL/SKIPPED and the rollup is COMPLETE, **excluding any check names in the workflow-level `IGNORED_CHECKS` env var** | `gh pr view --json statusCheckRollup`; filter rollup by name against `IGNORED_CHECKS`; reject if any remaining check is `FAILURE`, `CANCELLED`, `TIMED_OUT`, or still running (`PENDING`, `IN_PROGRESS`, `QUEUED`, or conclusion-less — an incomplete rollup fails loudly, naming the unfinished check). See "Informational checks" section below |
+| 4 | The PR is `OPEN` and its base is `main` | Standard PR state check |
+| 5 | The PR has no `do-not-merge` label | Standard label exclusion |
+| 6 | The caller is the drain workflow | Audit-logged from the `caller` input; emits a warning (not an error) if `caller != goal-drain` because the called workflow cannot cryptographically prove its parent. The other five conditions remain the load-bearing safety. |
+
+### Why there is no approved-review condition
+
+The framework's `pr-reviewer` never clicks Approve. The GO/NO-GO
+verdict lives in review comments and as a `verdict:*` label on the
+bead (`verdict:go` / `verdict:no-go` — see `.claude/commands/review-pr.md`
+step 5), and `/drain` dispatches this gate only after a GO verdict is
+recorded. The gate re-verifies the **mechanical** conditions above;
+the **editorial** verdict is the drain orchestrator's dispatch
+precondition, not a gate condition — an Actions runner cannot read the
+bead's `verdict:*` label anyway (the bd tracker is local). Forks whose
+reviewer bot DOES post `--approve` may add a review-state condition as
+a fork-local override on their own copy of the workflow.
 
 ## How it's invoked
 
@@ -71,7 +91,6 @@ jobs:
       pull-requests: write
       checks: read
       actions: read
-      issues: read
 ```
 
 The `/drain` skill fires the event with:
@@ -100,7 +119,7 @@ gh workflow run agent-merge.yml \
   -f dry_run=true
 ```
 
-This runs all seven verification steps and logs "would merge" on the
+This runs all six verification steps and logs "would merge" on the
 final step instead of executing the merge.
 
 ## Why workflow_dispatch can only dry-run
@@ -114,7 +133,7 @@ human dispatching the workflow gets `caller: workflow_dispatch`
   in the audit log
 - Humans can still test the conditions empirically
 - A human cannot use the gate as a backdoor to merge a PR they
-  couldn't otherwise merge — the six other conditions remain in force
+  couldn't otherwise merge — the five other conditions remain in force
 
 ## Drain merge bridge
 
@@ -159,11 +178,21 @@ affected.
 
 ## Informational checks
 
-Condition 4 honors a workflow-level `IGNORED_CHECKS` env var (a JSON
+Condition 3 honors a workflow-level `IGNORED_CHECKS` env var (a JSON
 array of status-check names) so that checks that are technically
-failing for reasons unrelated to code correctness — typically
-provider-side reliability issues — don't block legitimate
-ready-to-merge PRs.
+failing — or still running — for reasons unrelated to code
+correctness (typically provider-side reliability or lag) don't block
+legitimate ready-to-merge PRs.
+
+The allowlist also covers the **rollup-completeness race**: the
+reference fork's first autonomous dispatch (drain run va-17h, finding
+1) was denied because an informational provider-side check lagged CI
+by ~10 minutes — strict mode correctly refused the incomplete rollup.
+The codified default fix is on the drain side (`.claude/commands/drain.md`
+per-iteration step 7a waits for the FULL rollup before dispatching);
+an `IGNORED_CHECKS` entry meeting the 3-criteria bar below is the
+alternative when a check is genuinely informational AND chronically
+laggy. Never widen the gate's success set itself.
 
 ### Default (framework-shipped) value
 
@@ -218,9 +247,11 @@ The workflow's `verify-and-merge` job runs with:
 - `pull-requests: write` — required to merge and to delete the source
   branch
 - `checks: read` + `actions: read` — required for the
-  `statusCheckRollup` GraphQL field used by condition 4
-- `issues: read` — required for the `closingIssuesReferences` GraphQL
-  field used by conditions 1+2
+  `statusCheckRollup` GraphQL field used by condition 3
+
+(`issues: read` is no longer needed — conditions 1+2 read the PR's
+own body and labels since the beads cutover; the
+`closingIssuesReferences` linked-issue path is gone.)
 
 These are granted at the **job level**, not via secrets, and not
 inherited by any other job in the same workflow run. The blast radius
@@ -246,11 +277,12 @@ lookup step. No PRs are mergeable by agents. CLAUDE.md Critical Rule
 Before merging this workflow into a fork's `main`, three test
 invocations are recommended:
 
-- **Happy path** — dispatch against the gate's own PR after CI green +
-  `va-reviewer` APPROVED → all seven conditions pass → "would merge"
-  log → exit 0.
+- **Happy path** — dispatch against the gate's own PR after the full
+  check rollup is green and complete, with the `Bead: <id>` citation
+  and exactly one `safety:*` label on the PR → all six conditions
+  pass → "would merge" log → exit 0.
 - **Deliberate failure 1** — dispatch against a closed/merged PR →
-  condition 5 fails ("PR not open") → exit non-zero.
+  condition 4 fails ("PR not open") → exit non-zero.
 - **Deliberate failure 2** — dispatch against a non-existent PR
   number → fetch step fails → exit non-zero.
 

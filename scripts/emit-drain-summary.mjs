@@ -11,7 +11,11 @@
 // reads that state and emits the canonical Markdown summary that the
 // operator wakes up to.
 //
-// State buckets (per ticket goes into exactly one):
+// The work-item key throughout is the bead id (beads/`bd` is the tracker;
+// e.g. `bead: "va-1a2"` — a string, not a GitHub issue number). PR numbers
+// stay numeric (PRs live on GitHub).
+//
+// State buckets (per bead goes into exactly one):
 //   shipped[]            — merged + deployed + validated (Done outcome)
 //   blocked[]            — could not progress before merge or gate refused
 //   rolledBack[]         — merged + deployed but post-deploy validation failed → rollback fired
@@ -37,10 +41,10 @@
 //   currentCycle         — 1-indexed cycle number of the last in-flight cycle
 //   currentCycleStep     — e.g. "3-in-progress", "7-bridge-dispatch",
 //                          "9-poll-render", "10-validation"
-//   currentTicket        — {issue, prNumber, mergeSha, bridgeRunId} for
-//                          the ticket that was in flight at write time
-//   snapshotOrder        — int[]; initial topo-sorted ticket array, used to
-//                          determine which tickets still need processing
+//   currentTicket        — {bead, prNumber, mergeSha, bridgeRunId} for
+//                          the bead that was in flight at write time
+//   snapshotOrder        — string[]; initial sorted bead-id array, used to
+//                          determine which beads still need processing
 //   lastWriteTime        — ISO timestamp of the most recent state write
 //
 // The renderer only reads the resumption fields; the mid-run fields are
@@ -113,7 +117,7 @@ export function render(state) {
   }
 
   lines.push(...renderSection("Tickets shipped", shipped, renderShippedRow, [
-    "#",
+    "Bead",
     "Title",
     "Class",
     "PR",
@@ -121,14 +125,14 @@ export function render(state) {
     "Audit",
   ]));
   lines.push(...renderSection("Tickets blocked", blocked, renderBlockedRow, [
-    "#",
+    "Bead",
     "Title",
     "Reason",
     "PR",
     "Audit",
   ]));
   lines.push(...renderSection("Tickets rolled back", rolledBack, renderRolledBackRow, [
-    "#",
+    "Bead",
     "Title",
     "PR",
     "Rollback run",
@@ -138,10 +142,10 @@ export function render(state) {
     "Tickets merged but not deployed",
     mergedNotDeployed,
     renderMergedNotDeployedRow,
-    ["#", "Title", "Class", "PR", "Merge", "Reason", "Audit"],
+    ["Bead", "Title", "Class", "PR", "Merge", "Reason", "Audit"],
   ));
   lines.push(...renderSection("Tickets skipped", skipped, renderSkippedRow, [
-    "#",
+    "Bead",
     "Title",
     "Reason",
   ]));
@@ -183,23 +187,23 @@ function renderSection(heading, items, rowRenderer, columns) {
 }
 
 function renderShippedRow(t) {
-  return `| #${t.number} | ${escapeCell(t.title)} | ${t.safetyClass ?? "-"} | ${prLink(t.prNumber)} | ${shortSha(t.mergeSha)} | ${linkOrDash(t.auditCommentUrl, "comment")} |`;
+  return `| ${escapeCell(t.bead)} | ${escapeCell(t.title)} | ${t.safetyClass ?? "-"} | ${prLink(t.prNumber)} | ${shortSha(t.mergeSha)} | ${linkOrDash(t.auditCommentUrl, "comment")} |`;
 }
 
 function renderBlockedRow(t) {
-  return `| #${t.number} | ${escapeCell(t.title)} | ${escapeCell(t.reason)} | ${prLink(t.prNumber)} | ${linkOrDash(t.auditCommentUrl, "comment")} |`;
+  return `| ${escapeCell(t.bead)} | ${escapeCell(t.title)} | ${escapeCell(t.reason)} | ${prLink(t.prNumber)} | ${linkOrDash(t.auditCommentUrl, "comment")} |`;
 }
 
 function renderRolledBackRow(t) {
-  return `| #${t.number} | ${escapeCell(t.title)} | ${prLink(t.prNumber)} | ${t.rollbackRunId ?? "-"} | ${linkOrDash(t.auditCommentUrl, "comment")} |`;
+  return `| ${escapeCell(t.bead)} | ${escapeCell(t.title)} | ${prLink(t.prNumber)} | ${t.rollbackRunId ?? "-"} | ${linkOrDash(t.auditCommentUrl, "comment")} |`;
 }
 
 function renderMergedNotDeployedRow(t) {
-  return `| #${t.number} | ${escapeCell(t.title)} | ${t.safetyClass ?? "-"} | ${prLink(t.prNumber)} | ${shortSha(t.mergeSha)} | ${escapeCell(t.reason)} | ${linkOrDash(t.auditCommentUrl, "comment")} |`;
+  return `| ${escapeCell(t.bead)} | ${escapeCell(t.title)} | ${t.safetyClass ?? "-"} | ${prLink(t.prNumber)} | ${shortSha(t.mergeSha)} | ${escapeCell(t.reason)} | ${linkOrDash(t.auditCommentUrl, "comment")} |`;
 }
 
 function renderSkippedRow(t) {
-  return `| #${t.number} | ${escapeCell(t.title)} | ${escapeCell(t.reason)} |`;
+  return `| ${escapeCell(t.bead)} | ${escapeCell(t.title)} | ${escapeCell(t.reason)} |`;
 }
 
 function escapeCell(s) {
@@ -261,26 +265,26 @@ export function recommendedActions(state) {
   for (const t of state.shipped ?? []) {
     if (t.safetyClass === "flagged") {
       out.push(
-        `Review release flip for #${t.number} — \`safety:flagged\` shipped dark; toggle the feature flag to **on** after eyeballing production.`,
+        `Review release flip for ${t.bead} — \`safety:flagged\` shipped dark; toggle the feature flag to **on** after eyeballing production.`,
       );
     }
   }
   for (const t of state.blocked ?? []) {
-    out.push(`Triage blocked #${t.number} — ${t.reason ?? "(no reason captured)"}.`);
+    out.push(`Triage blocked ${t.bead} — ${t.reason ?? "(no reason captured)"}.`);
   }
   for (const t of state.mergedNotDeployed ?? []) {
     out.push(
-      `Investigate Render deploy for #${t.number} — merge \`${shortSha(t.mergeSha)}\` reached \`main\` but the deploy did not land; code is on the server but not live. Likely a deploy-pipeline issue (e.g., #194-class auto-deploy reliability), not a code issue.`,
+      `Investigate Render deploy for ${t.bead} — merge \`${shortSha(t.mergeSha)}\` reached \`main\` but the deploy did not land; code is on the server but not live. Likely a deploy-pipeline issue (e.g., #194-class auto-deploy reliability), not a code issue.`,
     );
   }
   for (const t of state.rolledBack ?? []) {
     out.push(
-      `Investigate rolled-back #${t.number} — rollback run ${t.rollbackRunId ?? "(none)"}; do not re-merge until root-caused.`,
+      `Investigate rolled-back ${t.bead} — rollback run ${t.rollbackRunId ?? "(none)"}; do not re-merge until root-caused.`,
     );
   }
   for (const t of state.skipped ?? []) {
     if (t.reason === "safety:hot") {
-      out.push(`Promote #${t.number} to the morning manual queue — \`safety:hot\` was skipped by drain.`);
+      out.push(`Promote ${t.bead} to the morning manual queue — \`safety:hot\` was skipped by drain.`);
     }
   }
   if (state.aborted) {

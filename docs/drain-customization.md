@@ -2,14 +2,14 @@
 
 The drain skill ships with sensible defaults but exposes a customization surface that every fork operator should configure before the first run. This document is the **Layer 4 contract** — the complete list of values an operator must supply or accept, in one place.
 
-## The four templated values
+## The templated values
 
 The drain skill spec (`.claude/commands/drain.md`) and the worker spec (`.claude/commands/work-ticket.md`) reference fork-specific values through bootstrap-time placeholders. See [PLATFORM-GUIDE.md § "Bootstrap-time templated values"](PLATFORM-GUIDE.md) for the full mechanism.
 
 | Placeholder | Where it's set | What it is |
 |---|---|---|
 | `{{org}}` | `.gembaflow-config.json` `.org` | GitHub org login that hosts the framework + this fork |
-| `{{board.id}}` | `.gembaflow-config.json` `.board.id` | Project board number for the team's Ready/Backlog board |
+| `{{board.id}}` | *(RETIRED)* | Retired with the beads cutover (epic #574) — Ready is computed by `bd ready`, not a project board. Harmless if still present in an older config. |
 | `{{bot.worker}}` | `.gembaflow-config.json` `.bot.worker` | Worker bot login — opens PRs, makes commits, runs `gh pr review --comment` for non-verdict notes |
 | `{{bot.reviewer}}` | `.gembaflow-config.json` `.bot.reviewer` | Reviewer bot login — posts `gh pr review --approve` / `--request-changes` verdicts |
 

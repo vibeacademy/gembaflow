@@ -106,6 +106,10 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `scripts/check-bd.sh` | framework | bd version gate (fails loudly on missing/mismatched bd) | Overwrite |
 | `scripts/init-beads.sh` | framework | Framework-compatible bd tracker init sequence | Overwrite |
 | `scripts/__tests__/check-bd.test.mjs` | framework | Version-gate tests (stubbed bd on PATH) | Overwrite |
+| `scripts/check-merge-gate.sh` | framework | Agent-merge gate condition logic (conditions 1-5, unit-testable) | Overwrite |
+| `scripts/__tests__/check-merge-gate.test.mjs` | framework | Merge-gate condition tests (fixture PR JSON) | Overwrite |
+| `scripts/write-drain-state.mjs` | framework | Schema-validated drain state writer (rejects off-schema fields) | Overwrite |
+| `scripts/__tests__/write-drain-state.test.mjs` | framework | Drain state-writer tests | Overwrite |
 
 ## `docs/`
 

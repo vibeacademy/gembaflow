@@ -46,4 +46,6 @@ jobs:
       pull-requests: write
       checks: read
       actions: read
-      issues: read
+      # issues: read retired with the beads cutover — the gate's
+      # conditions 1+2 read the PR's own body and labels, never a
+      # linked issue.
