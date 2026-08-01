@@ -15,10 +15,16 @@
 #      if a future bd writes it anyway).
 #
 # Usage:
-#   ./scripts/init-beads.sh [-p <prefix>]
+#   ./scripts/init-beads.sh [-p <prefix>] [--no-commit]
 #
 #   -p <prefix>   bead-ID prefix (2-4 lowercase chars, e.g. `va` → va-1a2b).
 #                 Omit to let bd auto-detect from the directory name.
+#   --no-commit   undo bd init's auto-commit (keep the scaffolding as
+#                 uncommitted working-tree changes). Use this on feature
+#                 branches: bd's auto-commit otherwise lands tracker
+#                 scaffolding on whatever branch happens to be checked out
+#                 (it contaminated the E4 dry-run branch — epic #574 ledger
+#                 item 8).
 #
 # Idempotent: exits cleanly (after re-asserting config) if .beads/ already
 # holds an initialized tracker. The SessionStart `bd prime --hook-json` hook
@@ -35,18 +41,23 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$REPO_ROOT"
 
 PREFIX=""
+NO_COMMIT=false
 while [ $# -gt 0 ]; do
     case "$1" in
         -p|--prefix)
-            PREFIX="${2:?usage: $0 [-p <prefix>]}"
+            PREFIX="${2:?usage: $0 [-p <prefix>] [--no-commit]}"
             shift 2
             ;;
+        --no-commit)
+            NO_COMMIT=true
+            shift
+            ;;
         -h|--help)
-            sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,35p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
-            echo "Unknown argument: $1 (usage: $0 [-p <prefix>])" >&2
+            echo "Unknown argument: $1 (usage: $0 [-p <prefix>] [--no-commit])" >&2
             exit 1
             ;;
     esac
@@ -117,15 +128,30 @@ fi
 # FRAMEWORK markers), so no append — and no dedupe — is expected here.
 
 # ---------------------------------------------------------------------------
-# 6. Amend bd's auto-commit to conventional-commit form (only if HEAD is
-#    exactly bd's init commit — never rewrite anything else).
+# 6. bd init auto-commits its scaffolding. Only ever touch HEAD when it is
+#    exactly bd's init commit — never rewrite anything else. Default: amend
+#    to conventional-commit form. --no-commit: undo the commit and leave the
+#    scaffolding as uncommitted working-tree changes (bd's auto-commit lands
+#    on whatever branch is checked out — on a feature branch that
+#    contaminates the PR; epic #574 ledger item 8).
 # ---------------------------------------------------------------------------
 if [ "$(git log -1 --pretty=%s 2>/dev/null)" = "bd init: initialize beads issue tracking" ]; then
-    for f in AGENTS.md CLAUDE.md .gitignore .beads; do
-        git add -A -- "$f" 2>/dev/null || true
-    done
-    git commit --amend --no-edit -m "chore(beads): initialize bd tracker" --quiet
-    echo "Amended bd's auto-commit to: chore(beads): initialize bd tracker"
+    if [ "$NO_COMMIT" = true ]; then
+        if git rev-parse --quiet --verify HEAD^ >/dev/null 2>&1; then
+            git reset --mixed --quiet HEAD^
+            echo "Undid bd's auto-commit (--no-commit): tracker scaffolding left as uncommitted changes."
+        else
+            echo "WARNING: bd's auto-commit is the repo's only commit — cannot undo it; leaving as-is." >&2
+        fi
+    else
+        for f in AGENTS.md CLAUDE.md .gitignore .beads; do
+            git add -A -- "$f" 2>/dev/null || true
+        done
+        git commit --amend --no-edit -m "chore(beads): initialize bd tracker" --quiet
+        echo "Amended bd's auto-commit to: chore(beads): initialize bd tracker"
+    fi
+elif [ "$NO_COMMIT" = true ]; then
+    echo "OK: --no-commit requested and no bd auto-commit found at HEAD; nothing to undo."
 fi
 
 # ---------------------------------------------------------------------------

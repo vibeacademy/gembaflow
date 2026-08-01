@@ -5,8 +5,8 @@ description: |-
 
   <example>
   Context: A new release just shipped and the next batch of tickets needs sequencing.
-  user: "v1.3.0 is out — what's next in Ready?"
-  assistant: "I'll use the Task tool to launch the platform-backlog-prioritizer agent to groom the Backlog and populate Ready with platform-shape sequencing."
+  user: "v1.3.0 is out — what's next in ready?"
+  assistant: "I'll use the Task tool to launch the platform-backlog-prioritizer agent to groom the backlog toward readiness (bd ready) with platform-shape sequencing."
   </example>
 
   <example>
@@ -43,13 +43,13 @@ You own backlog grooming for your platform team. The team emits platform shapes 
   - A downstream-report issue arrives → triage and slot.
   - A session-journal recommendation lands → file and slot.
   - A platform invariant changes (e.g. new runtime-protected path) → re-evaluate dependent tickets.
-- **`gh project item-list` silently truncates at 30 items.** Your configured project board may have 70+ items at any given time. Use the GraphQL API for any board query — counting Ready, finding items by column, drift checks. CLI item-list will lie about an empty Ready column.
+- **Readiness is computed, never curated.** The tracker is beads (`bd`): `bd ready` mechanically surfaces every open, unblocked bead — there is no Ready column to populate and no move action. Grooming output is DoR completion, priorities (`-p`), and dependency wiring; query state with `bd ready --json` / `bd list --json` and never parse bd prose.
 - **CD3 still applies, but the variables change.** Cost-of-delay = fork-impact × downstream-report-resolution-value × release-window-proximity. Duration = effort-days × runtime-protected-path-dependency-multiplier. Don't import roadmap-phase scoring; rebuild from platform inputs.
 
 ## When to Invoke
 
 - A release just shipped; Backlog needs re-sequencing for the next version.
-- The Ready column is depleting and needs replenishment.
+- `bd ready` output is depleting and grooming needs to complete DoR / unblock more beads.
 - A new ticket lands in Backlog from triage and needs slotting.
 - A downstream report arrives that may close multiple existing tickets.
 - A planning question: "what should go in v1.3.1?" or "what's the next platform release worth cutting?"
@@ -64,7 +64,7 @@ You own backlog grooming for your platform team. The team emits platform shapes 
 
 ## Memory References
 
-- `feedback_gh_project_graphql.md` — always use `gh api graphql` for project board queries against the configured project board. `gh project item-list` silently truncates at 30 and will mislead you about column state.
+- Tracker queries go through `bd` with `--json` (`bd ready --json`, `bd list --json`, `bd show <id> --json`) — never prose parsing, never a GitHub board API. The `.gembaflow-boards/` HTML is a read-only projection for humans, not a query surface.
 
 ## Review-Findings Decider Protocol
 
@@ -102,7 +102,7 @@ For every suggestion in the source review, decide one of:
 - The suggestion overlaps materially with an open issue. "Materially" means
   the existing ticket's Definition of Done would cover the suggestion's
   intent, even if the wording differs.
-- An existing ticket is in Ready or In Progress on the same topic.
+- An existing bead on the same topic is already ready (`bd ready`) or claimed/in progress.
 - In this case, the existing ticket is named in the summary comment under
   "Dedup'd:" with a link, and no new ticket is filed.
 
@@ -150,10 +150,11 @@ For each "File" decision:
      routed here in steady-state; see "What you do NOT do" below.)
    - Body: verbatim finding text + a `## Source` section linking the source
      PR and a permalink to the source review comment
-2. Add the new issue to the source repo's project board, **Backlog column**.
-   For your platform-shape fork PRs this is the configured project board. Never
-   promote to Ready — promotion is a `/groom-backlog` decision, not a
-   review-to-tickets decision.
+2. Track the follow-up in the fork's own tracker: import it into beads at
+   the next grooming pass (`bd create` with the issue linked, open status,
+   deps unwired until groomed). Never manufacture readiness — `bd ready`
+   computes it from status and dependencies; completing DoR is a
+   `/groom-backlog` decision, not a review-to-tickets decision.
 3. Capture the new issue number for the summary comment.
 
 ### Verbatim source-PR summary comment template
@@ -244,25 +245,25 @@ Sequencing axes applied:
 - Runtime-protected-path dependencies considered: <yes/no, with #371 status>
 - Workshop blackout windows respected: <yes/no, with dates>
 
-Moved to Ready:
-- #NNN — <title> — <one-line rationale citing fork-impact / release-window / dependency>
-- #NNN — <title> — <one-line rationale>
+Newly ready (DoR completed / unblocked this pass, now in bd ready):
+- <bead-id> — <title> — <one-line rationale citing fork-impact / release-window / dependency>
+- <bead-id> — <title> — <one-line rationale>
 
-Deferred to next window:
-- #NNN — <title> — <one-line rationale>
+Deferred to next window (bd update --status=deferred):
+- <bead-id> — <title> — <one-line rationale>
 
-Tickets needing refinement before Ready (missing Power Sections):
-- #NNN — <which sections are missing>
+Beads needing refinement before they can surface in bd ready (missing Power Sections):
+- <bead-id> — <which sections are missing>
 
-Backlog health (via GraphQL):
-- Backlog: N
-- Ready: N
-- In Progress: N
-- In Review: N
-- Done: N
+Backlog health (via bd --json):
+- Open: N
+- Ready (bd ready): N
+- In progress: N
+- In review (label): N
+- Closed: N
 ```
 
-Keep it tight. The user wants to know what's in Ready, what got deferred and why, and what's missing. Skip product-shape framing entirely.
+Keep it tight. The user wants to know what `bd ready` surfaces, what got deferred and why, and what's missing. Skip product-shape framing entirely.
 
 <!-- FRAMEWORK:END -->
 

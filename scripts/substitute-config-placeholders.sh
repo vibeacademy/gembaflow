@@ -3,16 +3,21 @@
 # in framework files.
 #
 # Reads `.gembaflow-config.json` from the current working directory, then runs
-# in-place sed substitution for the four canonical placeholders in every Markdown
+# in-place sed substitution for the three canonical placeholders in every Markdown
 # file under `.claude/commands/`. Idempotent: re-running after substitution
 # completes is a no-op.
 #
 # Placeholders (substituted in this file, by `bootstrap-workflow.md` after a
 # fresh bootstrap, or by hand after editing `.gembaflow-config.json`):
 #   {{org}}            — GitHub org login that hosts the framework + this fork
-#   {{board.id}}       — Project board number on the GitHub Project the team uses
 #   {{bot.worker}}     — GitHub login of the worker bot (opens PRs, makes commits)
 #   {{bot.reviewer}}   — GitHub login of the reviewer bot (posts /review-pr verdicts)
+#
+# LEGACY (deprecated with the beads cutover, epic #574): {{board.id}} — the
+# GitHub Project board number. Required only while a spec file still
+# contains the placeholder AND the fork runs the one-release
+# `legacy.githubProjects` compatibility flag (docs/BEADS.md). Optional
+# otherwise; supply it as `board.id` in the config when needed.
 #
 # Usage:
 #   bash scripts/substitute-config-placeholders.sh           # substitute in place
@@ -33,8 +38,10 @@ show_help() {
   cat <<'HELP'
 substitute-config-placeholders.sh — Substitute bootstrap-time templated values.
 
-Reads .gembaflow-config.json and substitutes {{org}}, {{board.id}},
-{{bot.worker}}, {{bot.reviewer}} placeholders in .claude/commands/*.md files.
+Reads .gembaflow-config.json and substitutes {{org}}, {{bot.worker}},
+{{bot.reviewer}} placeholders in .claude/commands/*.md files. The legacy
+{{board.id}} placeholder (deprecated with the beads cutover) is substituted
+only when `board.id` is present in the config.
 
 Usage:
   bash scripts/substitute-config-placeholders.sh           # substitute in place
@@ -102,15 +109,28 @@ BOT_REVIEWER=$(jq -r '.bot.reviewer // ""' "$CONFIG_FILE")
 
 # Reject empty / null values up front — a missing field means the operator hasn't
 # finished filling in the example file; refuse to substitute "" into the spec.
-for pair in "org:$ORG" "board.id:$BOARD_ID" "bot.worker:$BOT_WORKER" "bot.reviewer:$BOT_REVIEWER"; do
+for pair in "org:$ORG" "bot.worker:$BOT_WORKER" "bot.reviewer:$BOT_REVIEWER"; do
   k="${pair%%:*}"
   v="${pair#*:}"
   if [ -z "$v" ] || [ "$v" = "null" ]; then
     echo "ERROR: $CONFIG_FILE field '$k' is empty or missing." >&2
-    echo "Fill in all four fields (org, board.id, bot.worker, bot.reviewer) before substituting." >&2
+    echo "Fill in all three fields (org, bot.worker, bot.reviewer) before substituting." >&2
     exit 1
   fi
 done
+
+# board.id is legacy-optional (beads cutover, epic #574): required only when a
+# target file still carries the {{board.id}} placeholder — which only happens
+# on the deprecated legacy.githubProjects path (docs/BEADS.md).
+if { [ -z "$BOARD_ID" ] || [ "$BOARD_ID" = "null" ]; } \
+  && grep -rql '{{board\.id}}' "$TARGET_DIR" 2>/dev/null; then
+  echo "ERROR: a file under $TARGET_DIR/ contains {{board.id}} but $CONFIG_FILE has no board.id." >&2
+  echo "board.id is only needed on the deprecated legacy GitHub-Projects path" >&2
+  echo "(legacy.githubProjects flag — see docs/BEADS.md). Either migrate to beads" >&2
+  echo "(scripts/migrate-issues-to-beads.sh) or add board.id to the config." >&2
+  exit 1
+fi
+[ "$BOARD_ID" = "null" ] && BOARD_ID=""
 
 # Validate values don't contain sed-delimiter chars or newlines.
 for pair in "org:$ORG" "board.id:$BOARD_ID" "bot.worker:$BOT_WORKER" "bot.reviewer:$BOT_REVIEWER"; do

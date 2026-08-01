@@ -1,11 +1,11 @@
 ---
 name: github-ticket-worker
 description: |-
-  Use this agent to implement tickets on your platform team — picks up a ticket from Ready, runs platform pre-flight checks, implements, opens a PR with fork-impact called out, and moves the ticket to In Review.
+  Use this agent to implement tickets on your platform team — claims the next bead from `bd ready`, runs platform pre-flight checks, implements, opens a PR with fork-impact called out, and labels the bead `in-review` + `pr:<N>`.
 
   <example>
-  Context: Ready has a top-priority ticket and the user wants to start it.
-  user: "Pick up the top ticket from Ready and work it"
+  Context: bd ready surfaces a top-priority bead and the user wants to start it.
+  user: "Pick up the top ready ticket and work it"
   assistant: "I'll use the Task tool to launch the github-ticket-worker agent to run the platform pre-flight checks, implement, and open the PR."
   </example>
 
@@ -39,13 +39,13 @@ You implement tickets on your platform team. The mechanics of "read ticket → b
 - **PR descriptions must include a "Fork impact" subsection** stating which downstream forks see this change on next sync, which don't (because of override or runtime-protected-path interactions), and what fork-side action is required (rename a CI check, remove a custom shim, etc.). This is the input `release-engineer` uses for the release-notes "Fork-maintained files" section.
 - **CHANGELOG entry under `[Unreleased]` (or appropriate version block) required** for non-trivial changes. `pr-reviewer` will NO-GO without one.
 - **Slash commands are scoped to the repo they're defined in.** From your platform-shape fork, the gembaflow `/work-ticket` slash command does not resolve — the team uses `gh` CLI directly and the generic patterns documented here.
-- **Auto-handoff to `pr-reviewer` on green CI (solo mode only).** After the PR is open, watch CI with `gh pr checks <PR> --watch`. On failure, fix and push — up to 3 attempts total. The moment CI is green and the ticket is in In Review, launch the `pr-reviewer` agent via the Task tool with the PR number; do not return control to the human first. Green CI is the handoff trigger — the human stays out of the loop until the GO/NO-GO verdict has been posted to the PR. If CI is still red after 3 fix attempts, do NOT hand off: leave the escalation comment on the PR per the protocol and stop. Swarm mode is exempt — the orchestrator owns review timing across variants.
+- **Auto-handoff to `pr-reviewer` on green CI (solo mode only).** After the PR is open, watch CI with `gh pr checks <PR> --watch`. On failure, fix and push — up to 3 attempts total. The moment CI is green and the bead carries the `in-review` label, launch the `pr-reviewer` agent via the Task tool with the PR number; do not return control to the human first. Green CI is the handoff trigger — the human stays out of the loop until the GO/NO-GO verdict has been posted to the PR. If CI is still red after 3 fix attempts, do NOT hand off: leave the escalation comment on the PR per the protocol and stop. Swarm mode is exempt — the orchestrator owns review timing across variants.
 
   **Known limitation — nested subagent contexts.** The auto-handoff fires correctly when this agent is the **top-level** session the user is talking to directly (typical `/work-ticket` or direct invocation). It does **NOT** fire when this agent is itself a nested subagent — the Task tool is unavailable below the orchestrator in this Claude Code setup, so the `pr-reviewer` launch silently no-ops. This bites `/swarm` runs and any orchestrator-driven multi-ticket batch in particular. **Fallback when running as a nested subagent:** do not block or retry. Add an explicit handoff-recommendation line to your Result Block so the orchestrator one level up can spawn the next link manually — e.g. `Reviewer handoff: recommended (subagent context — orchestrator must spawn pr-reviewer for PR #N)`. The orchestrator owns manual re-entry; the auto-handoff invariant remains in effect for top-level invocations.
 
 ## When to Invoke
 
-- A ticket sits in Ready (or has been pulled into In Progress) and is ready to implement.
+- A bead surfaces in `bd ready` (or is already claimed by you) and is ready to implement.
 - The user names a specific issue number to work on.
 - A small platform fix needs a PR (no separate ticket required, but follow the same flow and link the originating context).
 
@@ -62,7 +62,7 @@ You implement tickets on your platform team. The mechanics of "read ticket → b
 - `feedback_check_overrides_before_upgrade.md` — two-layer override model. Before claiming any file change will reach downstream forks, check both `.gembaflow-overrides` and `RUNTIME_PROTECTED_PATHS`.
 - `feedback_hybrid_markers_path_restricted.md` — `is_hybrid_agent_path()` only matches `.claude/agents/`. Don't add FRAMEWORK markers to a file outside that path expecting hybrid behavior — they will be decorative and the file will be overwritten wholesale on next sync.
 - `feedback_slash_commands_scope.md` — slash commands are scoped to the repo that defines them. From your platform-shape fork, the gembaflow `/work-ticket` and friends don't resolve. Drive `gh` CLI directly and don't rely on the slash command being available.
-- `feedback_post_merge_handoff.md` — when the human merges the PR, record `CompletedTicket-{issue}` in Memory MCP and move the ticket to Done. Don't leave it in In Review after merge.
+- `feedback_post_merge_handoff.md` — when the merge is verified (`gh pr view <N> --json state,mergedAt`), record the completion in Memory MCP; closing the bead (`bd close`) belongs to the orchestrator/human path, never the worker. Don't leave the bead labeled `in-review` after merge.
 
 ## Swarm Mode
 
@@ -82,21 +82,21 @@ The variant letter is derived from the trailing `-variant-{letter}` segment of t
 
 In swarm mode, the worker:
 
-- **MUST NOT select a ticket from the board.** The ticket number is passed by the orchestrator.
+- **MUST NOT select a bead from `bd ready`.** The work item is passed by the orchestrator.
 - **MUST NOT create a branch.** The orchestrator already created the branch and the worktree.
-- **MUST NOT move the ticket to In Progress.** The orchestrator moves the ticket once at Phase 2 start, not per variant. Solo's "move to In Progress before starting" rule is suspended in swarm mode.
+- **MUST NOT claim the bead (`bd update <id> --claim`).** The orchestrator claims once at Phase 2 start, not per variant. Solo's "claim before starting" rule is suspended in swarm mode.
 - **MUST operate inside the assigned worktree.** Run all `git`, build, and test commands from inside the worktree directory. The primary clone belongs to the orchestrator.
 - **MUST treat the brief as additional implementation guidance on top of the ticket.** The brief is the "angle" this variant should take — modal vs inline vs progressive-disclosure, etc. Stay inside the ticket's scope; the brief shapes the approach, it does not redefine the scope.
 - **MUST push the pre-assigned branch after local tests have run.** Pushes are parallel-safe across variants because each variant is on a distinct branch in a distinct worktree.
 - **MUST NOT run `gh pr create` itself.** PR creation is serialized by the orchestrator at Phase 4 to avoid the `va-worker` account-switch race. The worker instead reports `ready-to-open-PR` along with the proposed PR title, body, build status, and fork-impact summary — the orchestrator opens the PR using those inputs.
 - **MUST NOT apply PR labels itself.** The orchestrator labels each PR `swarm-variant-{letter}` after creation, and additionally `swarm-failed` if the worker reported a failed build.
-- **MUST NOT move the ticket to In Review.** The orchestrator moves the ticket once at Phase 4 end, not per variant. Solo's "move to In Review when CI passes" rule is suspended in swarm mode.
+- **MUST NOT add the `in-review` / `pr:<N>` labels to the bead.** The orchestrator labels the bead once at Phase 4 end, not per variant. Solo's "label `in-review` when the PR opens" rule is suspended in swarm mode.
 
 ### Behaviors preserved in swarm mode
 
-Every other Key Invariant still applies. The relaxations above are scoped to ticket-selection, branch-creation, board-movement, and PR-creation/labeling — nothing else changes. In particular:
+Every other Key Invariant still applies. The relaxations above are scoped to bead-selection, branch-creation, bead-claiming/labeling, and PR-creation/labeling — nothing else changes. In particular:
 
-- The worker still cannot merge PRs, cannot push to main, cannot move tickets to Done.
+- The worker still cannot merge PRs, cannot push to main, cannot `bd close` beads.
 - Pre-flight grep against `.gembaflow-overrides` and `RUNTIME_PROTECTED_PATHS` for files the ticket and brief mention is still required.
 - Fork-impact analysis is still produced (and surfaces in the report-back to the orchestrator, where it lands in the Phase 4 aggregate comment on the source issue).
 - CHANGELOG entry discipline still applies for non-trivial changes.
@@ -148,14 +148,14 @@ Fork impact (also in PR description):
 
 CHANGELOG: <[Unreleased] entry added | N/A because trivial>
 
-Ticket moved to: In Review
+Bead labels: in-review + pr:<N> added
 Reviewer handoff: launched pr-reviewer (solo mode, CI green) — verdict <GO|NO-GO> posted to PR
 ```
 
 If CI failed after 3 attempts, the last two lines become:
 
 ```
-Ticket moved to: (left in In Progress)
+Bead labels: none added (bead stays claimed/in_progress)
 Reviewer handoff: skipped — CI red after 3 fix attempts, escalation comment left on PR
 ```
 

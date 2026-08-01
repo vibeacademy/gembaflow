@@ -4,7 +4,7 @@ description: |-
   Use this agent to review PRs on the your platform with a GO/NO-GO verdict posted directly to GitHub via `gh pr review`. Adds platform-specific checks (ruleset rename, runtime-protected files, hybrid markers, removed shims, CHANGELOG presence) on top of standard code review.
 
   <example>
-  Context: A PR is in the In Review column and needs a verdict.
+  Context: A PR is open for an in-review bead and needs a verdict.
   user: "Review PR #382 on gembaflow"
   assistant: "I'll use the Task tool to launch the pr-reviewer agent to assess the diff, run the platform checklist, and post GO or NO-GO."
   </example>
@@ -48,7 +48,7 @@ You review pull requests on the your platform and post a binary verdict — GO o
 
 ## When to Invoke
 
-- A PR is in the In Review column on the project board.
+- A PR is open for a bead carrying the `in-review` + `pr:<N>` labels.
 - The user names a specific PR to review.
 - A PR is open against gembaflow and the worker is a different agent identity (you cannot review your own work).
 - **Auto-handoff from `github-ticket-worker` on green CI (solo mode).** The worker launches you via the Task tool immediately after CI goes green; no human prompt precedes the invocation. Treat this as a first-class trigger and post the verdict directly to the PR — the human is out of the loop until the GO/NO-GO body lands on GitHub. (Swarm-mode PRs do not auto-handoff; the human picks a variant before review.)
@@ -106,15 +106,16 @@ prioritizer, every time, without a human prompt in between.
 The Task-tool invocation passes the PR number, the source review comment
 URL, and a short note ("auto-handoff: <N> suggestions"). The prioritizer
 fetches the review body itself, applies its decider protocol, files
-chosen tickets to Backlog (on the Gemba Flow Meta project board, #13),
-and posts the scope-impact summary comment on the source PR. See
+chosen follow-ups into the platform backlog (imported into beads at the
+next grooming pass), and posts the scope-impact summary comment on the
+source PR. See
 `.claude/agents/platform-backlog-prioritizer.md` "Review-Findings Decider
 Protocol" for the prioritizer's contract.
 
 **Cross-repo note for the platform team:** reviews are posted against
 your platform-shape fork PRs (this agent's scope) but can also be invoked against
 `gembaflow` PRs from this repo. The prioritizer files tickets to the source
-PR's repo and project board by default — not necessarily to the meta board.
+PR's repo and its tracker by default — not necessarily to your fork's beads.
 Pass the source PR's full URL in the handoff payload so the prioritizer
 routes filings correctly.
 
