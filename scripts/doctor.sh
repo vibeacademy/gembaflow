@@ -546,7 +546,67 @@ for doc in PRODUCT-REQUIREMENTS.md PRODUCT-ROADMAP.md TECHNICAL-ARCHITECTURE.md;
 done
 
 # ═══════════════════════════════════════════════════════════════════
-#  9. Remote Checks (if gh CLI available and authenticated)
+#  9. Beads (Work-Item Tracking)
+# ═══════════════════════════════════════════════════════════════════
+
+# Beads (bd) is the issue tracker — local, no GitHub auth needed. This
+# replaces the retired GitHub Project Board remote check. The pinned-version
+# gate is scripts/check-bd.sh; see docs/BEADS.md.
+section "Beads"
+
+if ! BD_CMD=$(resolve_cmd bd); then
+    warn "Beads" "bd not found on PATH" "Install the pinned beads (bd) version — see docs/BEADS.md and scripts/check-bd.sh"
+else
+    bd_version=$("$BD_CMD" version 2>/dev/null | head -1 || true)
+    if [ -z "$bd_version" ]; then
+        bd_version=$("$BD_CMD" --version 2>/dev/null | head -1 || true)
+    fi
+    pass "Beads" "bd found (${bd_version:-version unknown})"
+
+    if [ -d ".beads" ]; then
+        pass "Beads" ".beads/ directory exists"
+
+        if JQ_CMD=$(resolve_cmd jq); then
+            # bd ready output parses as JSON
+            if "$BD_CMD" ready --json 2>/dev/null | "$JQ_CMD" -e . >/dev/null 2>&1; then
+                pass "Beads" "bd ready --json parses"
+            else
+                warn "Beads" "bd ready --json did not return parseable JSON" "Run: bd ready --json and inspect the output"
+            fi
+
+            # Dependency cycles must be empty
+            cycles_json=$("$BD_CMD" dep cycles --json 2>/dev/null || true)
+            if [ -n "$cycles_json" ] && echo "$cycles_json" | "$JQ_CMD" -e 'length == 0' >/dev/null 2>&1; then
+                pass "Beads" "No dependency cycles (bd dep cycles is empty)"
+            elif [ -n "$cycles_json" ] && echo "$cycles_json" | "$JQ_CMD" -e . >/dev/null 2>&1; then
+                warn "Beads" "Dependency cycles detected" "Run: bd dep cycles and fix the wiring (never bare bd link)"
+            else
+                warn "Beads" "Could not check dependency cycles" "Run: bd dep cycles --json manually"
+            fi
+        else
+            skip "Beads" "bd ready / dep cycles JSON checks" "jq not installed"
+        fi
+
+        # Board projections (.gembaflow-boards/) — generated, read-only
+        if [ -f ".gembaflow-boards/kanban.html" ]; then
+            # Staleness hint: compare against the passive export
+            # .beads/issues.jsonl, which only changes on mutations
+            # (raw dolt internals also change on reads — too noisy).
+            if [ ".beads/issues.jsonl" -nt ".gembaflow-boards/kanban.html" ]; then
+                warn "Beads" "Board projections older than last .beads mutation" "Regeneration hook may not be firing — run /board-refresh"
+            else
+                pass "Beads" "Board projections current (.gembaflow-boards/kanban.html)"
+            fi
+        else
+            warn "Beads" ".gembaflow-boards/kanban.html not found" "Run /board-refresh to generate the board projections"
+        fi
+    else
+        warn "Beads" ".beads/ directory not found" "Run: scripts/init-beads.sh to initialize the tracker"
+    fi
+fi
+
+# ═══════════════════════════════════════════════════════════════════
+#  10. Remote Checks (if gh CLI available and authenticated)
 # ═══════════════════════════════════════════════════════════════════
 section "Remote Checks"
 
@@ -607,27 +667,6 @@ else
                 fi
             fi
             
-            # GitHub Project Board
-            projects_response=$("$GH_CMD" project list --owner "$owner" --format json 2>&1 || true)
-            if echo "$projects_response" | grep -q "HTTP 403"; then
-                warn "Remote Checks" "GitHub project board" "Could not verify (token scope) — 403 Forbidden"
-            elif echo "$projects_response" | grep -q "HTTP 404"; then
-                warn "Remote Checks" "GitHub project board" "Could not verify (resource not found) — 404 Not Found"
-            elif [ "$projects_response" = "[]" ] || [ -z "$projects_response" ]; then
-                warn "Remote Checks" "GitHub project board" "No project boards found — verified"
-            else
-                # Count projects (only if jq is available)
-                if JQ_CMD=$(resolve_cmd jq); then
-                    project_count=$(echo "$projects_response" | "$JQ_CMD" -r 'length' 2>/dev/null || echo "0")
-                    if [ "$project_count" -gt 0 ] 2>/dev/null; then
-                        pass "Remote Checks" "GitHub project board configured ($project_count project(s) found)"
-                    else
-                        warn "Remote Checks" "GitHub project board" "Could not parse project list response"
-                    fi
-                else
-                    pass "Remote Checks" "GitHub project board found (jq not available for detailed analysis)"
-                fi
-            fi
         else
             skip "Remote Checks" "All checks" "Could not parse GitHub repo from remote URL: $remote_url"
         fi

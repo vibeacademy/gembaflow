@@ -16,14 +16,14 @@ For each ticket completed (merged to main) during this session:
 
 | Field | Description |
 |-------|-------------|
-| Ticket # and title | Issue number and short description |
+| Bead id and title | Bead id (e.g. va-142) and short description |
 | PR # | Pull request number |
 | What changed | 1-2 sentence summary of the implementation |
 | Files touched | Key files modified (not exhaustive) |
 | Tests added | Count and nature of new tests |
 
 ### 3. Tickets In Review
-Same format as above, but for PRs that are created and reviewed but not yet merged.
+Same format as above, but for beads labeled `in-review` + `pr:<N>` — PRs created and reviewed but not yet merged.
 
 ### 4. Challenges and Mitigations
 Document every significant obstacle encountered and how it was resolved:
@@ -51,9 +51,9 @@ New tickets created during the session with brief context on why they were creat
 ### 7. Metrics
 Quick quantitative summary:
 - PRs created / merged / reviewed
-- Tickets completed / created
+- Beads closed / created
 - Tests added
-- Board state changes
+- Bead state changes (claims, labels, closes)
 
 ### 8. Next Up
 Prioritized list of what should be tackled next, with context on dependencies and blockers.
@@ -65,16 +65,16 @@ Use the template structure from existing journals in `reports/session-journals/`
 ## After Writing
 
 1. Read the journal back to verify completeness
-2. Cross-reference against the git log and board state to catch anything missed
+2. Cross-reference against the git log and bd state (`bd list --status=closed --all --json`) to catch anything missed
 3. **Validate memory writes** — check that completed tickets have corresponding
    `CompletedTicket` entities in Memory MCP:
-   - For each ticket listed in "Tickets Delivered", query Memory MCP:
-     `mcp__memory__search_nodes({ "query": "CompletedTicket-{issue-number}" })`
+   - For each bead listed in "Tickets Delivered", query Memory MCP:
+     `mcp__memory__search_nodes({ "query": "CompletedTicket-{bead-id}" })`
    - If Memory MCP is not configured, skip validation:
      `→ Memory validation skipped — Memory MCP server not available`
    - Report results using standard vocabulary:
-     `→ Memory OK: CompletedTicket-{issue} exists for #{issue}`
-     `✗ Missing memory: CompletedTicket-{issue} — no entity found for #{issue}`
+     `→ Memory OK: CompletedTicket-{bead-id} exists for {bead-id}`
+     `✗ Missing memory: CompletedTicket-{bead-id} — no entity found for {bead-id}`
      `→ Run /validate-memory to create missing entities`
    - Summary: `→ Memory validation: {found}/{total} completed tickets have CompletedTicket entities`
 4. Present a brief summary to the user
@@ -194,7 +194,7 @@ Use the template structure from existing journals in `reports/session-journals/`
 ## Related Commands
 
 - `/validate-memory` — Standalone memory validation and entity creation
-- `/sprint-status` — Current board health overview
-- `/groom-backlog` — Prioritize and populate Ready column
-- `/work-ticket` — Pick up next ticket
+- `/sprint-status` — Current bead/board health overview
+- `/groom-backlog` — Groom beads: DoR, priorities, dependency wiring (`bd ready` is the outcome)
+- `/work-ticket` — Claim the next ready bead and implement
 - `/report-issue` — File an upstream `[downstream-report]` issue (invoked from Step 6 above on per-candidate yes/edit-first)

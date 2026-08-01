@@ -22,27 +22,35 @@ Stop here. Do not treat this as an error.
 
 ### Step 2: Identify Completed Tickets
 
-Query GitHub for tickets completed during the current session. Use the
-project board to find items in "Done" that have linked PRs merged today,
-or check recent `git log --merges` on main for PR merge commits.
+Query beads for work completed during the current session:
+`bd list --status=closed --all --json` — the `close_reason` carries the
+PR number (e.g. "PR #N merged to main after GO review"). Cross-check
+against recent `git log --merges` on main for PR merge commits.
 
-Collect: issue number, issue title, PR number, key files changed.
+Collect: bead id, bead title, PR number (from close_reason), key files
+changed.
 
 ### Step 3: Check for Existing Entities
 
-For each completed ticket, query Memory MCP:
+For each completed bead, query Memory MCP:
 
 ```
-mcp__memory__search_nodes({ "query": "CompletedTicket-{issue-number}" })
+mcp__memory__search_nodes({ "query": "CompletedTicket-{bead-id}" })
 ```
+
+**Grandfather clause:** entities created before the beads cutover are
+keyed `CompletedTicket-{issue-number}` (a bare GitHub issue number).
+They remain valid history — do NOT flag them as violations or attempt to
+rename them. Only new work (closed beads) is validated against the
+`CompletedTicket-{bead-id}` key.
 
 ### Step 4: Report Results
 
-For each ticket, report one of:
+For each bead, report one of:
 
 ```
-→ Memory OK: CompletedTicket-{issue} exists for #{issue} — {title}
-✗ Missing memory: CompletedTicket-{issue} — no entity found for #{issue} ({title})
+→ Memory OK: CompletedTicket-{bead-id} exists for {bead-id} — {title}
+✗ Missing memory: CompletedTicket-{bead-id} — no entity found for {bead-id} ({title})
   → Create this entity? Reading PR diff to generate observations...
 ```
 
@@ -57,7 +65,7 @@ Summary line:
 For each missing entity, read the PR diff and generate a `CompletedTicket`
 entity with observations:
 
-- Issue number and title
+- Bead id and title
 - PR number and branch name
 - Summary of what was implemented
 - Key files changed
@@ -70,10 +78,10 @@ Use `mcp__memory__create_entities` to create the entity:
 {
   "entities": [
     {
-      "name": "CompletedTicket-{issue}",
+      "name": "CompletedTicket-{bead-id}",
       "entityType": "CompletedTicket",
       "observations": [
-        "Issue #{issue}: {title}",
+        "Bead {bead-id}: {title}",
         "PR #{pr} merged to main",
         "{summary of implementation}",
         "Key files: {files}",
@@ -87,7 +95,7 @@ Use `mcp__memory__create_entities` to create the entity:
 After creating each entity, confirm:
 
 ```
-→ Created CompletedTicket-{issue} with {N} observations
+→ Created CompletedTicket-{bead-id} with {N} observations
 ```
 
 ## Output Format
@@ -107,4 +115,4 @@ Missing: {still-missing} (if any were skipped)
 ## Related Commands
 
 - `/log-session` — Session journal (includes memory validation)
-- `/work-ticket` — Pick up next ticket
+- `/work-ticket` — Claim the next ready bead and implement

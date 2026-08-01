@@ -92,14 +92,11 @@ configuration. Surfaces every issue that could block a workshop participant.
       - `SUPABASE_ACCESS_TOKEN` — WARN if missing
       - `SUPABASE_PROJECT_REF` — WARN if missing
 
-   c. **GitHub Project board** — run:
-
-      ```text
-      gh project list --owner {owner} --format json
-      ```
-
-      - PASS if at least one project exists
-      - WARN if no projects found
+   There is no project-board remote check: work-item tracking is beads
+   (`bd`), which is local. The beads checks (bd on PATH, `.beads/`
+   present, `bd ready --json` parses, `bd dep cycles` empty, board
+   projections at `.gembaflow-boards/kanban.html` present and not stale)
+   run inside `scripts/doctor.sh` as local checks.
 
 1. Format a **health report table** combining local + remote results:
 
@@ -114,7 +111,6 @@ configuration. Surfaces every issue that could block a workshop participant.
    |-------|--------|---------|
    | Branch protection | PASS/WARN | ... |
    | Repo secrets | PASS/WARN | ... |
-   | Project board | PASS/WARN | ... |
 
    ### Overall
    Ready for workshop: **YES** / **NO**

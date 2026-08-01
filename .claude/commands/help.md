@@ -12,13 +12,14 @@ Print the following table to the operator.
 
 | Command | Description |
 |---------|-------------|
-| `/groom-backlog` | Prioritize tickets, populate Ready column |
-| `/work-ticket` | Pick up next ticket and implement |
-| `/review-pr` | Review PRs in In Review column |
-| `/review-to-tickets` | Convert review Suggestions into Backlog tickets |
-| `/swarm` | Run N parallel implementations of one ticket |
+| `/groom-backlog` | Groom beads: DoR, priorities, dependency wiring (`bd ready` is the outcome) |
+| `/work-ticket` | Claim the next ready bead and implement |
+| `/review-pr` | Review PRs for beads labeled in-review |
+| `/review-to-tickets` | Convert review Suggestions into backlog beads |
+| `/board-refresh` | Regenerate the kanban + tech-tree HTML projections from bd state |
+| `/swarm` | Run N parallel implementations of one bead |
 | `/check-milestone` | Check milestone progress |
-| `/sprint-status` | Board health overview |
+| `/sprint-status` | Bead/board health overview |
 | `/research` | Market research with web search |
 | `/jtbd` | Jobs-to-be-Done user analysis |
 | `/positioning` | Product positioning analysis |
@@ -32,9 +33,9 @@ Print the following table to the operator.
 | `/mode` | Select, list, or inspect the assistant mode for the main session. Available modes ship in `.claude/modes/` — `default`, `scaffolded`, `socratic`, `terse-expert`, `shipping-coach`. |
 | `/report-issue` | Report a bug back to the upstream framework |
 | `/quick-fix` | Skip ticket ceremony for <20-line non-behavioral fixes |
-| `/create-ticket` | File a new ticket on the project board |
+| `/create-ticket` | File a new bead in the tracker (`bd create`) |
 | `/log-session` | Capture a session journal |
-| `/eli5` | Plain-language summary comment on a ticket or PR |
+| `/eli5` | Plain-language summary comment on a bead or PR |
 
 After the table, print one line:
 

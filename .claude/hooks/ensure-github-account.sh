@@ -42,12 +42,13 @@ tool_command=$(echo "$input" | jq -r '.tool_input.command // empty')
 #
 # Why so narrow: command patterns alone cannot reliably distinguish
 # "issue created during work" (worker) from "issue created during review
-# as a follow-up" (reviewer). The same applies to `gh project item-*`
-# board moves. Slash commands that need a specific account (e.g. the
-# reviewer when `/review-pr` files a follow-up ticket) are responsible
-# for calling `gh auth switch --user <account>` explicitly before
-# those operations. This hook only enforces the two cases where the
-# command name itself is unambiguous about which account should own it.
+# as a follow-up" (reviewer). (Work-item tracking is beads (`bd`), which
+# is local and needs no GitHub account at all — the routing question
+# only arises for `gh` commands.) Slash commands that need a specific
+# account are responsible for calling `gh auth switch --user <account>`
+# explicitly before those operations. This hook only enforces the two
+# cases where the command name itself is unambiguous about which
+# account should own it.
 required_account=""
 case "$tool_name" in
   Bash)

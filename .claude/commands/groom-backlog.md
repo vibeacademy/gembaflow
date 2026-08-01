@@ -1,8 +1,14 @@
 ---
-description: Groom the project backlog, prioritize tickets, and populate the Ready column
+description: Groom beads - complete DoR, set priorities, wire dependencies (bd ready is the outcome)
 ---
 
 Launch the agile-backlog-prioritizer agent to perform comprehensive backlog grooming.
+
+> **Core model**: Ready is COMPUTED, not curated. `bd ready` mechanically
+> surfaces every open, unblocked bead — there is no "move to Ready" action.
+> Grooming makes beads *become* ready: complete their Definition of Ready,
+> set priority, and wire or clear dependencies. See CLAUDE.md
+> § "Work-Item Tracking (Beads)" for the canonical board-model mapping.
 
 ## What This Command Does
 
@@ -12,9 +18,11 @@ Launch the agile-backlog-prioritizer agent to perform comprehensive backlog groo
    - Verify backlog reflects strategic priorities
 
 2. **Analyze Backlog Health**
-   - Count tickets by status (Backlog, Ready, In Progress, In Review, Done, Icebox)
-   - Assess ticket quality (descriptions, acceptance criteria, effort estimates)
-   - Identify stale tickets (>30 days without activity)
+   - Count beads by status from `bd list --json` and `bd ready --json`,
+     grouped per the CLAUDE.md § "Work-Item Tracking (Beads)" mapping
+     (backlog = open minus ready; icebox = `--status=deferred`; etc.)
+   - Assess ticket quality (descriptions, acceptance criteria, `effort:*` labels)
+   - Identify stale beads (>30 days without activity)
 
 3. **Prioritize Using CD3**
    - Calculate Cost of Delay / Duration for backlog items
@@ -22,44 +30,65 @@ Launch the agile-backlog-prioritizer agent to perform comprehensive backlog groo
    - Consider feature dependencies
 
 4. **Assess Ticket Scope**
-   - For each ticket being promoted to Ready, check:
+   - For each bead being groomed toward ready, check:
      - One ticket = one deployable change (single PR)
      - If >3 files for unrelated reasons → flag for decomposition
      - If environment context exceeds 4 sentences → flag for decomposition
      - If happy path has >1 major branch point → flag for splitting
      - If effort estimate is XL → recommend breaking into smaller tickets
-   - Tickets that fail scoping should be decomposed on the spot (create child issues) rather than promoted to Ready
+   - Tickets that fail scoping should be decomposed on the spot (create
+     child beads with `bd create`) rather than allowed to become ready
 
 5. **Ensure Definition of Ready**
    - Verify top tickets have clear titles and descriptions
    - Confirm acceptance criteria are specific and testable
-   - Check effort estimates and priority labels
+   - Check `effort:<S/M/L/XL>` labels and priorities
    - Validate technical guidance is provided
    - Verify tickets include the 4 Power Sections (A. Environment Context, B. Guardrails, C. Happy Path, D. Definition of Done)
    - Reference `docs/TICKET-FORMAT.md` for the expected format
 
-6. **Populate Ready Column**
-   - Move top 2-5 well-defined tickets to Ready
-   - Balance quick wins with strategic features
-   - Ensure no blockers on Ready items
+6. **Assign epics and wire dependencies at the bead level**
+   - For each bead being groomed, assign it to an epic (`bd update <id> --parent <epic-id>`)
+     or deliberately mark it loose (`bd note <id> "Deliberately loose: no epic fit"`).
+     Loose is a valid first-class state — it is NOT incomplete grooming. The Loose-work
+     bucket is a triage queue, not a shame bin. Never assign a bead to a
+     marginally-related epic for tree visibility.
+   - Wire dependencies at the true bead level only (`bd dep add <blocked>
+     --blocked-by <blocker>` — explicit direction, **never bare `bd link`**,
+     never epic-to-epic edges). Epic-to-epic edges in the tech tree are DERIVED
+     from bead-level cross-epic blocking edges; they are a visualization output,
+     not an input.
+   - After ANY dependency wiring: `bd dep cycles --json` must return `[]`,
+     then eyeball `bd ready` to confirm the intended beads surfaced.
+   - Anti-Goodhart: the tech tree is a PROJECTION, never a TARGET. Never
+     add or omit deps to make the DAG look tidier. If the tree looks wrong,
+     the only legitimate fix is correcting data that is actually wrong.
+     (See `.claude/agents/agile-backlog-prioritizer.md §6e` for the full
+     non-negotiable guardrail list.)
 
-7. **Identify Issues**
+7. **Make Beads Become Ready**
+   - There is no "move to Ready" action — a bead becomes ready when it is
+     open, unblocked, and its DoR is complete. For the top 2-5 candidates:
+     complete the DoR, set priority (`bd update <id> -p <0-3>`).
+   - Defer out-of-scope beads to the icebox: `bd update <id> --status=deferred`
+   - Balance quick wins with strategic features
+
+8. **Identify Issues**
    - Flag tickets needing refinement
    - Identify dependency conflicts
+   - File open architecture questions as decision beads (`--type=decision`)
+     and wire implementation beads as blocked by them
+     (`bd dep add <impl> --blocked-by <decision>`) — decisions are physical
+     gates, not comments
+   - Flag beads that need human console work: add the `human-ops` label and
+     `bd note <id> "Operator: <exact manual action>"`
    - Note scope creep or misalignment with roadmap
-
-## Configuration
-
-Update the project board URL in your CLAUDE.md:
-```markdown
-Project Board: https://github.com/orgs/{org}/projects/{number}
-```
 
 ## Output
 
 The agent will report:
 - Backlog health metrics
-- Top priorities moved to Ready
+- Beads that became ready this session
 - Tickets needing refinement
 - Scoping issues: tickets flagged for decomposition (too broad for single-PR agent implementation)
 - Blockers and risks
@@ -75,8 +104,10 @@ End your output with a Result Block:
 ---
 
 **Result:** Backlog groomed
-Moved to Ready: 4 tickets (#21, #22, #23, #24)
-Backlog remaining: 8 tickets
-Flags: 2 tickets need refinement (#30, #31)
+Became ready: 4 beads (va-21, va-22, va-23, va-24)
+Backlog remaining: 8 beads
+Flags: 2 beads need refinement (va-30, va-31)
+Dependency check: bd dep cycles --json → []
+Boards: refreshed automatically (hook) — .gembaflow-boards/{kanban,techtree}.html
 Next grooming: after current sprint completes
 ```
