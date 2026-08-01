@@ -199,7 +199,7 @@ if [ -z "${SETUP_WORKER_ACCOUNT:-}" ] || [ "${SETUP_WORKER_ACCOUNT:-}" != "$work
     echo ""
     echo "  Worker account: ${worker_account}"
     echo ""
-    echo "  Required PAT scopes (classic): repo, workflow, project, gist, read:org"
+    echo "  Required PAT scopes (classic): repo, workflow, gist, read:org"
     echo ""
     read -s -p "  Paste your WORKER PAT: " worker_pat
     echo ""
@@ -229,15 +229,8 @@ if [ -z "${SETUP_WORKER_ACCOUNT:-}" ] || [ "${SETUP_WORKER_ACCOUNT:-}" != "$work
 
         print_success "Authenticated as: ${worker_account}"
 
-        # Check project scope
-        print_info "Checking PAT scopes for ${worker_account}..."
-        if gh project list --limit 1 &>/dev/null 2>&1; then
-            print_success "Worker PAT has 'project' scope."
-        else
-            print_warning "Worker PAT may be missing the 'project' scope."
-            echo "  Board operations require the 'project' scope on a classic PAT,"
-            echo "  or the 'Projects' permission on a fine-grained PAT."
-        fi
+        # No project-scope probe: work-item tracking is beads (bd), which is
+        # local and needs no GitHub auth.
 
         # Restore personal before persisting env var
         gh auth switch --user "$PERSONAL_USER" &>/dev/null 2>&1 || true
@@ -273,12 +266,7 @@ if [ -z "${SETUP_REVIEWER_ACCOUNT:-}" ] || [ "${SETUP_REVIEWER_ACCOUNT:-}" != "$
     echo ""
     echo "  Reviewer account: ${reviewer_account}"
     echo ""
-    echo "  Required PAT scopes (classic): repo, workflow, project, gist, read:org"
-    echo "  NOTE: 'project' scope is required so the reviewer can file"
-    echo "        follow-up issues onto the project board after /review-pr."
-    echo "        If you have an existing PAT without 'project', upgrade with:"
-    echo "          gh auth refresh --user ${reviewer_account} \\"
-    echo "            --scopes repo,workflow,project,gist,read:org"
+    echo "  Required PAT scopes (classic): repo, workflow, gist, read:org"
     echo ""
     read -s -p "  Paste your REVIEWER PAT: " reviewer_pat
     echo ""
@@ -306,15 +294,8 @@ if [ -z "${SETUP_REVIEWER_ACCOUNT:-}" ] || [ "${SETUP_REVIEWER_ACCOUNT:-}" != "$
 
         print_success "Authenticated as: ${reviewer_account}"
 
-        # Check project scope
-        print_info "Checking PAT scopes for ${reviewer_account}..."
-        if gh project list --limit 1 &>/dev/null 2>&1; then
-            print_success "Reviewer PAT has 'project' scope."
-        else
-            print_warning "Reviewer PAT may be missing the 'project' scope."
-            echo "  Board operations require the 'project' scope on a classic PAT,"
-            echo "  or the 'Projects' permission on a fine-grained PAT."
-        fi
+        # No project-scope probe: work-item tracking is beads (bd), which is
+        # local and needs no GitHub auth.
 
         # Restore personal before persisting env var
         gh auth switch --user "$PERSONAL_USER" &>/dev/null 2>&1 || true

@@ -3,7 +3,7 @@
 
 ## >>> CRITICAL RULES — Read These First <<<
 
-1. **Never commit directly to `main`.** All work on feature branches (`feature/issue-{number}-short-description`). All changes through pull requests.
+1. **Never commit directly to `main`.** All work on feature branches (`feature/<bead-id>-short-description`). All changes through pull requests.
 2. **All tests must pass before pushing.** Never use `git push --no-verify`. Fix the failing checks instead.
 3. **Conventional commits required.** Format: `<type>(<scope>): <subject>`. See `.claude/skills/commit.md` for types and scopes.
 4. **Only humans merge PRs.** Agents create PRs and review them. Humans approve and merge.
@@ -11,6 +11,8 @@
 6. **No emojis in ASCII tables.** They break column alignment. Emojis OK in prose and headings.
 7. **One canonical location per fact.** Don't duplicate content across CLAUDE.md, agent files, and skills.
 8. **Never hardcode application URLs.** Use `window.location.origin` (client-side) or request headers (server-side) so code works in both production and PR preview environments.
+9. **Beads (`bd`) is the only issue tracker.** No `gh issue create`, no TodoWrite-as-tracker, no markdown TODO lists. PRs stay on GitHub; PR bodies cite `Bead: <id>` (never `Closes #N`) and carry the bead's `safety:*` label. See "Work-Item Tracking (Beads)" below.
+10. **bd mechanical hygiene.** Never `bd edit` / `bd create-form` (interactive — they hang agents; permission-denied anyway); always `bd update` flags; always `--json` when parsing; never mutate `.beads/issues.jsonl`; `bd note` for scope amendments, never description rewrites. Workers never `bd close` — only the orchestrator/human path closes, after `gh pr view <N> --json state,mergedAt` confirms the merge.
 
 ---
 
@@ -22,7 +24,7 @@
 
 - `main` branch is protected — no direct commits
 - All work on short-lived feature branches
-- Branch naming: `feature/issue-{number}-short-description`
+- Branch naming: `feature/<bead-id>-short-description` (e.g. `feature/va-t3e-checkout-endpoint`)
 - PRs require review before merge, keep branches short-lived (< 1 day)
 
 The agent workflow depends on this:
@@ -74,10 +76,12 @@ The `.claude/hooks/ensure-github-account.sh` hook auto-switches accounts:
 
 ### GitHub CLI (`gh`)
 
-Agents use the `gh` CLI for all GitHub operations (issues, PRs, reviews,
-board ops). Each bot account authenticates via `gh auth login` and the
-`.claude/hooks/ensure-github-account.sh` hook switches to the correct
-account automatically before PR creation and review operations.
+Agents use the `gh` CLI for GitHub operations (PRs and reviews — work-item
+tracking lives in beads, not GitHub Issues). Each bot account authenticates
+via `gh auth login` and the `.claude/hooks/ensure-github-account.sh` hook
+switches to the correct account automatically before PR creation and review
+operations. Bots need no separate auth for `bd` — beads is local; only
+`bd dolt push/pull` touches the remote, via git credentials.
 
 ### MCP Servers
 
@@ -89,6 +93,73 @@ wizard creates this file automatically. Configure allowed tools in
 |--------|----------|-------|
 | `memory` | Yes | none |
 | `sequential-thinking` | No | none |
+
+---
+
+## Work-Item Tracking (Beads)
+
+Beads (`bd`) is the framework's issue tracker (critical rule 9). Issues live
+in a local Dolt database (`.beads/`); sync rides the git origin on hidden ref
+`refs/dolt/data`; `.beads/issues.jsonl` is a passive export. The GitHub
+Issues tab is an **inbox, not a tracker**: automated and community intake
+(e.g. `bug:auto` reports, downstream reports) lands there, and grooming
+imports actionable items into beads (`bd create ... --external-ref gh-<N>`)
+and closes them on the GitHub side with a pointer comment. A SessionStart
+hook injects `bd prime --hook-json` automatically (all session starts,
+including after compaction) — no manual priming needed.
+
+**Canonical board-model mapping** (agent files and skills reference this
+table — do not duplicate it):
+
+| Board concept | Beads |
+|---------------|-------|
+| Backlog | `bd list --status=open` (open, minus `bd ready`) |
+| Ready | `bd ready` — mechanical open+unblocked; claimable, never "recommended"; filter `--type=task` when selecting work |
+| In Progress | `bd update <id> --claim` (atomic — two workers can never grab the same bead) |
+| In Review | claimed + labels `in-review` and `pr:<N>` (PR open is the operative signal) |
+| Done | `bd close <id> --reason="PR #N merged to main after GO review"` — only after `gh pr view N --json state,mergedAt` confirms |
+| Icebox | `bd update <id> --status=deferred` |
+| Epic / ADR / Spike | `--type=epic` / `--type=decision` / `--type=spike` |
+| Blocks | `bd dep add <blocked> --blocked-by <blocker>` — explicit direction; **never bare `bd link`**; after wiring: `bd dep cycles` + eyeball `bd ready` |
+| Epic membership | `--parent <epic-id>` (grouping, never blocking) |
+
+Migrated beads carry `--external-ref gh-<N>` back to their original GitHub
+issue.
+
+### Label vocabulary (renderer contract)
+
+| Label | Written by | Meaning / board effect |
+|-------|-----------|------------------------|
+| `campaign:<slug>` | grooming/kickoff | campaign membership: copper border, kanban filter, tech-tree scope |
+| `track:<name>` | creation/grooming | tech-tree column; unlabeled beads land in `general` |
+| `human-ops` | anyone filing | cannot reach done without a human operator: red corner + interactive HUMAN OPS chip (hover = runbook flyout, click = full step modal). Directions via `bd note <id>` with an `Operator:` block — the prefix line plus numbered/bulleted step lines. Notes are append-only: the LAST `Operator:` block supersedes earlier ones, so amend runbooks by appending a fresh block |
+| `in-review` + `pr:<N>` | worker, when the PR opens | In Review column, `IN REVIEW · PR #N` chip (linked). Highest `pr:` wins after a re-roll |
+| `verdict:go` / `verdict:no-go` / `verdict:fixed` | reviewer (go/no-go), worker (fixed) | chip states `GO · PR #N awaits merge` / `NO-GO · fixing` / `fixed · re-review`. Mutually exclusive — remove the old one when transitioning. Full verdict prose still goes in `bd comment` |
+| `safety:<class>` | grooming | drain safety class; **the bead label is the source of truth** — the worker copies it onto the PR at creation |
+| `effort:<S/M/L/XL>` | grooming/migration | effort estimate (beads has no effort field) |
+
+Waves and tiers are **computed** from the dependency graph — never labels.
+
+### Branches and PRs
+
+- Branch: `feature/<bead-id>-short-description` (e.g. `feature/va-3f2-checkout-webhook`).
+- PR body cites the bead: `Bead: <id>`. `Closes #N` is retired.
+- The worker copies the bead's `safety:*` label onto the PR at creation.
+- After opening the PR: `bd update <id> --add-label in-review --add-label pr:<N>`
+  and `bd comment <id> "PR: <url>"` — greppable in both directions.
+
+**Sync:** `bd dolt push/pull` writes to the git remote — operator-authorized
+only (permission `ask`); agents never sync autonomously.
+
+**Boards:** `.gembaflow-boards/{kanban,techtree}.html` are read-only
+projections, regenerated once per turn (Stop hook) + on session start +
+via `/board-refresh`. The tech tree defaults to the epic-collapsed view
+(epic = node; drill-in per epic; loose beads in the "Loose work" bucket);
+both boards have an epic filter. No agent or human edits the HTML; no
+secondary writable board exists (GitHub Projects is retired). The tree is a
+**projection** of bd state, never a target — full anti-Goodhart guardrails:
+`.claude/agents/agile-backlog-prioritizer.md` §6e. bd version pinning,
+install, and init: `docs/BEADS.md`.
 
 ---
 
@@ -168,7 +239,7 @@ TEMPLATE: Fill in project-specific details below when using this template.
 - **License**: BSL 1.1 (converts to Apache 2.0 after 3 years per release)
 - **Project Name**: [Your project name]
 - **Repository**: [GitHub repo URL]
-- **Project Board**: [GitHub project board URL]
+- **Issue Tracker**: beads (`bd`, prefix `[2-4 chars — set via scripts/init-beads.sh -p <prefix>]`) — see "Work-Item Tracking (Beads)"; boards render to `.gembaflow-boards/`
 - **Tech Stack**: [Languages, frameworks, tools]
 - **Database**: [Supabase (recommended) — provides ephemeral PR databases via branching]
 - **Organization**: [GitHub org name]
@@ -185,13 +256,17 @@ npm run build        # Production build (standalone output)
 
 ### Definition of Ready
 
-A ticket is ready when it has: clear title, description with context,
-testable acceptance criteria, effort estimate, priority label, no blockers.
+A bead is ready when it has: clear title, description with context, testable
+acceptance criteria, effort label (`effort:S/M/L/XL`), priority (P0–P3), and
+no unmet dependencies (`bd dep list <id>` clean). Note `bd ready` checks only
+open+unblocked — DoR completeness is a grooming judgment, not a query.
 
 ### Definition of Done
 
-A ticket is done when: all acceptance criteria met, code reviewed and
-approved, tests passing, no lint errors, PR merged to main.
+A bead is done when: all acceptance criteria met, GO posted (review comment +
+`verdict:go` label on the bead), tests passing, no lint errors, PR merged to
+main by a human, and the bead closed with provenance
+(`bd close <id> --reason="PR #N merged to main after GO review"`).
 
 ---
 
@@ -222,10 +297,11 @@ approved, tests passing, no lint errors, PR merged to main.
 
 | Command | Description |
 |---------|-------------|
-| `/groom-backlog` | Prioritize tickets, populate Ready |
-| `/work-ticket` | Pick up next ticket and implement |
-| `/review-pr` | Review PRs in In Review column |
-| `/review-to-tickets` | Convert /review-pr Suggestions into Backlog tickets via the prioritizer |
+| `/groom-backlog` | Groom beads: DoR, priorities, dependency wiring (`bd ready` is the outcome) |
+| `/work-ticket` | Claim the next ready bead and implement |
+| `/review-pr` | Review PRs for beads labeled in-review |
+| `/review-to-tickets` | Convert /review-pr Suggestions into backlog beads via the prioritizer |
+| `/board-refresh` | Regenerate the kanban + tech-tree HTML projections from bd state |
 | `/check-milestone` | Check milestone progress |
 | `/research` | Market research with web search |
 | `/jtbd` | Jobs-to-be-Done user analysis |

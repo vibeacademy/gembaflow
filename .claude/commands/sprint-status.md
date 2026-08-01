@@ -2,31 +2,44 @@
 description: Get current sprint status and board health overview
 ---
 
-Launch the agile-backlog-prioritizer agent to provide a quick status overview of the current sprint and project board.
+Launch the agile-backlog-prioritizer agent to provide a quick status overview of the current sprint from beads (`bd`) state.
 
 ## What This Command Does
 
 ### 1. Board Status Snapshot
-- Count tickets in each column (Backlog, Ready, In Progress, In Review, Done, Icebox)
+
+Compute the count per board concept from bd, following the canonical mapping
+in CLAUDE.md § "Work-Item Tracking (Beads)":
+
+- **Backlog** — `bd list --status=open --json -n 0`, minus the ids returned by `bd ready --json`
+- **Ready** — `bd ready --json`. This is mechanical (open + unblocked), not editorial: the count includes epics and ungroomed items. Report the raw number; when judging claimable work, filter `--type=task`.
+- **In Progress** — `bd list --status=in_progress --json -n 0`
+- **In Review** — beads carrying the `in-review` label, joined with `gh pr list --json number,title,createdAt` via their `pr:<N>` label. An open PR is the operative signal — flag any `in-review` bead whose PR is no longer open.
+- **Done** — `bd list --status=closed --all --json -n 0`
+- **Icebox** — `bd list --status=deferred --json -n 0`
+
+Then:
+
 - Identify any bottlenecks (e.g., too many items In Review)
-- Check if Ready column needs replenishment
+- Check if Ready needs replenishment (few or no `--type=task` beads unblocked)
+- Point the human at the rendered board: `.gembaflow-boards/kanban.html` (regenerates automatically; `/board-refresh` to force)
 
 ### 2. In Progress Work
-- List all tickets currently In Progress
+- List all beads currently `in_progress`
 - Check for stale items (no activity in X days)
-- Identify any blockers
+- Identify any blockers (`bd dep tree <id>` on suspicious items)
 
 ### 3. Pending Reviews
-- List all tickets/PRs In Review
+- List all in-review beads and their open PRs
 - How long have they been waiting?
 - Who needs to take action?
 
 ### 4. Recent Completions
-- Tickets moved to Done this week
+- Beads closed this week (`bd list --status=closed --all --json`, filter on `closed_at`)
 - Velocity trend
 
 ### 5. Immediate Actions Needed
-- Ready column empty? → Need grooming
+- No unblocked task beads? → Need grooming
 - Items blocked? → Need unblocking
 - PRs waiting too long? → Need review
 - Stale In Progress? → Need attention
@@ -37,38 +50,40 @@ Launch the agile-backlog-prioritizer agent to provide a quick status overview of
 ## Sprint Status: [Date]
 
 ### Board Overview
-| Column | Count | Health |
-|--------|-------|--------|
+| Board concept | Count | Health |
+|---------------|-------|--------|
 | Backlog | X | - |
-| Ready | X | OK/Low/Empty |
-| In Progress | X | OK/High |
-| In Review | X | OK/Bottleneck |
+| Ready | X | OK (>=2 task beads) / Low (1) / Empty (0) |
+| In Progress | X | OK (1-3) / High (>3) |
+| In Review | X | OK (1-2) / Bottleneck (>2) |
 | Done | X | - |
 | Icebox | X | - |
 
+Rendered board: `.gembaflow-boards/kanban.html`
+
 ### In Progress (X items)
-| Ticket | Assignee | Days | Status |
-|--------|----------|------|--------|
-| #123 Title | @user | 2 | Active |
-| #124 Title | @user | 5 | Stale |
+| Bead | Assignee | Days | Status |
+|------|----------|------|--------|
+| va-1ab Title | @user | 2 | Active |
+| va-2cd Title | @user | 5 | Stale |
 
 ### Awaiting Review (X items)
-| PR | Ticket | Days Waiting |
-|----|--------|--------------|
-| #234 | #123 | 1 |
-| #235 | #124 | 3 |
+| PR | Bead | Days Waiting |
+|----|------|--------------|
+| #234 | va-1ab | 1 |
+| #235 | va-2cd | 3 |
 
 ### Completed This Week
-- #120: Feature description
-- #121: Feature description
-- Velocity: X tickets/week
+- va-3ef: Feature description
+- va-4gh: Feature description
+- Velocity: X beads/week
 
 ### Action Items
 1. [Priority] Action needed
 2. [Priority] Action needed
 
 ### Blockers
-- #125 blocked by: [reason]
+- va-5ij blocked by: [reason]
 ```
 
 ## Usage
@@ -88,8 +103,9 @@ Launch the agile-backlog-prioritizer agent to provide a quick status overview of
 
 - `/groom-backlog` - Detailed backlog grooming session
 - `/check-milestone` - Progress toward specific milestone
-- `/work-ticket` - Pick up next ticket from Ready
+- `/work-ticket` - Claim the next ready bead
 - `/review-pr` - Review pending pull requests
+- `/board-refresh` - Force-regenerate the HTML board projections
 
 ### Output Format
 

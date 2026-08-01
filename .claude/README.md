@@ -46,8 +46,8 @@ This separation ensures quality control and prevents accidental merges.
 ### Allowed Agent Capabilities
 
 Agents CAN:
-- Create and update issues
-- Move issues between project board columns
+- Create and update beads (`bd create`, `bd update`)
+- Change bead state via `bd` (claim, label `in-review` + `pr:<N>`)
 - Create pull requests
 - Review pull requests (comment and provide recommendations)
 - Run tests and builds
@@ -57,7 +57,8 @@ Agents CAN:
 Agents CANNOT:
 - Merge pull requests (human-only)
 - Push directly to main branch (protected)
-- Move tickets to Done column (human-only)
+- Close beads (`bd close` is human/orchestrator-only, after merge confirmation)
+- Sync beads to the remote (`bd dolt push/pull` is operator-authorized)
 - Read secret files (.env, *.key, etc.)
 
 ## Bot Accounts (Optional — for Teams)
@@ -75,21 +76,20 @@ Create two bot accounts for your organization:
 Both bot accounts MUST be provisioned with the same classic-PAT scope set:
 
 ```
-repo, workflow, project, gist, read:org
+repo, workflow, gist, read:org
 ```
 
 Rationale for each scope:
 
 - `repo` — branches, PRs, issues
 - `workflow` — required to push commits that touch `.github/workflows/*`
-- `project` — board column moves and follow-up-ticket placement via `gh project item-*` / GraphQL `updateProjectV2ItemFieldValue`
 - `gist` — used by some doctor/diagnostic scripts when capturing transcripts
 - `read:org` — required for `gh auth status` to display org membership and for `gh api orgs/...` calls used by `verify-bot-permissions.sh`
 
-The reviewer bot needs `project` even though it does not author PRs, because
-when `/review-pr` files a follow-up issue, it also adds the issue to the
-project board. Without `project` scope the `gh project item-add` call
-returns 403 and the reviewer must hand off the board move to the worker.
+No `project` scope is needed: work-item tracking is beads (`bd`), which is
+local and requires no GitHub auth. The only bead operation that touches the
+remote is `bd dolt push/pull`, which rides the git origin using git
+credentials — not a PAT scope.
 
 #### Worker Bot (e.g., `{org}-worker`)
 
@@ -98,7 +98,6 @@ returns 403 and the reviewer must hand off the board move to the worker.
 **Recommended Permissions (Classic PAT):**
 - `repo` — full repository access (branches, PRs, issues)
 - `workflow` — push commits that touch `.github/workflows/*`
-- `project` — project board access (moving tickets between columns)
 - `gist` — diagnostic transcript capture
 - `read:org` — org membership lookups
 
@@ -107,19 +106,17 @@ returns 403 and the reviewer must hand off the board move to the worker.
 - Issues: Read and write
 - Pull requests: Read and write
 - Metadata: Read-only
-- Projects: Read and write
 
 **What the worker bot CAN do:**
 - Create feature branches
 - Push commits to feature branches
 - Create pull requests
-- Create and update issues
-- Move issues to In Progress and In Review
+- Claim beads and label them `in-review` + `pr:<N>` (`bd update` — local, no GitHub auth)
 
 **What the worker bot CANNOT do:**
 - Push directly to main branch (blocked by branch protection)
 - Merge pull requests (blocked by branch protection)
-- Move issues to Done column (agent policy restriction)
+- Close beads (`bd close` is human/orchestrator-only — agent policy restriction)
 
 #### Reviewer Bot (e.g., `{org}-reviewer`)
 
@@ -128,7 +125,6 @@ returns 403 and the reviewer must hand off the board move to the worker.
 **Recommended Permissions (Classic PAT):**
 - `repo` — full repository access (PR reviews, approvals)
 - `workflow` — symmetry with worker for review comments on workflow files
-- `project` — required to file follow-up tickets to the board after a review (`gh project item-add`); without this the call returns 403
 - `gist` — diagnostic transcript capture
 - `read:org` — org membership lookups
 
@@ -137,7 +133,6 @@ returns 403 and the reviewer must hand off the board move to the worker.
 - Issues: Read and write
 - Pull requests: Read and write
 - Metadata: Read-only
-- Projects: Read and write (required for approvals to count)
 
 **What the reviewer bot CAN do:**
 - Review pull requests
@@ -148,7 +143,7 @@ returns 403 and the reviewer must hand off the board move to the worker.
 **What the reviewer bot CANNOT do:**
 - Merge pull requests (agent policy restriction)
 - Push to any branch
-- Move issues to Done column (agent policy restriction)
+- Close beads (`bd close` is human/orchestrator-only — agent policy restriction)
 
 ### Human Workflow
 
@@ -194,49 +189,37 @@ gh auth status
 - Set PAT expiration and rotate regularly
 - If compromised, revoke immediately at https://github.com/settings/tokens
 
-### Remediation: Existing reviewer PATs missing `project` scope
+### Remediation: reviewer PATs and the `project` scope (RESOLVED — historical)
 
-Reviewer PATs provisioned before this change were issued with
-`gist, read:org, repo, workflow` (no `project`). Symptom: after `/review-pr`,
-`gh project item-add` returns 403 and the operator has to manually
-`gh auth switch --user {org}-worker` before every board-move.
+This remediation is retired. It existed because `/review-pr` used to file
+follow-up issues onto the GitHub project board (`gh project item-add`),
+which required the `project` scope. The board is retired in favor of beads
+(`bd`), which is local and needs no GitHub scope at all — the only bead
+operation that touches the remote is `bd dolt push/pull`, which rides the
+git origin using git credentials. PATs carrying a legacy `project` scope
+are harmless but unnecessary; new PATs should use the canonical scope set
+(`repo, workflow, gist, read:org`).
 
-To upgrade an existing reviewer PAT in-place without re-issuing:
-
-```bash
-gh auth refresh --user {org}-reviewer --scopes repo,workflow,project,gist,read:org
-```
-
-This re-runs the OAuth device flow for the existing token and adds the
-missing scope. Verify with:
-
-```bash
-gh auth status --user {org}-reviewer
-# Token scopes line should list: gist, project, read:org, repo, workflow
-```
-
-After remediation, the account-switch hook
-(`.claude/hooks/ensure-github-account.sh`) auto-routes `gh pr review` and
-`gh pr comment` to the reviewer account. Other commands — including
-`gh issue create`, `gh issue comment`, and `gh project item-*` — are
+The account-switch hook (`.claude/hooks/ensure-github-account.sh`)
+auto-routes `gh pr review` and `gh pr comment` to the reviewer account.
+Other commands — including `gh issue create` and `gh issue comment` — are
 intentionally NOT auto-routed, because command patterns can't reliably
-distinguish worker-context ticket creation (e.g. `/create-ticket`,
-`/report-issue`) from reviewer-context follow-ups. Slash commands that
-need a specific account are responsible for calling
-`gh auth switch --user {org}-reviewer` explicitly before filing follow-up
-tickets or moving items on the board.
+distinguish worker-context operations (e.g. `/report-issue`) from
+reviewer-context follow-ups. Slash commands that need a specific account
+are responsible for calling `gh auth switch --user {org}-reviewer`
+explicitly.
 
 ## Agent Policies
 
 ### github-ticket-worker
 
-Implements tickets from the Ready column. Creates feature branches and PRs.
+Claims ready beads (`bd ready`) and implements them. Creates feature branches and PRs.
 
 **Key Restrictions:**
-- Can only work on tickets in Ready column
+- Can only claim beads surfaced by `bd ready`
 - Must create feature branches (no direct main commits)
 - Cannot merge PRs
-- Cannot move tickets to Done
+- Cannot close beads
 
 ### pr-reviewer
 
@@ -245,11 +228,11 @@ Reviews PRs and provides decision support for human reviewers.
 **Key Restrictions:**
 - Cannot review its own code
 - Cannot merge PRs (provides recommendations only)
-- Cannot move tickets to Done
+- Cannot close beads
 
 ### agile-backlog-prioritizer
 
-Manages the product backlog and populates the Ready column.
+Grooms the backlog to readiness (`bd ready` is the outcome).
 
 **Key Restrictions:**
 - Cannot implement tickets (only prioritizes)

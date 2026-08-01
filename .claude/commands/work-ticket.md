@@ -1,10 +1,11 @@
 ---
-description: Pick up and work on the next ticket from the Ready column
+description: Pick up and work on the next ready ticket (bd ready)
 ---
 
 Launch the github-ticket-worker agent to implement the next prioritized ticket.
 
-> **Reference**: See `docs/TICKET-FORMAT.md` for the expected ticket format.
+> **Reference**: See `docs/TICKET-FORMAT.md` for the expected ticket format, and
+> CLAUDE.md § "Work-Item Tracking (Beads)" for the canonical board-model mapping.
 
 ## Pre-Flight Verification (REQUIRED)
 
@@ -20,8 +21,9 @@ the user if any check fails — do not continue with partial tooling.
 3. **Claude hooks are registered** — Check that hook files referenced in
    `.claude/settings.local.json` exist and are executable. WARN if any hook is
    missing or not executable.
-4. **Project board is accessible** — Attempt to read the project board. If
-   access is denied or the board does not exist, STOP and report.
+4. **Beads tracker is available** — Run `bd ready --json` and confirm it
+   returns without error, and confirm `.beads/` exists. If either fails,
+   STOP and report.
 
 ## Drain Mode Pre-Flight (REQUIRED when `DRAIN_CONTEXT` is set)
 
@@ -29,16 +31,16 @@ If `DRAIN_CONTEXT=true` is set in the environment (the signal that
 `/work-ticket` was invoked from `/drain` — the drain orchestrator),
 additionally verify:
 
-1. **Safety class is present** — Run `gh issue view <N> --json labels`
-   and confirm exactly **one** `safety:*` label is set. If zero or more
-   than one, STOP with `safety:unclassified — abort`, leave the ticket
+1. **Safety class is present** — Run `bd show <id> --json` and confirm
+   the bead's labels contain exactly **one** `safety:*` label. If zero or
+   more than one, STOP with `safety:unclassified — abort`, leave the bead
    in place, and signal the drain orchestrator to continue with the
    next ticket (greedy failure semantics — a missing classification is
    the operator's call to make, not the worker's).
 2. **Safety class is drain-eligible** — The single label must be one of
    `safety:flagged`, `safety:internal`, or `safety:reversible`. If the
    label is `safety:hot`, STOP with `safety:hot — refused by drain`,
-   leave the ticket in Ready, and signal continue. Hot tickets are a
+   leave the bead unclaimed, and signal continue. Hot tickets are a
    feature, not a failure; they wait for the operator.
 
 Standalone `/work-ticket` (when `DRAIN_CONTEXT` is unset, e.g. a human
@@ -62,18 +64,24 @@ template strings leak into runtime instructions.
 
 ## Critical Rules
 
-1. **Branch from main**: `feature/issue-{number}-short-description`
-2. **Move ticket to In Progress** on the project board before starting work
+1. **Branch from main**: `feature/<bead-id>-short-description` (e.g. `feature/va-3f2-checkout-webhook`)
+2. **Claim the bead** before starting work: `bd update <id> --claim` (atomic — two workers can never grab the same bead)
 3. **All tests must pass before pushing** — never use `--no-verify`
 4. **Monitor CI after PR creation**: `gh pr checks <PR_NUMBER> --watch` — fix failures up to 3 times
-5. **Move ticket to In Review** only when CI passes
-6. **Auto-handoff to `pr-reviewer` on green CI** — once CI is green and the ticket is in In Review, launch the `pr-reviewer` agent via the Task tool immediately. Do not pause for human approval; green CI means the human is out of the loop until the GO/NO-GO is posted. (Solo mode only — swarm mode skips this; the orchestrator handles review timing.)
+5. **Mark the bead in review** once the PR opens: `bd update <id> --add-label in-review --add-label pr:<N>` plus `bd comment <id> "PR: <url>"`
+6. **Auto-handoff to `pr-reviewer` on green CI** — once CI is green and the bead carries the `in-review` label, launch the `pr-reviewer` agent via the Task tool immediately. Do not pause for human approval; green CI means the human is out of the loop until the GO/NO-GO is posted. (Solo mode only — swarm mode skips this; the orchestrator handles review timing.)
 7. **Never merge PRs** — human reviewer does this
 8. **Never commit directly to main** — always use feature branches and PRs
+9. **Never `bd close`** — workers never close beads (critical rule 10); only the orchestrator/human path closes, after the merge is confirmed
+10. **Stale descriptions**: if the bead text contradicts repo reality, state your interpretation in the PR body and flag it for the reviewer — never silently reinterpret or blindly obey
 
 ## Workflow Steps
 
-1. **Select Ticket** — Find top priority in Ready column, verify Definition of Ready, confirm no blockers
+1. **Select Ticket** — Run `bd ready --json` and filter to tasks
+   (`bd ready --json --type=task`, or `bd ready --json | jq 'map(select(.issue_type == "task"))'`),
+   then take the highest-priority bead. Verify Definition of Ready
+   (`bd ready` is mechanical open+unblocked — it does not check DoR
+   completeness) and confirm no blockers
 2. **Validate Ticket Format** — Check the ticket body for the 4 Power Sections:
    - **A. Environment Context**, **B. Guardrails**, **C. Happy Path**, **D. Definition of Done**
    - If any section is missing or empty:
@@ -84,7 +92,8 @@ template strings leak into runtime instructions.
      3. Draft the missing sections following `docs/TICKET-FORMAT.md` exactly
      4. Present the draft to the user with a clear diff showing what was added —
         **do not proceed until the user explicitly approves**
-     5. Update the GitHub issue with the user-approved version
+     5. Append the user-approved sections with `bd note <id>` — scope
+        amendments go in notes, never description rewrites
    - If all 4 sections are present → proceed normally (no delay)
 3. **Load Context from Past Sessions** — Query Memory MCP for relevant
    institutional knowledge (silently skip if Memory MCP is not configured
@@ -97,12 +106,16 @@ template strings leak into runtime instructions.
    - Total cap: 10 entities. Summarize findings in a brief
      "Context from past sessions" note before proceeding.
    - If no relevant entities found, produce no output — proceed silently.
-4. **Setup** — Create branch, move to In Progress
+4. **Setup** — Claim the bead (`bd update <id> --claim`), then create the
+   branch: `feature/<bead-id>-short-description`
 5. **Implement** — Follow CLAUDE.md standards, write clean code, follow existing patterns
 6. **Test Locally** — Run lint and tests. Do NOT push if any fail.
 7. **Push** — If pre-push hook fails, fix and retry (see Reference below)
-8. **Create PR** — Detailed description, link to issue
-9. **Monitor CI** — Watch checks, auto-fix failures (max 3 attempts), move to In Review when green
+8. **Create PR** — Detailed description; the PR body cites `Bead: <id>`
+   (`Closes #N` is retired); copy the bead's `safety:*` label onto the PR.
+   Once the PR opens: `bd update <id> --add-label in-review --add-label pr:<N>`
+   and `bd comment <id> "PR: <url>"`
+9. **Monitor CI** — Watch checks, auto-fix failures (max 3 attempts)
 10. **Hand off to reviewer** — On green CI, launch the `pr-reviewer` agent via the Task tool with the PR number. Wait for the GO/NO-GO verdict to be posted before returning. If CI never reaches green within 3 fix attempts, do NOT hand off — leave the escalation comment per the protocol below and stop.
 
 ## Quick Fix Protocol
@@ -120,9 +133,9 @@ ceremony, use this lightweight workflow instead of the standard ticket flow.
 1. Create a branch: `fix/short-description` or `content/short-description`
 2. Implement the change
 3. Test locally — all tests must pass
-4. Push and create PR with "Quick fix — no linked ticket" in the description
-5. **Do NOT move any board items** — there is no linked ticket to move
-6. **Do NOT guess which ticket this corresponds to** — if unsure, ask the user
+4. Push and create PR with "Quick fix — no linked bead" in the description
+5. **Do NOT touch any beads** — there is no linked bead to claim or label
+6. **Do NOT guess which bead this corresponds to** — if unsure, ask the user
 
 **What Quick Fix does NOT skip:**
 - Branch requirement (never commit to main)
@@ -134,7 +147,7 @@ ceremony, use this lightweight workflow instead of the standard ticket flow.
 
 ```
 /work-ticket
-/work-ticket #123
+/work-ticket va-3f2
 ```
 
 ---
@@ -191,7 +204,7 @@ what's failing, and recommended next steps.
 
 ### Workflow Rules
 
-- Only work on tickets from the Ready column
+- Only work on beads surfaced by `bd ready` (filtered to `--type=task`)
 - One ticket at a time (no parallel work)
 - Agent is responsible for delivering a clean, CI-passing PR
 
@@ -200,22 +213,22 @@ what's failing, and recommended next steps.
 Report each step with a Progress Line, then end your output with a Result Block:
 
 ```
-→ Moved #21 to In Progress
-→ Created branch: feature/issue-21-health-check
+→ Claimed va-21 (bd update --claim)
+→ Created branch: feature/va-21-health-check
 → Implemented health check endpoint
 → Tests passing (3/3)
 → Pushed to origin
-→ Created PR #108
+→ Created PR #108 (Bead: va-21, safety label copied)
+→ Labeled va-21 in-review + pr:108, commented PR URL
 → CI green (1 fix attempt: ruff)
-→ Moved #21 to In Review
 → Handed off to pr-reviewer (GO posted)
 
 ---
 
 **Result:** PR created and reviewed
 PR: #108 — feat: add health check endpoint
-Branch: feature/issue-21-health-check
-Ticket: #21 — moved to In Review
+Branch: feature/va-21-health-check
+Bead: va-21 — labeled in-review + pr:108
 CI: green
 Review: GO posted by pr-reviewer
 ```
@@ -223,15 +236,17 @@ Review: GO posted by pr-reviewer
 If CI does not reach green within 3 fix attempts, the handoff is skipped and the Result Block reflects the escalation instead:
 
 ```
-→ Created PR #108
+→ Created PR #108 (Bead: va-21, safety label copied)
+→ Labeled va-21 in-review + pr:108, commented PR URL
 → CI failed (3 fix attempts exhausted)
 → Posted escalation comment on PR
-→ Ticket #21 left in In Progress
+→ Bead va-21 left claimed — awaiting human
 
 ---
 
 **Result:** PR created — escalated, no handoff
 PR: #108 — feat: add health check endpoint
+Bead: va-21 — claimed, awaiting human
 CI: red after 3 attempts (test failure: <summary>)
 Review: not started — awaiting human
 ```

@@ -2,7 +2,10 @@
 description: Create a well-structured ticket that meets Definition of Ready
 ---
 
-Create a new ticket on the project board with guided workflow.
+Create a new bead in the beads (`bd`) tracker with guided workflow.
+
+> **Reference**: CLAUDE.md § "Work-Item Tracking (Beads)" is the canonical
+> board-model mapping and holds the label vocabulary.
 
 ## Pre-Flight Verification (REQUIRED)
 
@@ -15,26 +18,39 @@ if any check fails — do not continue with partial tooling.
 2. **GitHub account is correct** — Run `gh auth status` and confirm the active
    account matches the expected worker/bot account. If only a personal account
    is active, STOP and instruct the user to run `scripts/ensure-github-account.sh`.
-3. **Project board is accessible** — Attempt to read the project board. If
-   access is denied or the board does not exist, STOP and report.
+3. **Beads tracker is available** — Run `command -v bd` and confirm `.beads/`
+   exists. If either fails, STOP and report.
 
 ## Critical Rules
 
-1. **Every ticket must meet Definition of Ready** before being added to the board
-2. **Use the board configuration** from the project's GitHub Project settings
-3. **Never create duplicate tickets** — search existing issues first
-4. **Assign appropriate priority** (P0 = critical, P1 = important, P2 = nice to have)
+1. **Every ticket must meet Definition of Ready** before it is created
+2. **New beads start open and ungroomed — that IS the backlog.** There is no
+   placement step; a bead becomes ready mechanically once it is unblocked and
+   groomed (Ready is computed, never curated)
+3. **Never create duplicate tickets** — search existing beads first
+   (`bd list --json` + text match, or `bd search "<terms>"`)
+4. **Assign appropriate priority** with `-p <0-3>` (0 = critical, 1 = important, 2 = nice to have, 3 = someday)
 
 ## Workflow
 
 1. **Understand** — Ask clarifying questions about the feature/fix/task
 2. **Gather Context** — Read `docs/TECHNICAL-ARCHITECTURE.md` and `docs/PRODUCT-REQUIREMENTS.md` to pre-populate Environment Context and Guardrails
-3. **Research** — Search existing issues to avoid duplicates, check related code
+3. **Research** — Search existing beads to avoid duplicates
+   (`bd list --json` + text match, or `bd search "<terms>"`), check related code
 4. **Draft** — Write the ticket following the template below
 5. **Scope Check** — If effort estimate is XL or the happy path has multiple branch points, suggest decomposition before creating
 6. **Review** — Present the draft to the user for approval
-7. **Create** — Create the GitHub issue and add it to the project board
-8. **Categorize** — Set priority, size estimate, and move to Backlog
+7. **Create** — `bd create "<title>" --type=<task|bug|epic|decision|spike> -p <0-3> --labels <comma-separated>`,
+   passing the description via `--body-file <path>` (or `-d` for short bodies).
+   The new bead starts open and ungroomed — that is the backlog; there is no
+   placement step
+8. **Categorize** — Add labels: `effort:<S/M/L/XL>` (beads has no effort
+   field), plus `track:<name>` / `campaign:<slug>` where applicable. Flag
+   human-gated work with the `human-ops` label and
+   `bd note <id> "Operator: <exact manual action>"`. Wire dependencies known
+   at creation with `--deps blocks:<id>`, or post-create with
+   `bd dep add <blocked> --blocked-by <blocker>` (explicit direction — never
+   bare `bd link`; after wiring, `bd dep cycles --json` must return `[]`)
 
 ## Ticket Format
 
@@ -79,8 +95,9 @@ End your output with a Result Block:
 ---
 
 **Result:** Ticket created
-Issue: #45 — feat: add health check endpoint
-Priority: P1
-Size: S
-Column: Backlog
+Bead: va-45 — feat: add health check endpoint
+Type: task
+Priority: p1
+Effort: S
+Status: open, ungroomed (backlog)
 ```

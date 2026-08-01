@@ -24,8 +24,8 @@
 14. [GitHub Actions: Graceful Secret Gating](#14-github-actions-graceful-secret-gating)
 15. [GitHub Actions: CI Checks Not Attaching to PR](#15-github-actions-ci-checks-not-attaching-to-pr)
 16. [GitHub Actions: Reusable Workflow Missing workflow_call](#16-github-actions-reusable-workflow-missing-workflow_call)
-17. [GitHub Projects: Labels vs Board Columns](#17-github-projects-labels-vs-board-columns)
-18. [GitHub Projects: CLI Truncation at 30 Items](#18-github-projects-cli-truncation-at-30-items)
+17. [GitHub Projects: Labels vs Board Columns](#17-github-projects-labels-vs-board-columns) — RETIRED (historical)
+18. [GitHub Projects: CLI Truncation at 30 Items](#18-github-projects-cli-truncation-at-30-items) — RETIRED (historical)
 19. [GitHub: Account Switching for Multi-Agent Workflows](#19-github-account-switching-for-multi-agent-workflows)
 20. [GitHub MCP Server vs gh CLI for Agent Workflows](#20-github-mcp-server-vs-gh-cli-for-agent-workflows)
 21. [Python: Async Functions That Block the Event Loop](#21-python-async-functions-that-block-the-event-loop)
@@ -529,53 +529,47 @@ on:
 
 ## 17. GitHub Projects: Labels vs Board Columns
 
+> **RETIRED (historical)** — the GitHub Project board is retired for beads
+> (`bd`); the label/column confusion no longer applies because bead state
+> and labels are the only mechanism. Kept as evidence of why the board
+> needed ~420 lines of hygiene protocol.
+
 **Gotcha:** GitHub has two completely separate systems — **labels** (metadata
 tags on issues) and **columns** (workflow state on project boards). Using
 `gh issue edit --add-label Ready` does NOT move an item to the "Ready" column.
 
-**Wrong:**
+**Wrong (historical):**
 
 ```bash
 # This adds a label, does NOT move on the board
 gh issue edit 79 --add-label Ready
 ```
 
-**Correct:**
+The historical "correct" fix was a two-step GraphQL dance (`gh api graphql`
+to find the item id, then an `updateProjectV2ItemFieldValue` mutation to move
+the column). **The bd equivalent** needs neither labels-vs-columns awareness
+nor GraphQL — state is state, and Ready is computed, not a column anyone
+moves items into:
 
 ```bash
-# Get the item ID from the project board
-ITEM_ID=$(gh api graphql -f query='
-  query {
-    organization(login: "myorg") {
-      projectV2(number: 13) {
-        items(first: 100) {
-          nodes {
-            id
-            content { ... on Issue { number } }
-          }
-        }
-      }
-    }
-  }' | jq -r '.data.organization.projectV2.items.nodes[]
-    | select(.content.number == 79) | .id')
+# In Progress is a claim, not a column move
+bd update va-79a --claim
 
-# Move the item to "Ready" column
-gh api graphql -f query='
-  mutation {
-    updateProjectV2ItemFieldValue(input: {
-      projectId: "PVT_xxx"
-      itemId: "'"$ITEM_ID"'"
-      fieldId: "PVTSSF_xxx"
-      value: { singleSelectOptionId: "option_id_for_ready" }
-    }) { projectV2Item { id } }
-  }'
+# In Review is a label pair, applied when the PR opens
+bd update va-79a --add-label in-review --add-label pr:108
+
+# Ready is never written at all - bd ready computes open+unblocked
+bd ready --json
 ```
 
-**Prevention:** Never create labels with the same names as board columns.
+**Prevention:** none needed — the failure mode no longer exists.
 
 ---
 
 ## 18. GitHub Projects: CLI Truncation at 30 Items
+
+> **RETIRED (historical)** — board retired for beads; this gotcha is part
+> of why. Kept as evidence.
 
 **Gotcha:** `gh project item-list` silently returns only the first 30 items
 with **no truncation warning**. Boards with more items appear complete but
@@ -622,7 +616,7 @@ if [ "$CURRENT" != "va-worker" ]; then
 fi
 
 # Now safe to push and create PR
-git push -u origin feature/issue-42-add-auth
+git push -u origin feature/va-42a-add-auth
 gh pr create --title "feat(auth): add magic link flow"
 ```
 
@@ -644,12 +638,10 @@ multi-account setups:
 # gh CLI respects account switching
 gh auth switch --user va-reviewer
 gh pr review 42 --approve --body "LGTM"
-
-# For project board mutations, use curl + PAT
-curl -s -X POST https://api.github.com/graphql \
-  -H "Authorization: bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}" \
-  -d '{"query": "mutation { ... }"}'
 ```
+
+(Work-item state changes go through the local `bd` CLI, which needs no
+GitHub auth at all — the account question only arises for `gh` operations.)
 
 Remove the GitHub MCP server from `.mcp.json` if using multi-account workflows.
 

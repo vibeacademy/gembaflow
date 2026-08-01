@@ -7,7 +7,7 @@ Comprehensive reference for the Gemba Flow agent-powered development workflow.
 1. [Core Principles](#core-principles)
 2. [The Three Agents](#the-three-agents)
 3. [The Workflow](#the-workflow)
-4. [Project Board Columns](#project-board-columns)
+4. [Work-Item States (Beads)](#work-item-states-beads)
 5. [Epic and Sub-Issue Structure](#epic-and-sub-issue-structure)
 6. [Quality Gates](#quality-gates)
 7. [Key Documents Reference](#key-documents-reference)
@@ -26,8 +26,8 @@ Each agent has distinct responsibilities with explicit boundaries:
 
 | Agent | Responsibility | Cannot Do |
 |-------|---------------|-----------|
-| github-ticket-worker | Implementation | Merge PRs, move to Done |
-| pr-reviewer | Code review | Merge PRs, move to Done |
+| github-ticket-worker | Implementation | Merge PRs, close beads |
+| pr-reviewer | Code review | Merge PRs, close beads |
 | agile-backlog-prioritizer | Backlog grooming | Implementation, reviews |
 
 This separation ensures no single agent can complete a change end-to-end without human oversight.
@@ -37,7 +37,7 @@ This separation ensures no single agent can complete a change end-to-end without
 Critical actions require human execution:
 
 - **Merging PRs** - Only humans click the merge button
-- **Moving to Done** - Only humans mark work complete
+- **Closing beads** - Only the human/orchestrator path runs `bd close`, after confirming the merge
 - **Production deployment** - Only humans approve releases
 - **Token rotation** - Only humans manage credentials
 
@@ -93,17 +93,17 @@ When in doubt, agents:
 
 **Capabilities**:
 
-- Read tickets from Ready column
+- Claim beads from `bd ready` (`bd update <id> --claim`)
 - Create feature branches
 - Write code and tests
-- Create pull requests
-- Move tickets to In Progress and In Review
+- Create pull requests (body cites `Bead: <id>`)
+- Label beads `in-review` + `pr:<N>` when the PR opens
 
 **Restrictions**:
 
 - NEVER merge pull requests
 - NEVER push directly to main
-- NEVER move tickets to Done
+- NEVER close beads (`bd close` is human/orchestrator-only)
 - NEVER deploy to production
 
 **Workflow Position**: Stage 1 of 3
@@ -127,9 +127,7 @@ When in doubt, agents:
 **Restrictions**:
 
 - NEVER merge pull requests
-- NEVER approve PRs (only comment)
-- NEVER move tickets to Done
-- NEVER close issues
+- NEVER close beads
 
 **Workflow Position**: Stage 2 of 3
 
@@ -146,7 +144,7 @@ When in doubt, agents:
 - Read product requirements
 - Analyze backlog health
 - Prioritize using CD3
-- Recommend tickets for Ready
+- Groom beads to readiness (`bd ready` is the outcome)
 - Identify stale or blocked items
 
 **Restrictions**:
@@ -188,10 +186,10 @@ When in doubt, agents:
 1. Agent reads product requirements and roadmap
 2. Agent analyzes current backlog health
 3. Agent applies CD3 prioritization
-4. Agent recommends tickets for Ready column
-5. Human reviews and approves moves
+4. Agent completes Definition of Ready and wires/clears dependencies so beads become ready
+5. Human reviews and approves the grooming
 
-**Outcome**: Ready column has 2-5 well-defined tickets
+**Outcome**: `bd ready` surfaces 2-5 well-defined beads
 
 ### Phase 2: Implementation
 
@@ -200,15 +198,14 @@ When in doubt, agents:
 **Steps**:
 
 1. Agent switches to worker bot account
-2. Agent picks top ticket from Ready column
-3. Agent moves ticket to In Progress
-4. Agent creates feature branch
-5. Agent implements solution
-6. Agent writes tests
-7. Agent creates pull request
-8. Agent moves ticket to In Review
+2. Agent claims the top bead from `bd ready` (`bd update <id> --claim` — atomic)
+3. Agent creates feature branch
+4. Agent implements solution
+5. Agent writes tests
+6. Agent creates pull request (body cites `Bead: <id>`)
+7. Agent labels the bead `in-review` + `pr:<N>` and comments the PR URL
 
-**Outcome**: PR created, ticket in In Review
+**Outcome**: PR created, bead labeled `in-review`
 
 ### Phase 3: Code Review
 
@@ -235,109 +232,31 @@ When in doubt, agents:
 2. Human performs final review
 3. Human approves PR
 4. Human merges PR
-5. Human moves ticket to Done
+5. Bead is closed with provenance (`bd close <id> --reason="PR #N merged to main after GO review"`) — only after `gh pr view <N> --json state,mergedAt` confirms the merge
 
-**Outcome**: Code merged, ticket complete
+**Outcome**: Code merged, bead closed
 
 ---
 
-## Project Board Columns
+## Work-Item States (Beads)
 
-### Icebox
+Work items are beads (`bd`); GitHub Projects is retired. The canonical
+board-model mapping — how Icebox / Backlog / Ready / In Progress /
+In Review / Done translate into bead states, labels, and commands —
+lives in CLAUDE.md § "Work-Item Tracking (Beads)", together with the
+label vocabulary and branch/PR conventions. Reference it there; do not
+duplicate it.
 
-**Purpose**: Ideas and features not yet prioritized
+What this document adds is **claim discipline** — the WIP limits that
+used to be column caps:
 
-**Entry Criteria**:
-
-- Feature request submitted
-- Not aligned with current roadmap phase
-
-**Exit Criteria**:
-
-- Prioritized in grooming session
-- Moves to Backlog
-
-**WIP Limit**: None
-
-### Backlog
-
-**Purpose**: Prioritized work not yet ready for development
-
-**Entry Criteria**:
-
-- Aligned with product roadmap
-- Has basic description
-
-**Exit Criteria**:
-
-- Meets Definition of Ready
-- Moves to Ready
-
-**WIP Limit**: None (prioritized order)
-
-### Ready
-
-**Purpose**: Well-defined tickets ready for implementation
-
-**Entry Criteria**:
-
-- Clear, specific title
-- Detailed description
-- Acceptance criteria defined
-- Effort estimated
-- No blockers
-
-**Exit Criteria**:
-
-- Picked up by `/work-ticket`
-- Moves to In Progress
-
-**WIP Limit**: 2-5 tickets
-
-### In Progress
-
-**Purpose**: Work currently being implemented
-
-**Entry Criteria**:
-
-- Picked up via `/work-ticket`
-- Feature branch created
-
-**Exit Criteria**:
-
-- PR created
-- Moves to In Review
-
-**WIP Limit**: 1 per developer
-
-### In Review
-
-**Purpose**: PRs awaiting review and merge
-
-**Entry Criteria**:
-
-- PR created
-- CI passing
-
-**Exit Criteria**:
-
-- Human merges PR
-- Moves to Done
-
-**WIP Limit**: 2-3 PRs
-
-### Done
-
-**Purpose**: Completed work
-
-**Entry Criteria**:
-
-- PR merged
-- Ticket closed (by human)
-
-**Exit Criteria**: None (archive after sprint)
-
-**WIP Limit**: None
+- Keep 2-5 groomed beads ready at a time; groom more only when
+  `bd ready` drains.
+- One claim per worker: hold at most one claimed bead, and finish it
+  (PR open, `in-review` + `pr:<N>` labels applied) before claiming
+  another.
+- Keep 2-3 PRs in review at a time; when more pile up, review and merge
+  before claiming new work.
 
 ---
 
@@ -434,7 +353,7 @@ A ticket is done when:
 | PR merged | Human merged to main |
 | Deployed | In target environment (if applicable) |
 | Documented | README/docs updated (if needed) |
-| Ticket closed | Human moved to Done |
+| Bead closed | Closed with provenance after the merge is confirmed |
 
 ---
 
@@ -461,7 +380,7 @@ A ticket is done when:
 |----------|---------|
 | `.claude/commands/work-ticket.md` | Work ticket command |
 | `.claude/commands/review-pr.md` | Review PR command |
-| `.claude/commands/review-to-tickets.md` | Convert review Suggestions into Backlog tickets |
+| `.claude/commands/review-to-tickets.md` | Convert review Suggestions into backlog beads |
 | `.claude/commands/groom-backlog.md` | Groom backlog command |
 
 ### Product Documentation
@@ -491,9 +410,11 @@ A ticket is done when:
 
 ## MCP Servers
 
-Agents require three MCP servers: `github` (issues, PRs, project board),
-`memory` (persistent context), and `sequential-thinking` (structured
-reasoning). See [README.md > MCP Servers](../README.md#mcp-servers-required)
+Agents require two MCP servers: `memory` (persistent context) and
+`sequential-thinking` (structured reasoning). GitHub operations (PRs,
+reviews) use the `gh` CLI, and work-item tracking uses the local `bd`
+CLI — neither needs an MCP server.
+See [README.md > MCP Servers](../README.md#mcp-servers-required)
 for setup instructions and the `.mcp.json` configuration.
 
 ---
@@ -502,7 +423,7 @@ for setup instructions and the `.mcp.json` configuration.
 
 ### /work-ticket
 
-**Purpose**: Pick up and implement next ticket from Ready.
+**Purpose**: Claim and implement the next ready bead.
 
 **Usage**: `/work-ticket`
 
@@ -510,15 +431,15 @@ for setup instructions and the `.mcp.json` configuration.
 
 1. Launches github-ticket-worker agent
 2. Agent switches to worker bot account
-3. Finds top ticket in Ready column
+3. Claims the top bead from `bd ready`
 4. Creates feature branch
 5. Implements solution
 6. Creates PR
-7. Moves ticket to In Review
+7. Labels the bead `in-review` + `pr:<N>`
 
 ### /review-pr
 
-**Purpose**: Review PRs in In Review column.
+**Purpose**: Review PRs for beads labeled `in-review`.
 
 **Usage**: `/review-pr`
 
@@ -532,7 +453,7 @@ for setup instructions and the `.mcp.json` configuration.
 6. Provides GO/NO-GO recommendation
 7. **If review contains non-blocking Suggestions**, auto-hands off to
    `agile-backlog-prioritizer` (Task tool, fire-and-forget) — the prioritizer
-   files chosen tickets to Backlog and posts a scope-impact summary comment
+   files chosen beads to the backlog and posts a scope-impact summary comment
    on the PR. See `/review-to-tickets` for the manual escape hatch.
 
 ### /review-to-tickets
@@ -548,10 +469,10 @@ retroactive backfill, re-runs, and cross-repo invocations.
 1. Parses the most recent `/review-pr` template comment on the target PR
 2. Detects idempotency marker `<!-- review-to-tickets:source=#N -->` and
    subtracts previously-filed findings
-3. Drafts candidate tickets per non-blocking Suggestion
+3. Drafts candidate beads per non-blocking Suggestion
 4. Delegates per-finding decisions (file / dedupe / drop) to
    `agile-backlog-prioritizer`
-5. Prioritizer files chosen tickets to Backlog and posts a structured summary
+5. Prioritizer files chosen beads to the backlog and posts a structured summary
    comment on the source PR with a scope-impact verdict
 
 This command does NOT prompt the operator with a y/n confirmation per
@@ -561,7 +482,7 @@ flags scope expansion for the next `/groom-backlog` pass.
 
 ### /groom-backlog
 
-**Purpose**: Prioritize backlog and populate Ready.
+**Purpose**: Groom beads — DoR, priorities, dependency wiring (`bd ready` is the outcome).
 
 **Usage**: `/groom-backlog`
 
@@ -571,7 +492,7 @@ flags scope expansion for the next `/groom-backlog` pass.
 2. Reads product requirements
 3. Analyzes backlog health
 4. Applies CD3 prioritization
-5. Recommends tickets for Ready
+5. Completes DoR and wires dependencies so beads become ready
 6. Reports backlog status
 
 ### /sprint-status
@@ -582,9 +503,9 @@ flags scope expansion for the next `/groom-backlog` pass.
 
 **What Happens**:
 
-1. Counts tickets per column
+1. Counts beads per state (open / ready / claimed / in-review / closed)
 2. Identifies stale items
-3. Reports WIP violations
+3. Reports claim-discipline violations
 4. Suggests next actions
 
 ### /check-milestone
@@ -646,14 +567,14 @@ Product Manager Agent:
 
 #### Step 2: Epic Creation
 
-Human creates epic with sub-issues:
+Human creates an epic bead (`--type=epic`) with child beads (`--parent`):
 
-- Epic #50: User Authentication
-  - #51: Create user model and database schema
-  - #52: Implement registration flow
-  - #53: Implement login flow
-  - #54: Add session management
-  - #55: Write integration tests
+- Epic va-a50: User Authentication
+  - va-a51: Create user model and database schema
+  - va-a52: Implement registration flow
+  - va-a53: Implement login flow
+  - va-a54: Add session management
+  - va-a55: Write integration tests
 
 #### Step 3: Backlog Grooming
 
@@ -661,9 +582,9 @@ Human creates epic with sub-issues:
 Human: /groom-backlog
 
 Backlog Prioritizer Agent:
-- Ready column: 1 item (low)
-- Recommendation: Move #51 to Ready
-- #51 meets Definition of Ready
+- bd ready: 1 bead (low)
+- Groomed va-a51 to readiness
+- va-a51 meets Definition of Ready
 - No blockers identified
 ```
 
@@ -673,12 +594,11 @@ Backlog Prioritizer Agent:
 Human: /work-ticket
 
 Worker Agent (as va-worker):
-- Picking up #51: Create user model
-- Creating branch: feature/issue-51-user-model
-- Moving ticket to In Progress
+- Claiming va-a51: Create user model (bd update va-a51 --claim)
+- Creating branch: feature/va-a51-user-model
 - [implements solution]
-- Creating PR #60
-- Moving ticket to In Review
+- Creating PR #60 (body: Bead: va-a51)
+- Labeling va-a51 in-review + pr:60
 ```
 
 #### Step 5: Code Review
@@ -704,7 +624,8 @@ Human actions:
 2. Performs final review
 3. Clicks "Approve"
 4. Clicks "Squash and merge"
-5. Moves #51 to Done
+5. Closes the bead:
+   bd close va-a51 --reason="PR #60 merged to main after GO review"
 ```
 
 #### Step 7: Verification
@@ -724,9 +645,10 @@ Human actions:
 
 ## Troubleshooting
 
-### Ready Column is Empty
+### Nothing Is Ready (`bd ready` Is Empty)
 
-**Symptom**: No tickets available for `/work-ticket`
+**Symptom**: No beads available for `/work-ticket` (`bd ready` is empty
+after filtering)
 
 **Solution**:
 
@@ -734,7 +656,8 @@ Human actions:
 /groom-backlog
 ```
 
-This will prioritize backlog and move tickets to Ready.
+This grooms beads — completing Definition of Ready and wiring or
+clearing dependencies — so work becomes ready.
 
 ### PR Review Not Posted
 
@@ -754,7 +677,7 @@ gh auth switch --user {org}-reviewer
 gh auth status
 
 # Check token scopes
-# Needs: repo, project, workflow, read:org
+# Needs: repo, workflow, gist, read:org
 ```
 
 ### Agent Uses Wrong Account
@@ -830,9 +753,9 @@ gh auth switch --user {org}-worker
 1. Fix any violations found
 1. Document incident
 
-### Ticket Stuck in Progress
+### Bead Stuck In Progress
 
-**Symptom**: Ticket hasn't moved for days
+**Symptom**: A claimed bead hasn't moved for days
 
 **Causes**:
 
@@ -842,9 +765,9 @@ gh auth switch --user {org}-worker
 
 **Solution**:
 
-1. Check for open PR linked to ticket
+1. Check for an open PR linked to the bead (`pr:<N>` label, `bd comment` with the PR URL)
 2. Review agent conversation history
-3. Manually move ticket if needed
+3. Manually update the bead if needed (`bd update <id>` — never `bd edit`, it hangs agents)
 4. Re-run `/work-ticket` if stuck
 
 ---
