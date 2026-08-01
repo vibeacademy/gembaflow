@@ -1,5 +1,5 @@
 {
-  "$comment": "Board-projection config read by scripts/render-boards.mjs. This file is fork-owned: the framework ships it once with placeholder values and template-sync never overwrites it. Every field degrades gracefully when null.",
+  "$comment": "Board-projection config read by scripts/render-boards.mjs. This file is fork-owned: the framework ships it once with placeholder values and template-sync never overwrites it. Every field degrades gracefully when null. The kanban is the headline board; the tech tree is experimental and projection-only — never a target (anti-Goodhart rules: docs/BEADS-CONVENTIONS.md).",
   "$comment.campaign": "Slug scoping the tech tree and enabling the kanban campaign filter; matches beads labeled campaign:<slug>. null = tech tree shows the full open dependency graph.",
   "$comment.title": "Project name shown in the board page titles (e.g. 'My Project — Kanban'). null = generic 'Kanban — the beads board' / 'Tech Tree — the beads DAG' titles.",
   "$comment.phaseLabel": "Eyebrow line above the board title (e.g. 'product build — foundation phase'). null = 'beads board' / 'beads DAG'.",

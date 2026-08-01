@@ -14,10 +14,11 @@ Set up the beads (`bd`) work tracker, branch protection, and create the initial 
 This is the final bootstrap phase. It activates the full agent workflow.
 
 > **Reference**: CLAUDE.md § "Work-Item Tracking (Beads)" is the canonical
-> board-model mapping AND the label vocabulary (`safety:*`, `effort:*`,
-> `verdict:*`, `campaign:*`, `track:*`, `human-ops`, `in-review` + `pr:<N>`).
-> docs/BEADS.md holds the pin/init/upgrade conventions. Reference them —
-> never restate them.
+> board-model mapping; docs/BEADS-CONVENTIONS.md is the canonical label
+> vocabulary (`safety:*`, `effort:*`, `verdict:*`, `campaign:*`,
+> `track:*`, `human-ops`, `in-review` + `pr:<N>`) and branch/PR
+> conventions. docs/BEADS.md holds the pin/init/upgrade conventions.
+> Reference them — never restate them.
 
 **Migrating an existing fork off GitHub Projects?** This phase is for
 standing up a NEW workflow. An existing fork with open GitHub issues runs
@@ -62,7 +63,7 @@ Then verify the render hook: after the first real `bd` mutation,
 
 ### 2. Label Vocabulary + GitHub-Side Safety Registry
 
-The full label vocabulary lives in CLAUDE.md § "Work-Item Tracking (Beads)":
+The full label vocabulary lives in docs/BEADS-CONVENTIONS.md:
 `safety:<class>`, `effort:<S/M/L/XL>`, `verdict:go|no-go|fixed`,
 `campaign:<slug>`, `track:<name>`, `human-ops`, `in-review` + `pr:<N>`.
 Bead labels are free-form strings — nothing to seed on the bd side.

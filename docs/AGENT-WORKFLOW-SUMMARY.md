@@ -243,9 +243,9 @@ When in doubt, agents:
 Work items are beads (`bd`); GitHub Projects is retired. The canonical
 board-model mapping — how Icebox / Backlog / Ready / In Progress /
 In Review / Done translate into bead states, labels, and commands —
-lives in CLAUDE.md § "Work-Item Tracking (Beads)", together with the
-label vocabulary and branch/PR conventions. Reference it there; do not
-duplicate it.
+lives in CLAUDE.md § "Work-Item Tracking (Beads)"; the label vocabulary
+and branch/PR conventions live in `docs/BEADS-CONVENTIONS.md`. Reference
+them there; do not duplicate them.
 
 What this document adds is **claim discipline** — the WIP limits that
 used to be column caps:

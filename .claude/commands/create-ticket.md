@@ -5,7 +5,8 @@ description: Create a well-structured ticket that meets Definition of Ready
 Create a new bead in the beads (`bd`) tracker with guided workflow.
 
 > **Reference**: CLAUDE.md § "Work-Item Tracking (Beads)" is the canonical
-> board-model mapping and holds the label vocabulary.
+> board-model mapping; `docs/BEADS-CONVENTIONS.md` holds the canonical
+> label vocabulary.
 
 ## Pre-Flight Verification (REQUIRED)
 

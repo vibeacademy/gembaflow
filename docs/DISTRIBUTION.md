@@ -61,6 +61,7 @@ Content **outside** markers in hybrid files is user-owned. Content
 |------|----------|-----------|-----------------|
 | `.claude/agents/*.md` | hybrid | Framework persona + restrictions in marked sections; user-supplied project specialization outside markers | Update marked sections only |
 | `.claude/commands/*.md` | framework | Slash commands ship with template | Overwrite |
+| `.claude/commands/bootstrap-agents/**` | framework | Platform-flavor agent template sources consumed by `/bootstrap-agents` (the generated `.claude/agents/*.md` output is hybrid; these sources are pure framework) | Overwrite |
 | `.claude/hooks/ensure-github-account.sh` | framework | Account-switching hook | Overwrite |
 | `.claude/hooks/render-boards-on-bd.sh` | framework | Board-projection regen hook (Stop + SessionStart) | Overwrite |
 | `.claude/skills/commit.md` | framework | Commit conventions | Overwrite |
@@ -110,6 +111,11 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `scripts/__tests__/check-merge-gate.test.mjs` | framework | Merge-gate condition tests (fixture PR JSON) | Overwrite |
 | `scripts/write-drain-state.mjs` | framework | Schema-validated drain state writer (rejects off-schema fields) | Overwrite |
 | `scripts/__tests__/write-drain-state.test.mjs` | framework | Drain state-writer tests | Overwrite |
+| `scripts/migrate-issues-to-beads.sh` | framework | Opt-in GitHub Issues → beads fork migrator (dry-run default, idempotent by external-ref) | Overwrite |
+| `scripts/__tests__/migrate-issues-to-beads.test.mjs` | framework | Migrator tests (stubbed `bd`/`gh` on PATH) | Overwrite |
+| `scripts/fixtures/beads-migration/**` | framework | Migrator test fixtures (issues export + stub `bd`/`gh`) | Overwrite |
+| `scripts/lib/legacy-github-projects.sh` | framework | One-release GitHub-Projects compatibility-flag reader (deprecation warning on every enabled read) | Overwrite |
+| `scripts/__tests__/legacy-github-projects.test.mjs` | framework | Compatibility-flag reader tests | Overwrite |
 
 ## `docs/`
 
@@ -134,6 +140,7 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `docs/GETTING-STARTED.md` | framework | Onboarding guide | Overwrite |
 | `docs/UPGRADING.md` | framework | Upgrade guide for participants | Overwrite |
 | `docs/BEADS.md` | framework | bd (beads) dependency management — pin, install, init, upgrade procedure | Overwrite |
+| `docs/BEADS-CONVENTIONS.md` | framework | Canonical beads label vocabulary + agent/renderer conventions (hygiene, branches/PRs, boards, honest limits) | Overwrite |
 | `docs/testing/agent-restriction-tests.md` | framework | Test documentation | Overwrite |
 | `docs/PRODUCT-REQUIREMENTS.md` | user-content | Bootstrap-generated, user-owned | Never touch |
 | `docs/PRODUCT-ROADMAP.md` | user-content | Bootstrap-generated, user-owned | Never touch |
