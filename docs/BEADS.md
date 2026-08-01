@@ -1,7 +1,10 @@
 # Beads (bd) Dependency Management
 
 How the framework pins, installs, initializes, and upgrades the
-[beads](https://github.com/gastownhall/beads) issue tracker (`bd`).
+[beads](https://github.com/gastownhall/beads) issue tracker (`bd`). For the
+label vocabulary and agent/renderer conventions, see
+`docs/BEADS-CONVENTIONS.md` (canonical); for the board-model mapping, see
+CLAUDE.md § "Work-Item Tracking (Beads)".
 
 ## Why a hard pin
 
@@ -103,6 +106,14 @@ files, and `.beads-credential-key`. bd also writes its own committed
 in depth. Because the root block already contains the patterns `bd init`
 checks for, init does not append to the user area of `.gitignore`.
 
+**Branch switching vs the committed `issues.jsonl` (adoption gotcha, report
+§4 item 7):** auto-export rewrites `.beads/issues.jsonl` on every bd
+mutation, so the working tree is dirty most of the time and `git checkout`
+will refuse to switch branches over it. This is expected, not a bug. Stash
+the mirror across branch switches (`git stash push .beads/issues.jsonl`),
+or commit it only at deliberate sync points — never `checkout -f` over it,
+and never hand-edit it to make the diff go away.
+
 ## Sync stays gated
 
 `bd dolt push` / `bd dolt pull` write against the git remote (a hidden ref)
@@ -155,6 +166,14 @@ and a loud verification gate (count match + `bd dep cycles --json` empty +
 - **Outputs** land in `reports/beads-migration/`: the dated export JSON, the
   `id-map.tsv` GH→bead mapping, and the migration log.
 - After a successful run the operator syncs deliberately: `bd dolt push`.
+- **Migrated descriptions rot** (report §4, item 8): a body written against
+  a months-old repo state will eventually contradict reality. The worker
+  protocol already carries the countermeasure — when a bead's text
+  contradicts the repo, the worker states its interpretation in the PR body
+  and flags it for the reviewer to judge
+  (`.claude/agents/github-ticket-worker.md`, NON-NEGOTIABLE rule 7). Do not
+  "fix" rot by rewriting descriptions; use `bd note` (mechanical-hygiene
+  rule 4, `docs/BEADS-CONVENTIONS.md`).
 
 ## GitHub-Projects compatibility flag (DEPRECATED — one release)
 

@@ -44,6 +44,9 @@ Last render: <last line of render.log>
 
 - The boards are read-only projections; beads (`bd`) is the source of truth.
   Never edit the HTML by hand — the next render overwrites it.
+- The kanban is the headline board. The tech tree is **experimental** and
+  projection-only — never a planning input or a target; the anti-Goodhart
+  guardrails in `docs/BEADS-CONVENTIONS.md` apply.
 - The renderer always exits 0. Failures land in `.gembaflow-boards/render.log`,
   not on stderr.
 - Campaign scoping, track order, and the victory bead come from

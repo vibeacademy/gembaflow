@@ -8,7 +8,7 @@ as the loop driver; this skill supplies the project-specific structure
 per-iteration work-ticket + review-pr + agent-merge gate + production
 validation, audit emit, rate limits, hard-stop conditions).
 
-> **Reference**: ADR-006 in [`docs/TECHNICAL-ARCHITECTURE.md`](../../docs/TECHNICAL-ARCHITECTURE.md) — the architectural decision that v1 wraps `/goal` in this project-local skill, deferring "true unattended overnight" to a future API-bridge ticket. For the canonical board-model-to-beads mapping, see CLAUDE.md § "Work-Item Tracking (Beads)"; label vocabulary and bd mechanical hygiene: CLAUDE.md critical rules 9-10 + [`docs/BEADS.md`](../../docs/BEADS.md).
+> **Reference**: ADR-006 in [`docs/TECHNICAL-ARCHITECTURE.md`](../../docs/TECHNICAL-ARCHITECTURE.md) — the architectural decision that v1 wraps `/goal` in this project-local skill, deferring "true unattended overnight" to a future API-bridge ticket. For the canonical board-model-to-beads mapping, see CLAUDE.md § "Work-Item Tracking (Beads)"; label vocabulary and full mechanical hygiene: [`docs/BEADS-CONVENTIONS.md`](../../docs/BEADS-CONVENTIONS.md) (digest: CLAUDE.md critical rules 9-10); bd pin/init/upgrade: [`docs/BEADS.md`](../../docs/BEADS.md).
 
 ## Audience and pre-conditions
 
@@ -783,8 +783,9 @@ Drain-run bead: <id> (closed with partial summary reason)
 ## Reference reading
 
 - ADR-006 in `docs/TECHNICAL-ARCHITECTURE.md` — the architectural decision behind this skill.
-- CLAUDE.md § "Work-Item Tracking (Beads)" — the canonical board-model-to-beads mapping (referenced, never copied) + label vocabulary.
-- `docs/BEADS.md` — bd version pin, upgrade procedure, mechanical hygiene.
+- CLAUDE.md § "Work-Item Tracking (Beads)" — the canonical board-model-to-beads mapping (referenced, never copied).
+- `docs/BEADS-CONVENTIONS.md` — the canonical label vocabulary + mechanical hygiene + branch/PR conventions.
+- `docs/BEADS.md` — bd version pin, upgrade procedure, fork migration.
 - `docs/safety-classes.md` — the taxonomy `/drain` filters on.
 - `docs/agent-merge-gate.md` — the gate `/drain` dispatches per bead (conditions, IGNORED_CHECKS 3-criteria bar, revert procedure).
 - `docs/feature-flags.md` — the convention behind `safety:flagged` (dark deploy, morning flip).

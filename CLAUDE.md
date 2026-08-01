@@ -126,40 +126,25 @@ table — do not duplicate it):
 Migrated beads carry `--external-ref gh-<N>` back to their original GitHub
 issue.
 
-### Label vocabulary (renderer contract)
-
-| Label | Written by | Meaning / board effect |
-|-------|-----------|------------------------|
-| `campaign:<slug>` | grooming/kickoff | campaign membership: copper border, kanban filter, tech-tree scope |
-| `track:<name>` | creation/grooming | tech-tree column; unlabeled beads land in `general` |
-| `human-ops` | anyone filing | cannot reach done without a human operator: red corner + interactive HUMAN OPS chip (hover = runbook flyout, click = full step modal). Directions via `bd note <id>` with an `Operator:` block — the prefix line plus numbered/bulleted step lines. Notes are append-only: the LAST `Operator:` block supersedes earlier ones, so amend runbooks by appending a fresh block |
-| `in-review` + `pr:<N>` | worker, when the PR opens | In Review column, `IN REVIEW · PR #N` chip (linked). Highest `pr:` wins after a re-roll |
-| `verdict:go` / `verdict:no-go` / `verdict:fixed` | reviewer (go/no-go), worker (fixed) | chip states `GO · PR #N awaits merge` / `NO-GO · fixing` / `fixed · re-review`. Mutually exclusive — remove the old one when transitioning. Full verdict prose still goes in `bd comment` |
-| `safety:<class>` | grooming | drain safety class; **the bead label is the source of truth** — the worker copies it onto the PR at creation |
-| `effort:<S/M/L/XL>` | grooming/migration | effort estimate (beads has no effort field) |
-
-Waves and tiers are **computed** from the dependency graph — never labels.
-
-### Branches and PRs
-
-- Branch: `feature/<bead-id>-short-description` (e.g. `feature/va-3f2-checkout-webhook`).
-- PR body cites the bead: `Bead: <id>`. `Closes #N` is retired.
-- The worker copies the bead's `safety:*` label onto the PR at creation.
-- After opening the PR: `bd update <id> --add-label in-review --add-label pr:<N>`
-  and `bd comment <id> "PR: <url>"` — greppable in both directions.
+**Canonical vocabulary and conventions:** `docs/BEADS-CONVENTIONS.md` is
+the single canonical reference for the label vocabulary (renderer
+contract), branch/PR conventions, the full mechanical-hygiene rules,
+script conventions for bd-touching shell code, board semantics
+(epic-as-node, anti-Goodhart guardrails, regen cadence), and honest
+limits — reference it; never duplicate it. bd version pinning, install,
+init, and upgrades: `docs/BEADS.md`.
 
 **Sync:** `bd dolt push/pull` writes to the git remote — operator-authorized
 only (permission `ask`); agents never sync autonomously.
 
 **Boards:** `.gembaflow-boards/{kanban,techtree}.html` are read-only
 projections, regenerated once per turn (Stop hook) + on session start +
-via `/board-refresh`. The tech tree defaults to the epic-collapsed view
-(epic = node; drill-in per epic; loose beads in the "Loose work" bucket);
-both boards have an epic filter. No agent or human edits the HTML; no
-secondary writable board exists (GitHub Projects is retired). The tree is a
-**projection** of bd state, never a target — full anti-Goodhart guardrails:
-`.claude/agents/agile-backlog-prioritizer.md` §6e. bd version pinning,
-install, and init: `docs/BEADS.md`.
+via `/board-refresh`. The kanban is the headline board; the tech tree is
+**experimental** and projection-only — never a target (anti-Goodhart
+guardrails: `docs/BEADS-CONVENTIONS.md`; operational form:
+`.claude/agents/agile-backlog-prioritizer.md` §6e). No agent or human
+edits the HTML; no secondary writable board exists (GitHub Projects is
+retired).
 
 ---
 
@@ -290,6 +275,8 @@ main by a human, and the bead closed with provenance
 | `docs/AGENT-WORKFLOW-SUMMARY.md` | Complete workflow documentation |
 | `docs/MAINTENANCE.md` | Weekly audit and maintenance guide |
 | `docs/DISTRIBUTION.md` | Framework/user-content boundary classification |
+| `docs/BEADS.md` | bd version pin, install, init sequence, upgrade procedure, fork migration |
+| `docs/BEADS-CONVENTIONS.md` | Canonical beads label vocabulary + agent/renderer conventions |
 | `docs/MEMORY-ARCHITECTURE.md` | Agent memory system: persistence types, data flow, known gaps |
 | `scripts/doctor.sh` | Local diagnostic script (standalone) |
 

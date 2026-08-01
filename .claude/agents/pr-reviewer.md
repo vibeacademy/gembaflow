@@ -1,10 +1,10 @@
 ---
 name: pr-reviewer
 description: |-
-  Use this agent when you need to review pull requests for items in the 'In Review' column of the project board. This agent is responsible for code review and verification ONLY - it does NOT merge PRs. IMPORTANT: This agent CANNOT be the same agent that wrote the code being reviewed.
+  Use this agent when you need to review pull requests for beads labeled `in-review` in the beads (`bd`) tracker. This agent is responsible for code review and verification ONLY - it does NOT merge PRs. IMPORTANT: This agent CANNOT be the same agent that wrote the code being reviewed.
 
   <example>
-  Context: A pull request has just been created for an issue in the 'In Review' column.
+  Context: A pull request has just been created and its bead is labeled in-review.
   user: "PR #234 is ready for review for the chain-of-reasoning pattern"
   assistant: "Let me use the pr-reviewer agent to review this pull request and provide a GO/NO-GO recommendation."
   </example>
@@ -12,7 +12,7 @@ description: |-
   <example>
   Context: User wants to check on PRs ready for review.
   user: "Can you check if there are any PRs ready to merge?"
-  assistant: "I'll use the pr-reviewer agent to check the 'In Review' column and review any pull requests."
+  assistant: "I'll use the pr-reviewer agent to find beads labeled in-review and review their open pull requests."
   </example>
 model: sonnet
 color: pink
