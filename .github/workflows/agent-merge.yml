@@ -10,17 +10,34 @@ name: Agent Merge Gate
 # Reverting the unlock: delete this file. Drain's call fails; merge
 # permission is back to humans-only with zero other code changes.
 #
-# This workflow ships in the framework's v2-hardened state (per the
-# empirical validation phase in the gembaflow-site downstream fork
-# during 2026-06-08 → 2026-06-10). The hardening includes:
-#   - issues: read permission for the closingIssuesReferences GraphQL
-#     field used by conditions 1–2 (otherwise the gate falsely
-#     reports "PR has no closing-issue reference")
-#   - `caller` input on workflow_dispatch (otherwise `gh workflow run`
-#     with `-f caller=…` returns HTTP 422)
-#   - `IGNORED_CHECKS` env-var allowlist on condition 4 (so informational
-#     checks like a flaky preview-deploy smoke test don't block
-#     legitimate ready-to-merge PRs)
+# This workflow ships in the framework's beads-native state (epic #574
+# E4, per the validated autonomous drain run on the reference fork —
+# 3/3 shipped, 0 claim races). Beads adaptation: work items live in
+# the local bd tracker, not GitHub Issues, and Actions runners cannot
+# query the local Dolt DB. The safety class therefore travels ON THE
+# PR: the worker copies the bead's safety:* label onto the PR at
+# creation (label authority: the bead is the source of truth) and
+# cites the bead in the body ("Bead: <id>"). Conditions 1+2 read the
+# PR's own labels and body; the old closingIssuesReferences /
+# linked-issue path (and its issues:read permission) is gone.
+#
+# The second-identity approval condition (6) is CONFIG-GATED, not
+# doctrinal (escalation resolution on #578, Option A — operator
+# 2026-08-01): REVIEWER_APPROVAL_LOGIN in the env block below names
+# the reviewer bot whose APPROVED review — bound to the PR's current
+# head commit — is required before merge. This repo's copy sets
+# `va-reviewer`, preserving the two-identity merge path (a compromised
+# or prompt-injected worker identity cannot self-merge). Forks running
+# the strict never-approve stance — where the GO/NO-GO verdict lives
+# in review comments and the bead's `verdict:*` label, and /drain
+# dispatches only after GO — set it to '' knowingly; the gate then
+# skips condition 6 with a loud warning naming the residual reliance
+# on citation+label+rollup alone.
+#
+# Condition logic for conditions 1–6 lives in
+# scripts/check-merge-gate.sh (unit-tested in
+# scripts/__tests__/check-merge-gate.test.mjs); this workflow fetches
+# the PR state and delegates.
 
 on:
   workflow_call:
@@ -68,36 +85,47 @@ jobs:
       contents: write
       pull-requests: write
       # checks: read + actions: read are required to read the
-      # statusCheckRollup GraphQL field. Without them, condition 4
+      # statusCheckRollup GraphQL field. Without them, condition 3
       # (all CI checks SUCCESS) fails at the fetch step with
       # "Resource not accessible by integration".
+      # issues: read is NOT needed since the beads cutover — conditions
+      # 1+2 read the PR's own body and labels, never a linked issue.
       checks: read
       actions: read
-      # issues: read is required to populate the closingIssuesReferences
-      # GraphQL field used by conditions 1+2 (linked-issue safety label
-      # check). Without it, the field comes back empty regardless of
-      # whether the PR body has a valid "Closes #N", causing the gate
-      # to falsely report "PR has no closing-issue reference".
-      issues: read
     env:
       PR: ${{ inputs.pr_number }}
       DRY_RUN: ${{ inputs.dry_run }}
       CALLER: ${{ inputs.caller || 'workflow_dispatch' }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # IGNORED_CHECKS lists status-check names that condition 4 should
+      # IGNORED_CHECKS lists status-check names that condition 3 should
       # treat as informational (NOT required for merge). Empty list means
-      # strict-mode (every rollup check must SUCCESS/NEUTRAL/SKIPPED) —
-      # the v1 behavior. Add a check name here when it's genuinely
-      # informational AND its flakiness or infra-dependency would block
-      # legitimate ready-to-merge PRs.
+      # strict-mode (every rollup check must SUCCESS/NEUTRAL/SKIPPED and
+      # the rollup must be COMPLETE) — the framework default. Add a check
+      # name ONLY when it meets all three criteria in
+      # docs/agent-merge-gate.md § "Informational checks": genuinely
+      # informational AND empirically flaky/laggy enough to block
+      # legitimate merges AND not the only coverage of a code path.
       #
-      # The framework ships with an empty list. Downstream forks add
-      # entries based on their own observed flakiness — e.g. a Render-
-      # deployed fork might add "Deploy to Render Preview" if their
-      # Render integration is empirically unreliable. See
-      # docs/agent-merge-gate.md § "Informational checks" for the
-      # 3-criteria bar for adding entries.
+      # Rationale anecdote (fork drain run va-17h, finding 1): the
+      # fork's first autonomous dispatch was denied because a
+      # provider-side informational check lagged CI by ~10 minutes —
+      # strict mode correctly refused the incomplete rollup. The fix is
+      # either the drain waiting for the FULL rollup before dispatching
+      # (the codified default, drain.md per-iteration step 7a) or an
+      # IGNORED_CHECKS entry meeting the 3-criteria bar. Upstream's own
+      # CI has no deploy/preview chain in the gate's required set, so
+      # the framework ships strict.
       IGNORED_CHECKS: '[]'
+      # REVIEWER_APPROVAL_LOGIN gates condition 6 (second-identity
+      # approval). Non-empty: the latest review by exactly this login
+      # must be APPROVED at the PR's current head commit (stale
+      # approvals on earlier commits are refused). Empty (''): the
+      # condition is skipped with a loud warning — the deliberate
+      # choice of never-approve forks. Repo-controlled config, same
+      # mechanism as IGNORED_CHECKS — PR content can never toggle it.
+      # This copy sets the framework's reviewer bot login; forks edit
+      # their own manual-install copy (workflow files are not synced).
+      REVIEWER_APPROVAL_LOGIN: 'va-reviewer'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -123,91 +151,19 @@ jobs:
       - name: Fetch PR state
         id: pr
         run: |
-          if ! gh pr view "${PR}" --json number,state,baseRefName,labels,statusCheckRollup,closingIssuesReferences,mergeStateStatus,reviews > /tmp/pr.json 2>/tmp/pr.err; then
+          if ! gh pr view "${PR}" --json number,state,baseRefName,labels,body,statusCheckRollup,mergeStateStatus,reviews,headRefOid > /tmp/pr.json 2>/tmp/pr.err; then
             echo "::error::Cannot read PR #${PR}: $(cat /tmp/pr.err)"
             exit 1
           fi
-          cat /tmp/pr.json | jq '{number, state, baseRefName, mergeStateStatus}'
+          jq '{number, state, baseRefName, mergeStateStatus}' /tmp/pr.json
 
-      - name: Condition 5 — PR is open and base is main
-        run: |
-          STATE=$(jq -r '.state' /tmp/pr.json)
-          BASE=$(jq -r '.baseRefName' /tmp/pr.json)
-          if [ "$STATE" != "OPEN" ]; then
-            echo "::error::PR #${PR} is not open (state=$STATE)"
-            exit 1
-          fi
-          if [ "$BASE" != "main" ]; then
-            echo "::error::PR #${PR} base is '$BASE', expected 'main'"
-            exit 1
-          fi
-          echo "OK: open, base=main"
+      - name: Conditions 1-6 — citation, safety label, rollup, open/base, do-not-merge, reviewer approval
+        # Delegates to the unit-tested condition script. IGNORED_CHECKS,
+        # REVIEWER_APPROVAL_LOGIN, and the (implicit) EXPECTED_BASE=main
+        # flow through the env.
+        run: bash scripts/check-merge-gate.sh /tmp/pr.json
 
-      - name: Condition 7 — no do-not-merge label on the PR
-        run: |
-          if jq -e '.labels[] | select(.name == "do-not-merge")' /tmp/pr.json > /dev/null; then
-            echo "::error::PR #${PR} has the do-not-merge label"
-            exit 1
-          fi
-          echo "OK: no do-not-merge label"
-
-      - name: Conditions 1+2 — linked issue has exactly one safety label, not :hot
-        run: |
-          ISSUE=$(jq -r '.closingIssuesReferences[0].number // empty' /tmp/pr.json)
-          if [ -z "$ISSUE" ]; then
-            echo "::error::PR #${PR} has no closing-issue reference (need a 'Closes #N' in the body)"
-            exit 1
-          fi
-          echo "Linked issue: #${ISSUE}"
-          LABELS=$(gh issue view "$ISSUE" --json labels --jq '[.labels[].name | select(startswith("safety:"))]')
-          COUNT=$(echo "$LABELS" | jq 'length')
-          if [ "$COUNT" -ne 1 ]; then
-            echo "::error::Issue #${ISSUE} has ${COUNT} safety:* labels (expected exactly 1). Labels: $LABELS"
-            exit 1
-          fi
-          CLASS=$(echo "$LABELS" | jq -r '.[0]')
-          if [ "$CLASS" = "safety:hot" ]; then
-            echo "::error::Issue #${ISSUE} is classified safety:hot — drain refuses to merge"
-            exit 1
-          fi
-          echo "OK: safety class = $CLASS"
-
-      - name: Condition 3 — APPROVED review from va-reviewer
-        run: |
-          # va-reviewer is the framework's reviewer bot account (CLAUDE.md §Agent Configuration).
-          # Forks using a different reviewer bot name update this step accordingly.
-          # Take the latest review per author and require va-reviewer's to be APPROVED.
-          LATEST_VA_REVIEWER=$(jq -r '[.reviews[] | select(.author.login == "va-reviewer")] | sort_by(.submittedAt) | last | .state // "NONE"' /tmp/pr.json)
-          if [ "$LATEST_VA_REVIEWER" != "APPROVED" ]; then
-            echo "::error::PR #${PR} latest va-reviewer review state is '$LATEST_VA_REVIEWER' (expected APPROVED)"
-            exit 1
-          fi
-          echo "OK: va-reviewer APPROVED"
-
-      - name: Condition 4 — all required CI checks are SUCCESS
-        # Respect IGNORED_CHECKS (workflow-level env above) so that flaky
-        # informational checks don't block legitimate ready-to-merge PRs.
-        # Informational checks are filtered out BEFORE the SUCCESS-only
-        # assertion — the safety boundary is identical, just narrower in
-        # scope.
-        run: |
-          TOTAL=$(jq -r '[.statusCheckRollup[]] | length' /tmp/pr.json)
-          IGNORED_COUNT=$(jq -r --argjson ignored "${IGNORED_CHECKS}" '[.statusCheckRollup[] | select(.name as $n | $ignored | index($n))] | length' /tmp/pr.json)
-          RELEVANT=$(jq -r --argjson ignored "${IGNORED_CHECKS}" '[.statusCheckRollup[] | select(.name as $n | $ignored | index($n) | not)]' /tmp/pr.json)
-          FAILED=$(echo "$RELEVANT" | jq -r '[.[] | select((.conclusion // "PENDING") != "SUCCESS" and (.conclusion // "PENDING") != "NEUTRAL" and (.conclusion // "PENDING") != "SKIPPED") | .name] | .[]')
-          RELEVANT_COUNT=$(echo "$RELEVANT" | jq 'length')
-          if [ "$IGNORED_COUNT" -gt 0 ]; then
-            IGNORED_NAMES=$(jq -r --argjson ignored "${IGNORED_CHECKS}" '[.statusCheckRollup[] | select(.name as $n | $ignored | index($n)) | "\(.name) (\(.conclusion // "PENDING"))"] | join(", ")' /tmp/pr.json)
-            echo "::notice::Ignored ${IGNORED_COUNT} informational check(s) per IGNORED_CHECKS env: ${IGNORED_NAMES}"
-          fi
-          if [ -n "$FAILED" ]; then
-            echo "::error::PR #${PR} has non-SUCCESS relevant checks (${RELEVANT_COUNT} relevant of ${TOTAL} total):"
-            echo "$FAILED" | sed 's/^/  /'
-            exit 1
-          fi
-          echo "OK: all ${RELEVANT_COUNT} relevant check(s) SUCCESS/NEUTRAL/SKIPPED (${IGNORED_COUNT} informational ignored of ${TOTAL} total)"
-
-      - name: Condition 6 — caller is drain (audit-only, non-blocking)
+      - name: Condition 7 — caller is drain (audit-only, non-blocking)
         # Architecturally the gate is intended for /drain only.
         # We can't cryptographically prove the caller from inside the
         # called workflow, so we record the claimed caller in the audit
