@@ -2,7 +2,7 @@
 description: "Phase 4: Activate the development workflow"
 ---
 
-Set up GitHub project board, branch protection, and create initial backlog from PRD features.
+Set up the beads (`bd`) work tracker, branch protection, and create the initial backlog from PRD features.
 
 ## Bootstrap Phase 4: Workflow Activation
 
@@ -13,58 +13,125 @@ Set up GitHub project board, branch protection, and create initial backlog from 
 
 This is the final bootstrap phase. It activates the full agent workflow.
 
+> **Reference**: CLAUDE.md § "Work-Item Tracking (Beads)" is the canonical
+> board-model mapping AND the label vocabulary (`safety:*`, `effort:*`,
+> `verdict:*`, `campaign:*`, `track:*`, `human-ops`, `in-review` + `pr:<N>`).
+> docs/BEADS.md holds the pin/init/upgrade conventions. Reference them —
+> never restate them.
+
+**Migrating an existing fork off GitHub Projects?** This phase is for
+standing up a NEW workflow. An existing fork with open GitHub issues runs
+`scripts/migrate-issues-to-beads.sh` instead (idempotent, safe to re-run;
+see docs/BEADS.md § "Migrating an existing fork"). The legacy GH-Projects
+path survives for exactly one release behind the deprecated
+`legacy.githubProjects` flag — see "Legacy GitHub-Projects path" at the
+bottom.
+
 ## Ticket Format Requirement
 
-Before creating any issues, read `docs/TICKET-FORMAT.md` in full. Every issue
-created in this phase — epics and features alike — MUST follow the Agentic PRD
+Before creating any beads, read `docs/TICKET-FORMAT.md` in full. Every bead
+created in this phase — epics and tasks alike — MUST follow the Agentic PRD
 Lite format. Tickets without the 4 Power Sections (A. Environment Context,
 B. Guardrails, C. Happy Path, D. Definition of Done) will not pass grooming
 and will have to be rewritten.
 
 ## What This Phase Does
 
-### 1. GitHub Project Board Setup
+### 1. Beads Tracker Init
 
-Verify or create project board with columns:
-- **Icebox** - Ideas not yet prioritized
-- **Backlog** - Prioritized but not ready
-- **Ready** - Well-defined, ready to work (2-5 items)
-- **In Progress** - Currently being worked
-- **In Review** - PR created, awaiting review
-- **Done** - Merged and complete
+Run the framework init sequence (it gates on the pinned bd version, skips
+bd's inert git hooks and conflicting agent boilerplate, and enables the
+JSONL mirror — rationale in docs/BEADS.md § "Init sequence"):
 
-### 2. Branch Protection Configuration
+```bash
+./scripts/init-beads.sh -p <prefix>
+```
+
+- `-p <prefix>` — the bead-ID prefix (2-4 lowercase chars, e.g. `va` →
+  `va-1a2b`), derived from the project name.
+- `bd init` auto-commits its scaffolding; the script amends that commit to
+  conventional form (`chore(beads): initialize bd tracker`). On a feature
+  branch, pass `--no-commit` instead to keep the scaffolding as uncommitted
+  changes and commit it deliberately.
+- If bd is missing or unpinned the script stops with install instructions
+  (`scripts/check-bd.sh` is the gate).
+
+Then verify the render hook: after the first real `bd` mutation,
+`.gembaflow-boards/{kanban,techtree}.html` regenerate. If not, force with
+`/board-refresh` and check the hook registration in `.claude/settings`.
+
+### 2. Label Vocabulary + GitHub-Side Safety Registry
+
+The full label vocabulary lives in CLAUDE.md § "Work-Item Tracking (Beads)":
+`safety:<class>`, `effort:<S/M/L/XL>`, `verdict:go|no-go|fixed`,
+`campaign:<slug>`, `track:<name>`, `human-ops`, `in-review` + `pr:<N>`.
+Bead labels are free-form strings — nothing to seed on the bd side.
+
+The one GitHub-side registry that MUST exist is the `safety:*` PR-label set
+(the agent-merge gate reads it; the worker copies the bead's `safety:*`
+label onto every PR):
+
+```bash
+bash scripts/setup-safety-labels.sh
+```
+
+Idempotent; `--check` reports without creating.
+
+### 3. Branch Protection Configuration
 
 Verify or configure branch protection on `main`:
 - [ ] Require pull request reviews before merging
 - [ ] Require status checks to pass (if CI configured)
 - [ ] Do not allow bypassing the above settings
 
-### 3. Initial Backlog Creation
+### 4. Initial Backlog Creation
 
-Convert PRD features into GitHub issues following `docs/TICKET-FORMAT.md`:
-- Create epics for major feature areas (epics use Problem Statement + high-level scope)
-- Create feature issues with ALL required fields:
-  - Problem Statement, Parent Epic, Effort Estimate, Priority
+Convert PRD features into beads following `docs/TICKET-FORMAT.md`:
+
+- Create epics for major feature areas (epics use Problem Statement +
+  high-level scope):
+
+  ```bash
+  bd create "<epic title>" --type=epic -p <0-3> --body-file <path>
+  ```
+
+- Create task beads with ALL required fields:
+
+  ```bash
+  bd create "<title>" --type=task -p <0-3> --parent <epic-id> \
+    --labels effort:<S/M/L/XL> --body-file <path>
+  ```
+
+  The body file carries the Problem Statement plus the 4 Power Sections:
   - A. Environment Context (from `docs/TECHNICAL-ARCHITECTURE.md`)
   - B. Guardrails (from `docs/AGENTIC-CONTROLS.md` + PRD constraints)
   - C. Happy Path (numbered steps: Input → Logic → Output)
   - D. Definition of Done (specific test assertions, lint commands, reviewer checks)
-- Link issues to epics
-- Add priority labels (P0/P1/P2/P3)
 
-### 4. Ready Column Population
+- Epic membership via `--parent <epic-id>` (grouping, never blocking)
+- Priorities with `-p <0-3>`; effort as `effort:<S/M/L/XL>` labels (beads has
+  no effort field)
+- Wire dependencies with explicit direction:
+  `bd dep add <blocked> --blocked-by <blocker>` — **never bare `bd link`**
+- After ALL wiring: `bd dep cycles --json` must return `[]`, then eyeball
+  `bd ready --json` to confirm the intended beads surfaced
 
-Move the highest-priority, well-defined tickets to Ready:
-- Select 3-5 tickets for initial Ready column
-- Ensure they meet Definition of Ready
-- Add technical guidance and acceptance criteria
+### 5. Verify Readiness
 
-### 5. CLAUDE.md Finalization
+Readiness is computed, never curated — there is no "move to Ready" action.
+`bd ready` mechanically surfaces every open, unblocked bead. Confirm it
+surfaces the intended 2-5 MVP tasks:
+
+- Run `bd ready --json` — the MVP tasks selected above appear
+- If an intended bead is missing: a dependency is unresolved or it was
+  deferred — grooming completes DoR, priorities, and dependencies
+- If too much surfaces: wire the missing dependencies, or defer out-of-scope
+  beads (`bd update <id> --status=deferred`)
+
+### 6. CLAUDE.md Finalization
 
 Update CLAUDE.md with:
-- Project board URL
-- Repository URL
+- Repository URL and beads prefix
 - Team/org information
 - Any final configuration
 
@@ -73,13 +140,14 @@ Update CLAUDE.md with:
 Before running this phase, ensure you have:
 
 - [ ] GitHub repository created
-- [ ] GitHub personal access token with repo, project, and workflow permissions
-- [ ] Permission to create project boards
+- [ ] GitHub personal access token with `repo` and `workflow` permissions
+      (no `project` scope — beads needs none)
 - [ ] Permission to configure branch protection
+- [ ] `bd` CLI installed at the framework pin (`./scripts/check-bd.sh`)
 
 ## Pre-Flight Verification (REQUIRED)
 
-Before any board or ticket operations, verify the following. STOP and report
+Before any tracker or ticket operations, verify the following. STOP and report
 to the user if any check fails — do not continue with partial tooling.
 
 1. **`gh` CLI is authenticated and the repository is accessible** — Run
@@ -87,12 +155,13 @@ to the user if any check fails — do not continue with partial tooling.
    STOP and instruct the user to fix the issue.
 2. **GitHub account is correct** — Run `gh auth status` and confirm the active
    account matches the expected worker/bot account. If only a personal account
-   is active, STOP and instruct the user to run `scripts/ensure-github-account.sh`.
+   is active, STOP and instruct the user to fix the account setup.
 3. **Claude hooks are registered** — Check that hook files referenced in
    `.claude/settings.local.json` exist and are executable. WARN if any hook is
    missing or not executable.
-4. **Project board is accessible** — Attempt to read the project board. If
-   access is denied or the board does not exist, STOP and report.
+4. **Beads tracker works** — `./scripts/check-bd.sh` passes; after init,
+   `bd ready --json` parses as valid JSON (an empty `[]` is fine). If either
+   fails, STOP and report.
 
 ## Configuration Required
 
@@ -101,7 +170,7 @@ You'll be asked to provide:
 ```
 GitHub Organization: [your-org]
 Repository Name: [your-repo]
-Project Board Name: [your-project-name]
+Bead-ID Prefix: [2-4 lowercase chars, e.g. "va"]
 ```
 
 ## Process
@@ -112,10 +181,12 @@ The workflow activation agent will:
    - Test token permissions
    - Confirm org/repo access
 
-2. **Create/Verify Project Board**
-   - Check if board exists
-   - Create columns if needed
-   - Configure board settings
+2. **Initialize Beads Tracker**
+   - Run `./scripts/init-beads.sh -p <prefix>` (add `--no-commit` on a
+     feature branch)
+   - Verify the board render hook regenerates `.gembaflow-boards/`
+   - Seed the GitHub-side `safety:*` label registry
+     (`bash scripts/setup-safety-labels.sh`)
 
 3. **Configure Branch Protection**
    - Check current settings
@@ -127,45 +198,53 @@ The workflow activation agent will:
    - Read PRD features from `docs/PRODUCT-REQUIREMENTS.md`
    - Read `docs/TECHNICAL-ARCHITECTURE.md` for Environment Context content
    - Read `docs/AGENTIC-CONTROLS.md` for Guardrails content
-   - Create epic issues (Problem Statement + scope description)
-   - Create feature issues with all 4 Power Sections populated
-   - Set initial priorities (P0-P3)
-   - Self-check: before creating each issue, verify it contains sections A through D
+   - Create epic beads (`--type=epic`; Problem Statement + scope description)
+   - Create task beads with all 4 Power Sections populated (via `--body-file`)
+   - Set priorities (`-p <0-3>`) and `effort:*` labels
+   - Wire dependencies (`bd dep add <blocked> --blocked-by <blocker>`), then
+     verify `bd dep cycles --json` returns `[]`
+   - Self-check: before each `bd create`, verify the body contains sections
+     A through D
 
-5. **Populate Ready Column**
-   - Select MVP tickets
-   - Ensure Definition of Ready met
-   - Move to Ready column
+5. **Verify Readiness**
+   - Run `bd ready --json` and confirm the intended 2-5 MVP tasks surface
+   - Fix gaps by completing DoR, priorities, or dependency wiring — there is
+     no move action
 
 6. **Update Configuration**
-   - Add URLs to CLAUDE.md
-   - Verify agent configs reference correct board
+   - Add repository URL and beads prefix to CLAUDE.md
 
 7. **Persist bootstrap config + substitute templated placeholders**
 
-   Some shipped skill specs reference fork-specific values through four
+   Some shipped skill specs reference fork-specific values through three
    placeholders documented in
    [`docs/PLATFORM-GUIDE.md`](../../docs/PLATFORM-GUIDE.md) §
    "Bootstrap-time templated values" — see that section for the full table.
    The framework ships one spec; every fork bends it to its own setup.
-   After the operator has supplied (and you have validated) all four values
+   After the operator has supplied (and you have validated) all three values
    during the steps above, persist them and run the substitution pass.
 
    - Copy `.gembaflow-config.example.json` to `.gembaflow-config.json` (the
      example is the schema; the actual file is gitignored so a fork's
      substituted values never propagate upstream).
-   - Fill in the four values:
+   - Fill in the three substituted values:
 
      ```json
      {
        "org": "<your-github-org>",
-       "board": { "id": "<your-project-board-number>" },
        "bot": {
          "worker": "<your-worker-bot-account>",
          "reviewer": "<your-reviewer-bot-account>"
+       },
+       "legacy": {
+         "githubProjects": false
        }
      }
      ```
+
+     Leave `legacy.githubProjects` at `false` — it is the deprecated
+     one-release GitHub-Projects compatibility flag (removal:
+     vibeacademy/gembaflow#587), not part of a fresh bootstrap.
 
    - Run the substitution script:
 
@@ -187,15 +266,15 @@ The workflow activation agent will:
 
    - Behavior on missing config: if `.gembaflow-config.json` doesn't exist
      when the script runs, it stops with a pointer back to this section.
-     Behavior on empty fields: same — fill all four before substituting.
+     Behavior on empty fields: same — fill all three before substituting.
 
    See [`docs/PLATFORM-GUIDE.md`](../../docs/PLATFORM-GUIDE.md) §
    "Bootstrap-time templated values" for the full convention.
 
 ## Example Backlog Generation
 
-> Every issue MUST follow `docs/TICKET-FORMAT.md`. The example below shows the
-> expected structure. Do NOT create bare-title issues without Power Sections.
+> Every bead MUST follow `docs/TICKET-FORMAT.md`. The example below shows the
+> expected structure. Do NOT create bare-title beads without Power Sections.
 
 From a PRD feature like:
 ```markdown
@@ -204,28 +283,35 @@ From a PRD feature like:
 ```
 
 Create an epic:
-```
-Epic: User Authentication
 
+```bash
+bd create "Epic: User Authentication" --type=epic -p 0 --body-file epic-auth.md
+# → created va-1a2b
+```
+
+with `epic-auth.md` containing:
+
+```
 Problem Statement:
 The application has no way to identify users. All routes are public.
 We need email/password authentication to gate access to user-specific data.
 
 Scope: signup, login, password reset, session management.
-Priority: P0
 ```
 
-Then create feature issues with full Power Sections:
-```
-TICKET: Implement email/password signup
+Then create task beads with full Power Sections:
 
+```bash
+bd create "Implement email/password signup" --type=task -p 0 \
+  --parent va-1a2b --labels effort:M --body-file signup.md
+```
+
+with `signup.md` containing:
+
+```
 Problem Statement:
 New users cannot create accounts. We need a signup endpoint that accepts
 email + password, validates input, and creates a user record.
-
-Parent Epic: #<epic-number>
-Effort Estimate: M
-Priority: P0
 
 --- A. Environment Context ---
 - Stack: (from TECHNICAL-ARCHITECTURE.md)
@@ -251,25 +337,32 @@ Priority: P0
 - PR reviewer can run the signup flow manually
 ```
 
+(Parent epic, priority, and effort ride the `bd create` flags — `--parent`,
+`-p`, `--labels effort:*` — not the body text.)
+
 ## What Gets Unlocked
 
 After Phase 4, the full workflow is active:
 
 ```
-/groom-backlog  →  Works with your project board
-/work-ticket    →  Picks up tickets from your Ready column
-/review-pr      →  Reviews PRs in your repository
-/sprint-status  →  Shows your board status
+/groom-backlog  →  Grooms beads toward readiness (bd ready is the outcome)
+/work-ticket    →  Claims the next bead from bd ready
+/review-pr      →  Reviews PRs for beads labeled in-review
+/sprint-status  →  Board health overview from bd state
+/board-refresh  →  Regenerates .gembaflow-boards/{kanban,techtree}.html
 ```
+
+The boards at `.gembaflow-boards/` are read-only HTML projections of bd
+state — there is no board URL to visit and nothing to configure on GitHub.
 
 ## Verification
 
 After this phase, verify the workflow:
 
-1. **Check Project Board**
-   - Visit the GitHub project board URL
-   - Verify columns exist
-   - Verify issues created
+1. **Check the Tracker**
+   - `bd list --json` shows the created epics and tasks
+   - `bd ready --json` surfaces the intended MVP tasks
+   - Open `.gembaflow-boards/kanban.html` — the beads render
 
 2. **Check Branch Protection**
    - Go to repo Settings → Branches
@@ -280,7 +373,7 @@ After this phase, verify the workflow:
    claude
    > /sprint-status
    ```
-   Should show your board status
+   Should show your tracker status
 
 ## Post-Bootstrap
 
@@ -302,27 +395,60 @@ Your project is now ready for development!
 ## Troubleshooting
 
 **"GitHub token not authorized"**
-- Ensure token has `repo`, `project`, and `workflow` scopes
+- Ensure token has `repo` and `workflow` scopes
 - Check token isn't expired
-
-**"Cannot create project board"**
-- Verify org permissions
-- Try creating manually, then link
 
 **"Branch protection failed"**
 - Verify you have admin access to repo
 - Configure manually in GitHub settings
 
-**"Issues not appearing on board"**
-- Check issue labels match board filters
-- Manually add issues to project
+**"bd version gate FAILED"**
+- The framework pins bd to one exact version (docs/BEADS.md)
+- Install it: `npm install -g @beads/bd@<pin>` (the gate's error message
+  prints the exact command)
+
+**"bd init created an unexpected commit"**
+- Expected: `bd init` auto-commits its scaffolding;
+  `scripts/init-beads.sh` amends it to conventional form
+- On a feature branch, re-run with `--no-commit` semantics in mind: the
+  flag undoes the auto-commit and leaves the scaffolding uncommitted
+
+**"Boards not regenerating"**
+- The board render hook regenerates `.gembaflow-boards/` on mutating `bd`
+  commands
+- Force a render with `/board-refresh`; if that works but the hook doesn't
+  fire, check the hook registration in `.claude/settings`
+
+## Legacy GitHub-Projects path (DEPRECATED — one release only)
+
+Skip this section entirely on a fresh bootstrap. It exists only for forks
+mid-migration that set `legacy.githubProjects: true` in
+`.gembaflow-config.json` (and the `GEMBAFLOW_LEGACY_GITHUB_PROJECTS` Actions
+variable for workflows — the config file is gitignored and invisible to
+Actions). The flag defaults to OFF, warns on every read, and is removed next
+release: vibeacademy/gembaflow#587.
+
+While the flag is on:
+
+- The GitHub Project board remains the operator's legacy view; PAT `project`
+  scope is still required for board writes (bootstrap.sh probes it only in
+  this mode).
+- `.github/workflows/auto-board-status.yml` stays functional (it no-ops
+  loudly when the flag is off).
+- `board.id` may be added back to `.gembaflow-config.json` if any customized
+  spec still carries the `{{board.id}}` placeholder.
+
+None of this leaks into the beads path: with the flag off (the default),
+no board pre-flight, board column, or `project`-scope check exists anywhere
+in this wizard. Finish the migration with `scripts/migrate-issues-to-beads.sh`
+and turn the flag off.
 
 ## Running This Command
 
 1. Ensure Phases 1-3 are complete
 2. Have GitHub credentials ready
 3. Type `/bootstrap-workflow`
-4. Provide org/repo information
+4. Provide org/repo information and the bead-ID prefix
 5. Review proposed changes
 6. Confirm to apply
 
@@ -343,16 +469,18 @@ After bootstrap:
 Report each phase with a Progress Line, then end with a Result Block:
 
 ```
-→ Configured GitHub project board
+→ Initialized beads tracker (prefix: va)
+→ Seeded safety:* PR-label registry
 → Set up branch protection rules
-→ Generated backlog from PRD (12 issues)
-→ Populated Ready column (4 tickets)
+→ Generated backlog from PRD (12 beads: 3 epics, 9 tasks)
+→ Verified readiness (bd ready surfaces 4 tasks)
 
 ---
 
 **Result:** Workflow setup complete
-Project board: configured
-Issues created: 12
-Ready column: 4 tickets
+Tracker: beads (bd), prefix va
+Beads created: 12 (3 epics, 9 tasks)
+Ready: 4 tasks (bd ready)
+Dependency check: bd dep cycles --json → []
 Status: ready for development
 ```

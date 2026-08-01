@@ -127,3 +127,52 @@ On any `bd` upgrade:
    bump — never leave the pin and the code disagreeing.
 7. Record the bump in `CHANGELOG.md` (fork-impact callout: forks re-run
    their own gate + renderer check when adopting the new pin).
+
+## Migrating an existing fork (GitHub Issues → beads)
+
+`scripts/migrate-issues-to-beads.sh` is the opt-in cutover tool for forks
+that predate the beads default. It is generalized from the reference fork's
+proven migrator (33 issues, idempotent) and encodes the framework
+conventions: epics first, verbatim bodies, `Priority: P<k>` → `-p k`,
+`Effort Estimate: X` → `effort:X` label, GitHub labels 1:1, explicit-direction
+dependency wiring from `Parent Epic:` / `Depends on:` / `Blocks:` body lines,
+and a loud verification gate (count match + `bd dep cycles --json` empty +
+`bd ready` printed for the operator to eyeball).
+
+- **Dry-run by default.** `--execute` creates beads; `--close-github`
+  additionally closes the migrated GitHub issues with pointer comments and
+  files + pins a signpost issue (separate opt-in — it is outward-facing and
+  hard to reverse).
+- **Idempotent by `--external-ref`.** Migration scripts die mid-run; this
+  one converges instead of duplicating. Every bead carries
+  `--external-ref <prefix><N>`, the id-map at
+  `reports/beads-migration/id-map.tsv` is reconciled against `bd list --json
+  --all` on every run, and a converged re-run provably reports `created 0`.
+- **Repo-qualified refs.** Default prefix is `gh-`. When several repos
+  migrate into one beads tracker (e.g. a meta board spanning multiple
+  repos), bare `gh-N` collides — pass `--ref-prefix gh-<repo>-` per source
+  repo.
+- **Outputs** land in `reports/beads-migration/`: the dated export JSON, the
+  `id-map.tsv` GH→bead mapping, and the migration log.
+- After a successful run the operator syncs deliberately: `bd dolt push`.
+
+## GitHub-Projects compatibility flag (DEPRECATED — one release)
+
+Beads is the default tracker; new forks never see a GitHub Project. Forks
+mid-migration can keep the legacy GH-Projects path reachable for exactly one
+release via a default-OFF flag (removal ticket filed at introduction time:
+vibeacademy/gembaflow#587). The flag has two surfaces because
+`.gembaflow-config.json` is gitignored and invisible to Actions:
+
+| Surface | Where | Read by |
+|---|---|---|
+| `legacy.githubProjects: true` | `.gembaflow-config.json` | `bootstrap.sh` / local tooling, via `scripts/lib/legacy-github-projects.sh` |
+| `GEMBAFLOW_LEGACY_GITHUB_PROJECTS=true` | repo Actions variable | `.github/workflows/auto-board-status.yml` |
+
+With the flag OFF (default) the legacy workflow no-ops with a loud skip
+notice and no `project` PAT scope is required anywhere. With the flag ON,
+every read prints a deprecation warning; the legacy board path (PAT
+`project`-scope probe, `auto-board-status.yml`, optional `board.id` /
+`{{board.id}}` substitution) stays functional for the release. The flag
+never leaks GH-Projects pre-flights into the beads path — the deleted
+protocols stay deleted.

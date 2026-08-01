@@ -1,0 +1,50 @@
+[
+  {
+    "number": 101,
+    "title": "Epic: User Authentication",
+    "body": "Problem Statement:\nNo way to identify users.\n\nScope: signup, login, sessions.\nPriority: P1",
+    "labels": [{ "name": "epic" }, { "name": "enhancement" }]
+  },
+  {
+    "number": 102,
+    "title": "Epic: Billing",
+    "body": "Problem Statement:\nNo revenue path.\n\nScope: invoices, receipts.\nPriority: P2",
+    "labels": [{ "name": "epic" }]
+  },
+  {
+    "number": 103,
+    "title": "Implement email/password signup",
+    "body": "Problem Statement:\nNew users cannot create accounts.\n\nParent Epic: #101\nEffort Estimate: M\nPriority: P0\n\n--- A. Environment Context ---\n- Stack: node\n\n--- B. Guardrails ---\n- No plaintext passwords\n\n--- C. Happy Path ---\n1. POST /auth/signup\n\n--- D. Definition of Done ---\n- 201 on valid input",
+    "labels": [{ "name": "enhancement" }]
+  },
+  {
+    "number": 104,
+    "title": "Implement login endpoint",
+    "body": "Problem Statement:\nUsers cannot log in.\n\nParent Epic: #101\nEffort Estimate: S\nPriority: P1\nDepends on: #103",
+    "labels": [{ "name": "enhancement" }]
+  },
+  {
+    "number": 105,
+    "title": "Session cookie leaks across subdomains",
+    "body": "Problem Statement:\nSession cookie scope is too broad.\n\nPriority: P0\nEffort Estimate: S",
+    "labels": [{ "name": "bug" }]
+  },
+  {
+    "number": 106,
+    "title": "Generate invoices",
+    "body": "Problem Statement:\nNo invoices.\n\nParent Epic: #102\nEffort Estimate: L\nBlocks: #107",
+    "labels": [{ "name": "enhancement" }]
+  },
+  {
+    "number": 107,
+    "title": "Generate receipts",
+    "body": "Problem Statement:\nNo receipts.\n\nParent Epic: #102\nPriority: P2\nEffort Estimate: M",
+    "labels": []
+  },
+  {
+    "number": 108,
+    "title": "Documentation pass for auth flows",
+    "body": "Problem Statement:\nAuth flows are undocumented.\n\nDepends on: #104",
+    "labels": [{ "name": "documentation" }, { "name": "good first issue" }]
+  }
+]

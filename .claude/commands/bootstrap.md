@@ -150,8 +150,11 @@ Same pattern as Step 2:
 Check both signals:
 
 - Status: `phase4:complete` marker
-- Artifact: project-board reference present in `.gembaflow-config.json`
-  (e.g. `board.id` or `board.url` field populated)
+- Artifact: initialized beads tracker present (`.beads/metadata.json`
+  exists). Legacy alternative — only when the deprecated
+  `legacy.githubProjects` flag is `true` in `.gembaflow-config.json`
+  (removal: vibeacademy/gembaflow#587) — a project-board reference
+  (`board.id`) populated in `.gembaflow-config.json`.
 
 If both present, skip with `→ Phase 4 already complete; skipping /bootstrap-workflow.`
 
@@ -166,17 +169,17 @@ Print a single closing block:
 ✓ Bootstrap complete.
 
   Mode: <solo|multi-bot>
-  Project board: <URL from .gembaflow-config.json>
-  Ready column (top 3):
-    1. #<N> — <title>
-    2. #<N> — <title>
-    3. #<N> — <title>
+  Tracker: beads (bd), prefix <prefix from bd config / init-beads>
+  Ready (top 3 from bd ready --json):
+    1. <bead-id> — <title>
+    2. <bead-id> — <title>
+    3. <bead-id> — <title>
 
-  Next step: type /work-ticket to pick up the top Ready ticket.
+  Next step: type /work-ticket to pick up the top ready bead.
 ```
 
-If the Ready column has fewer than 3 tickets, list however many exist (or
-"_Ready column is empty — run /groom-backlog to populate._").
+If `bd ready` surfaces fewer than 3 beads, list however many exist (or
+"_Nothing is ready — run /groom-backlog to complete DoR and unblock work._").
 
 ## Critical Rules
 

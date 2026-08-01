@@ -6,12 +6,24 @@ name: Auto board status on PR merge
 # issue but the project board's Status field does not update. The
 # board status then lags the actual work by a full PR cycle.
 #
-# Opt-in: the workflow is a no-op unless the four config knobs below
-# are all set in the fork's repo settings. The framework default is
-# disabled (no env values set means no mutation runs).
+# DEPRECATED (beads cutover, epic #574): GitHub Projects is no longer
+# the framework tracker — beads (bd) is. This workflow is kept
+# functional for exactly ONE release behind the legacy GitHub-Projects
+# compatibility flag, default OFF, and is then removed. Local tooling
+# reads the same flag from `.gembaflow-config.json`
+# (`legacy.githubProjects`); workflows read the Actions variable below
+# because that config file is fork-local (gitignored). See
+# docs/BEADS.md § "GitHub-Projects compatibility flag".
+#
+# Opt-in, twice over: the workflow is a no-op unless
+# GEMBAFLOW_LEGACY_GITHUB_PROJECTS is "true" AND the four config knobs
+# below are all set in the fork's repo settings. The framework default
+# is disabled.
 #
 # Configuration (Settings → Secrets and variables → Actions):
 #   Variables:
+#     GEMBAFLOW_LEGACY_GITHUB_PROJECTS  "true" to keep the legacy
+#                               GH-Projects path for this release (DEPRECATED)
 #     BOARD_PROJECT_NODE_ID     ProjectV2 node ID (PVT_...) of the fork's board
 #     BOARD_STATUS_FIELD_ID     SingleSelect field ID (PVTSSF_...) for "Status"
 #     BOARD_STATUS_DONE_ID      Option ID (8 hex chars) for "Done"
@@ -19,8 +31,8 @@ name: Auto board status on PR merge
 #     BOARD_PROJECTS_TOKEN      PAT with `project` scope (the default
 #                               GITHUB_TOKEN lacks Projects V2 write).
 #
-# To disable: clear any one of the four. To uninstall entirely: delete
-# this workflow file.
+# To disable: clear the flag (or any one of the four knobs). To
+# uninstall entirely: delete this workflow file.
 
 on:
   pull_request:
@@ -36,8 +48,23 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      - name: Gate on the legacy GitHub-Projects flag (DEPRECATED path)
+        id: legacy-flag
+        env:
+          GEMBAFLOW_LEGACY_GITHUB_PROJECTS: ${{ vars.GEMBAFLOW_LEGACY_GITHUB_PROJECTS }}
+        run: |
+          if [ "${GEMBAFLOW_LEGACY_GITHUB_PROJECTS}" != "true" ]; then
+            echo "::notice title=auto-board-status skipped::beads (bd) is the framework tracker — this legacy GitHub-Projects workflow is OFF by default and will be removed next release. To keep it for one release set the GEMBAFLOW_LEGACY_GITHUB_PROJECTS repo variable to 'true' (and legacy.githubProjects in .gembaflow-config.json for local tooling). Migrate with scripts/migrate-issues-to-beads.sh — see docs/BEADS.md."
+            echo "SKIP: auto-board-status is a no-op (GEMBAFLOW_LEGACY_GITHUB_PROJECTS != 'true')."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::warning title=auto-board-status is deprecated::The legacy GitHub-Projects path is enabled via GEMBAFLOW_LEGACY_GITHUB_PROJECTS but will be REMOVED in the next release (vibeacademy/gembaflow#587). Migrate to beads with scripts/migrate-issues-to-beads.sh — see docs/BEADS.md."
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
       - name: Gate on opt-in config
         id: gate
+        if: steps.legacy-flag.outputs.enabled == 'true'
         env:
           BOARD_PROJECT_NODE_ID: ${{ vars.BOARD_PROJECT_NODE_ID }}
           BOARD_STATUS_FIELD_ID: ${{ vars.BOARD_STATUS_FIELD_ID }}

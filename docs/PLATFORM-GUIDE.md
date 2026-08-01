@@ -328,23 +328,29 @@ free tier includes 5,000 errors per month.
 
 Some shipped skill specs reference fork-specific values through placeholders
 that the framework substitutes once during bootstrap. The framework ships one
-spec; every fork bends it to its own org / board / bot accounts without
+spec; every fork bends it to its own org / bot accounts without
 forking the file. The mechanism is consumed by `/work-ticket` (and `/drain`,
 once T3 lands).
 
-### The four placeholders
+### The three placeholders
 
 | Placeholder | Meaning |
 |---|---|
 | `{{org}}` | GitHub org login that hosts the framework + this fork |
-| `{{board.id}}` | Project board number on the GitHub Project the team uses |
 | `{{bot.worker}}` | GitHub login of the worker bot (opens PRs, makes commits) |
 | `{{bot.reviewer}}` | GitHub login of the reviewer bot (posts `/review-pr` verdicts) |
+
+Legacy: `{{board.id}}` (Project board number) was retired with the beads
+cutover (epic #574) — readiness is computed by `bd ready`, not a project
+board. The substitution script still applies a `board.id` config value when
+one is present, but requires it only if a customized spec file still
+contains the placeholder, which can only happen on the deprecated
+`legacy.githubProjects` path (removal: vibeacademy/gembaflow#587).
 
 ### How substitution happens
 
 1. **Config file.** `.gembaflow-config.json` (per-fork; gitignored) holds the
-   four values. `.gembaflow-config.example.json` is the committed template
+   three values. `.gembaflow-config.example.json` is the committed template
    that shows the schema.
 2. **Substitution script.** `scripts/substitute-config-placeholders.sh` reads
    the config and runs in-place sed substitution across `.claude/commands/*.md`.
@@ -369,7 +375,7 @@ upgrade.
 
 ### Drain-specific customization
 
-The `/drain` skill consumes the four placeholders plus several env vars (`RENDER_*`, `SENTRY_*`, `PUBLIC_BASE_URL`, optional `SLACK_WEBHOOK_URL`) and requires installing the `drain-merge-bridge.yml` workflow per-fork. The full customization contract — every value an operator must supply, where to find it, and what scope is required — lives in [`docs/drain-customization.md`](drain-customization.md). Pair with [`docs/drain-known-limitations.md`](drain-known-limitations.md) for what v1 deliberately does NOT do, and [`docs/drain-institutional-knowledge.md`](drain-institutional-knowledge.md) for the patterns and lessons accumulated during empirical development. The architectural decisions are recorded in [`docs/adr/0001-drain-skill-wraps-claude-code-goal-primitive.md`](adr/0001-drain-skill-wraps-claude-code-goal-primitive.md) and [`docs/adr/0002-drain-autonomous-merge-via-bridge-workflow.md`](adr/0002-drain-autonomous-merge-via-bridge-workflow.md).
+The `/drain` skill consumes the placeholders above plus several env vars (`RENDER_*`, `SENTRY_*`, `PUBLIC_BASE_URL`, optional `SLACK_WEBHOOK_URL`) and requires installing the `drain-merge-bridge.yml` workflow per-fork. The full customization contract — every value an operator must supply, where to find it, and what scope is required — lives in [`docs/drain-customization.md`](drain-customization.md). Pair with [`docs/drain-known-limitations.md`](drain-known-limitations.md) for what v1 deliberately does NOT do, and [`docs/drain-institutional-knowledge.md`](drain-institutional-knowledge.md) for the patterns and lessons accumulated during empirical development. The architectural decisions are recorded in [`docs/adr/0001-drain-skill-wraps-claude-code-goal-primitive.md`](adr/0001-drain-skill-wraps-claude-code-goal-primitive.md) and [`docs/adr/0002-drain-autonomous-merge-via-bridge-workflow.md`](adr/0002-drain-autonomous-merge-via-bridge-workflow.md).
 
 ### Why placeholders, not env vars
 
