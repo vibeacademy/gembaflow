@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # scripts/check-merge-gate.sh — condition logic for the agent-merge gate
 #
-# Evaluates conditions 1-5 of the agent-merge gate against a PR-state JSON
+# Evaluates conditions 1-6 of the agent-merge gate against a PR-state JSON
 # file (the output of `gh pr view <N> --json
-# number,state,baseRefName,labels,body,statusCheckRollup,mergeStateStatus`).
+# number,state,baseRefName,labels,body,statusCheckRollup,mergeStateStatus,reviews,headRefOid`).
 # The workflow (.github/workflows/agent-merge.yml) fetches the JSON and
 # calls this script; keeping the logic here makes it unit-testable
 # (scripts/__tests__/check-merge-gate.test.mjs) without dispatching a
@@ -25,12 +25,21 @@
 #      "not mergeable", never as "probably fine".
 #   4. The PR is OPEN and its base is EXPECTED_BASE (default: main).
 #   5. The PR has no `do-not-merge` label.
-#
-# There is deliberately NO approved-review condition: upstream's
-# pr-reviewer never clicks Approve. The GO/NO-GO verdict lives in review
-# comments and as a `verdict:*` label on the bead; /drain dispatches the
-# gate only after a GO verdict. The gate re-verifies the mechanical
-# conditions above (defense in depth), not the editorial verdict.
+#   6. Second-identity approval, CONFIG-GATED via REVIEWER_APPROVAL_LOGIN
+#      (escalation resolution on #578, Option A — operator 2026-08-01).
+#      Non-empty: the latest review authored by exactly that login must
+#      be APPROVED and bound to the PR's CURRENT head commit (a stale
+#      approval on an earlier commit fails, naming both commits — a
+#      post-approval push must be re-approved). Empty: the condition is
+#      SKIPPED with a loud notice — the deliberate choice of
+#      never-approve forks, whose GO/NO-GO verdict lives in review
+#      comments and the bead's `verdict:*` label instead. The stance is
+#      configurable, not doctrinal: upstream's own workflow copy sets
+#      `va-reviewer`, preserving the two-identity merge path (a
+#      compromised or prompt-injected worker identity cannot self-merge).
+#      The value comes from the workflow env (repo-controlled), NEVER
+#      from PR content — attacker-controlled body/labels cannot toggle
+#      or satisfy it.
 #
 # All conditions are evaluated (no early exit) so a denial names every
 # failing condition in one pass.
@@ -39,11 +48,16 @@
 #   bash scripts/check-merge-gate.sh <pr-json-file>
 #
 # Environment:
-#   IGNORED_CHECKS  JSON array of status-check names condition 3 treats
-#                   as informational (default '[]' — strict mode). See
-#                   docs/agent-merge-gate.md § "Informational checks"
-#                   for the 3-criteria bar before adding an entry.
-#   EXPECTED_BASE   Base branch condition 4 requires (default 'main').
+#   IGNORED_CHECKS           JSON array of status-check names condition 3
+#                            treats as informational (default '[]' —
+#                            strict mode). See docs/agent-merge-gate.md
+#                            § "Informational checks" for the 3-criteria
+#                            bar before adding an entry.
+#   EXPECTED_BASE            Base branch condition 4 requires (default
+#                            'main').
+#   REVIEWER_APPROVAL_LOGIN  Reviewer bot login for condition 6 (default
+#                            empty = condition skipped with a notice).
+#                            Set in the workflow env like IGNORED_CHECKS.
 #
 # Exit codes:
 #   0 — all conditions pass
@@ -53,6 +67,7 @@ set -euo pipefail
 
 IGNORED_CHECKS="${IGNORED_CHECKS:-[]}"
 EXPECTED_BASE="${EXPECTED_BASE:-main}"
+REVIEWER_APPROVAL_LOGIN="${REVIEWER_APPROVAL_LOGIN:-}"
 
 if [ $# -ne 1 ]; then
   echo "Usage: bash scripts/check-merge-gate.sh <pr-json-file>" >&2
@@ -153,9 +168,33 @@ else
   echo "OK: condition 5 — no do-not-merge label"
 fi
 
+# --- Condition 6 — second-identity approval (config-gated) ------------------
+if [ -z "$REVIEWER_APPROVAL_LOGIN" ]; then
+  echo "::warning::Condition 6: second-identity approval check DISABLED by config — merge path relies on citation+label+rollup only. REVIEWER_APPROVAL_LOGIN is empty (the deliberate never-approve-fork choice; see docs/agent-merge-gate.md § 'The reviewer-approval condition is configurable, not doctrinal')."
+else
+  HEAD_OID=$(jq -r '.headRefOid // ""' "$PR_JSON")
+  LATEST_REVIEW=$(jq -c --arg login "$REVIEWER_APPROVAL_LOGIN" \
+    '[.reviews // [] | .[] | select(.author.login == $login)] | sort_by(.submittedAt) | last // "none"' "$PR_JSON")
+  if [ "$LATEST_REVIEW" = '"none"' ]; then
+    fail "Condition 6: PR #${PR} has no review authored by '${REVIEWER_APPROVAL_LOGIN}' (an APPROVED review from that login is required while REVIEWER_APPROVAL_LOGIN is set)"
+  else
+    REVIEW_STATE=$(echo "$LATEST_REVIEW" | jq -r '.state // "NONE"')
+    REVIEW_OID=$(echo "$LATEST_REVIEW" | jq -r '.commit.oid // ""')
+    if [ "$REVIEW_STATE" != "APPROVED" ]; then
+      fail "Condition 6: PR #${PR} latest review by '${REVIEWER_APPROVAL_LOGIN}' is '${REVIEW_STATE}' (expected APPROVED)"
+    elif [ -z "$HEAD_OID" ]; then
+      fail "Condition 6: PR #${PR} state is missing headRefOid — cannot bind the approval to the current head commit (refusing rather than trusting a possibly-stale approval)"
+    elif [ "$REVIEW_OID" != "$HEAD_OID" ]; then
+      fail "Condition 6: PR #${PR} approval by '${REVIEWER_APPROVAL_LOGIN}' is STALE — approved commit ${REVIEW_OID:-(unknown)}, current head is ${HEAD_OID}. A push after approval must be re-approved."
+    else
+      echo "OK: condition 6 — '${REVIEWER_APPROVAL_LOGIN}' APPROVED at current head ${HEAD_OID}"
+    fi
+  fi
+fi
+
 # ----------------------------------------------------------------------------
 if [ "$FAILED" -ne 0 ]; then
   echo "::error::Merge gate DENIED for PR #${PR} — see condition failures above"
   exit 1
 fi
-echo "OK: all gate conditions (1-5) passed for PR #${PR}"
+echo "OK: all gate conditions (1-6) passed for PR #${PR}"

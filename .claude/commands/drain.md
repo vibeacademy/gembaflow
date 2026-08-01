@@ -268,8 +268,11 @@ turn picks up the next bead.
    `bd comment <id>` explaining what failed and what was tried. Never close
    it. Increment the consecutive-failure counter, and end the turn.
 6. **If `/review-pr` recorded NO-GO** (`verdict:no-go` on the bead — the
-   reviewer never clicks Approve; the verdict lives in the review comments
-   and the bead's `verdict:*` label) — same as above.
+   verdict of record lives in the review comments and the bead's
+   `verdict:*` label; on repos with the gate's `REVIEWER_APPROVAL_LOGIN`
+   set, a GO additionally comes with the reviewer bot's `--approve` on
+   the current head, which gate condition 6 will require) — same as
+   above.
 7. **If CI is green and the verdict is GO (`verdict:go`):**
 
    **7a. Wait for the FULL check rollup before dispatching the gate.**
@@ -533,7 +536,7 @@ review" warning prepended.
 
 ## Critical Rules
 
-1. **Never bypass the agent-merge gate.** Always dispatch via the drain-merge bridge (`repository_dispatch` → `workflow_call`); never invoke `gh pr merge` directly. The gate's 6-condition re-verification (bead citation + safety label on the PR + complete green rollup + open-against-main + no do-not-merge + caller audit) is the load-bearing safety boundary. The gate does NOT require an approved review state — the reviewer never clicks Approve; the GO verdict lives in the review comments and the bead's `verdict:*` label, and the drain only dispatches after GO (cycle step 7).
+1. **Never bypass the agent-merge gate.** Always dispatch via the drain-merge bridge (`repository_dispatch` → `workflow_call`); never invoke `gh pr merge` directly. The gate's 7-condition re-verification (bead citation + safety label on the PR + complete green rollup + open-against-main + no do-not-merge + config-gated second-identity approval + caller audit) is the load-bearing safety boundary. The second-identity condition is configurable, not doctrinal (`REVIEWER_APPROVAL_LOGIN` in the gate's env): upstream's copy requires a fresh head-bound `--approve` from the reviewer bot, so a single compromised worker identity cannot self-merge; never-approve forks empty the config knowingly — their GO verdict lives in the review comments and the bead's `verdict:*` label, and the drain only dispatches after GO (cycle step 7). See `docs/agent-merge-gate.md`.
 2. **Never demote a `safety:hot` bead during the run.** Hot beads are explicitly out of scope for autonomous processing. If the operator wants a hot bead merged, they do it themselves.
 3. **Never advance past production-baseline degradation OR mid-run Merged-NotDeployed accumulation.** Re-baseline after every rolled-back bead; if the re-baseline fails, hard-stop. If two or more beads accumulate the Merged-NotDeployed outcome in the same run, hard-stop — the deploy pipeline is unhealthy and continuing would stack more stuck merges on top of broken infrastructure (per `#189`).
 4. **Never run more than one `safety:reversible` bead per `DRAIN_REVERSIBLES_WINDOW_MIN`-minute window** (default 30, configurable). The architecture report's rate-limit isn't optional — it exists because two reversibles back-to-back failing makes the rollback ambiguous. See the "Configuration knobs" section below for the env var.
@@ -772,7 +775,7 @@ Drain-run bead: <id> (closed with partial summary reason)
 ## Related commands
 
 - [`/work-ticket`](work-ticket.md) — the per-bead workhorse. Drain invokes it with `DRAIN_CONTEXT=true`.
-- [`/review-pr`](review-pr.md) — auto-chained from `/work-ticket` on green CI per project policy; records the verdict as a `verdict:*` label + bd comment (never an Approve click).
+- [`/review-pr`](review-pr.md) — auto-chained from `/work-ticket` on green CI per project policy; records the verdict as a `verdict:*` label + bd comment (plus the gate-qualifying `--approve` on repos where the gate's `REVIEWER_APPROVAL_LOGIN` is set).
 - [`agent-merge.yml`](../../.github/workflows/agent-merge.yml) — the conditional merge gate. Drain dispatches it per bead; condition logic in `scripts/check-merge-gate.sh`.
 - [`/groom-backlog`](groom-backlog.md) — the daytime work that makes beads ready (`bd ready` is the outcome) before invoking `/drain`.
 - [`/board-refresh`](board-refresh.md) — manual board-projection refresh if the operator wants boards current mid-run.

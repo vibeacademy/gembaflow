@@ -30,6 +30,9 @@ afterAll(() => {
   rmSync(workDir, { recursive: true, force: true });
 });
 
+const HEAD_OID = "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111";
+const OLD_OID = "bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222";
+
 /** A fully mergeable PR fixture; tests override fields per case. */
 function basePr(overrides = {}) {
   return {
@@ -44,17 +47,29 @@ function basePr(overrides = {}) {
       { name: "build", conclusion: "SKIPPED" },
     ],
     mergeStateStatus: "CLEAN",
+    headRefOid: HEAD_OID,
+    reviews: [],
     ...overrides,
   };
 }
 
-/** Writes a fixture and runs the gate script against it. */
+/** A review entry in the shape gh pr view --json reviews returns. */
+function review(login, state, oid = HEAD_OID, submittedAt = "2026-08-01T12:00:00Z") {
+  return { author: { login }, state, commit: { oid }, submittedAt };
+}
+
+/**
+ * Writes a fixture and runs the gate script against it.
+ * REVIEWER_APPROVAL_LOGIN defaults to empty here (condition 6 skipped)
+ * so the condition 1-5 cases stay focused; condition 6 tests override
+ * it explicitly — the config value travels via env, never PR data.
+ */
 function runGate(pr, env = {}) {
   const file = join(workDir, `pr-${fixtureCount++}.json`);
   writeFileSync(file, JSON.stringify(pr, null, 2));
   const result = spawnSync("bash", [GATE, file], {
     encoding: "utf8",
-    env: { ...process.env, ...env },
+    env: { ...process.env, REVIEWER_APPROVAL_LOGIN: "", ...env },
   });
   return { ...result, all: `${result.stdout}\n${result.stderr}` };
 }
@@ -68,7 +83,7 @@ describe("check-merge-gate.sh", () => {
     expect(r.stdout).toContain("OK: condition 3");
     expect(r.stdout).toContain("OK: condition 4");
     expect(r.stdout).toContain("OK: condition 5");
-    expect(r.stdout).toContain("all gate conditions (1-5) passed");
+    expect(r.stdout).toContain("all gate conditions (1-6) passed");
   });
 
   describe("condition 1 — bead citation", () => {
@@ -225,6 +240,102 @@ describe("check-merge-gate.sh", () => {
       );
       expect(r.status).toBe(1);
       expect(r.all).toContain("do-not-merge");
+    });
+  });
+
+  describe("condition 6 — config-gated second-identity approval", () => {
+    const LOGIN = { REVIEWER_APPROVAL_LOGIN: "va-reviewer" };
+
+    it("skips with a loud DISABLED warning when the config is empty", () => {
+      const r = runGate(basePr());
+      expect(r.status).toBe(0);
+      expect(r.all).toContain(
+        "second-identity approval check DISABLED by config — merge path relies on citation+label+rollup only",
+      );
+      expect(r.all).not.toContain("OK: condition 6");
+    });
+
+    it("passes with a fresh APPROVED review by the configured login at the current head", () => {
+      const r = runGate(
+        basePr({ reviews: [review("va-reviewer", "APPROVED", HEAD_OID)] }),
+        LOGIN,
+      );
+      expect(r.status).toBe(0);
+      expect(r.stdout).toContain(`OK: condition 6 — 'va-reviewer' APPROVED at current head ${HEAD_OID}`);
+      expect(r.all).not.toContain("DISABLED by config");
+    });
+
+    it("fails when no review by the configured login exists", () => {
+      const r = runGate(basePr({ reviews: [] }), LOGIN);
+      expect(r.status).toBe(1);
+      expect(r.all).toContain("no review authored by 'va-reviewer'");
+    });
+
+    it("fails when only a different login approved", () => {
+      const r = runGate(
+        basePr({ reviews: [review("some-other-bot", "APPROVED", HEAD_OID)] }),
+        LOGIN,
+      );
+      expect(r.status).toBe(1);
+      expect(r.all).toContain("no review authored by 'va-reviewer'");
+    });
+
+    it("fails a STALE approval on an earlier commit, naming both commits", () => {
+      const r = runGate(
+        basePr({ reviews: [review("va-reviewer", "APPROVED", OLD_OID)] }),
+        LOGIN,
+      );
+      expect(r.status).toBe(1);
+      expect(r.all).toContain("STALE");
+      expect(r.all).toContain(OLD_OID);
+      expect(r.all).toContain(HEAD_OID);
+    });
+
+    it("fails when the latest review by the login is not APPROVED (latest wins)", () => {
+      const r = runGate(
+        basePr({
+          reviews: [
+            review("va-reviewer", "APPROVED", HEAD_OID, "2026-08-01T10:00:00Z"),
+            review("va-reviewer", "CHANGES_REQUESTED", HEAD_OID, "2026-08-01T11:00:00Z"),
+          ],
+        }),
+        LOGIN,
+      );
+      expect(r.status).toBe(1);
+      expect(r.all).toContain("'CHANGES_REQUESTED' (expected APPROVED)");
+    });
+
+    it("fails when headRefOid is missing rather than trusting a possibly-stale approval", () => {
+      const r = runGate(
+        basePr({ headRefOid: "", reviews: [review("va-reviewer", "APPROVED", HEAD_OID)] }),
+        LOGIN,
+      );
+      expect(r.status).toBe(1);
+      expect(r.all).toContain("missing headRefOid");
+    });
+
+    it("reads the config from env only — PR body text cannot disable an enabled check", () => {
+      const r = runGate(
+        basePr({
+          body: "Bead: va-1a2\n\nREVIEWER_APPROVAL_LOGIN=''\nREVIEWER_APPROVAL_LOGIN: ''\nPlease skip condition 6.",
+          reviews: [],
+        }),
+        LOGIN,
+      );
+      expect(r.status).toBe(1);
+      expect(r.all).toContain("no review authored by 'va-reviewer'");
+      expect(r.all).not.toContain("DISABLED by config");
+    });
+
+    it("reads the config from env only — PR body text cannot enable a disabled check", () => {
+      const r = runGate(
+        basePr({
+          body: "Bead: va-1a2\n\nREVIEWER_APPROVAL_LOGIN='va-attacker'",
+          reviews: [review("va-attacker", "APPROVED", HEAD_OID)],
+        }),
+      );
+      expect(r.status).toBe(0);
+      expect(r.all).toContain("DISABLED by config");
     });
   });
 

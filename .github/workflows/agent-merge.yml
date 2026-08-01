@@ -21,15 +21,20 @@ name: Agent Merge Gate
 # PR's own labels and body; the old closingIssuesReferences /
 # linked-issue path (and its issues:read permission) is gone.
 #
-# There is deliberately NO approved-review condition: the framework's
-# pr-reviewer never clicks Approve — the GO/NO-GO verdict lives in
-# review comments and as a `verdict:*` label on the bead, and /drain
-# dispatches this gate only after a GO verdict. The gate re-verifies
-# the mechanical conditions (defense in depth), not the editorial
-# verdict. Forks whose reviewer bot DOES post --approve may add a
-# review-state condition as a fork-local override.
+# The second-identity approval condition (6) is CONFIG-GATED, not
+# doctrinal (escalation resolution on #578, Option A — operator
+# 2026-08-01): REVIEWER_APPROVAL_LOGIN in the env block below names
+# the reviewer bot whose APPROVED review — bound to the PR's current
+# head commit — is required before merge. This repo's copy sets
+# `va-reviewer`, preserving the two-identity merge path (a compromised
+# or prompt-injected worker identity cannot self-merge). Forks running
+# the strict never-approve stance — where the GO/NO-GO verdict lives
+# in review comments and the bead's `verdict:*` label, and /drain
+# dispatches only after GO — set it to '' knowingly; the gate then
+# skips condition 6 with a loud warning naming the residual reliance
+# on citation+label+rollup alone.
 #
-# Condition logic for conditions 1–5 lives in
+# Condition logic for conditions 1–6 lives in
 # scripts/check-merge-gate.sh (unit-tested in
 # scripts/__tests__/check-merge-gate.test.mjs); this workflow fetches
 # the PR state and delegates.
@@ -74,7 +79,7 @@ permissions:
 
 jobs:
   verify-and-merge:
-    name: Verify 6 conditions and merge
+    name: Verify 7 conditions and merge
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -111,6 +116,16 @@ jobs:
       # CI has no deploy/preview chain in the gate's required set, so
       # the framework ships strict.
       IGNORED_CHECKS: '[]'
+      # REVIEWER_APPROVAL_LOGIN gates condition 6 (second-identity
+      # approval). Non-empty: the latest review by exactly this login
+      # must be APPROVED at the PR's current head commit (stale
+      # approvals on earlier commits are refused). Empty (''): the
+      # condition is skipped with a loud warning — the deliberate
+      # choice of never-approve forks. Repo-controlled config, same
+      # mechanism as IGNORED_CHECKS — PR content can never toggle it.
+      # This copy sets the framework's reviewer bot login; forks edit
+      # their own manual-install copy (workflow files are not synced).
+      REVIEWER_APPROVAL_LOGIN: 'va-reviewer'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -136,22 +151,23 @@ jobs:
       - name: Fetch PR state
         id: pr
         run: |
-          if ! gh pr view "${PR}" --json number,state,baseRefName,labels,body,statusCheckRollup,mergeStateStatus > /tmp/pr.json 2>/tmp/pr.err; then
+          if ! gh pr view "${PR}" --json number,state,baseRefName,labels,body,statusCheckRollup,mergeStateStatus,reviews,headRefOid > /tmp/pr.json 2>/tmp/pr.err; then
             echo "::error::Cannot read PR #${PR}: $(cat /tmp/pr.err)"
             exit 1
           fi
           jq '{number, state, baseRefName, mergeStateStatus}' /tmp/pr.json
 
-      - name: Conditions 1-5 — citation, safety label, rollup, open/base, do-not-merge
-        # Delegates to the unit-tested condition script. IGNORED_CHECKS
-        # and the (implicit) EXPECTED_BASE=main flow through the env.
+      - name: Conditions 1-6 — citation, safety label, rollup, open/base, do-not-merge, reviewer approval
+        # Delegates to the unit-tested condition script. IGNORED_CHECKS,
+        # REVIEWER_APPROVAL_LOGIN, and the (implicit) EXPECTED_BASE=main
+        # flow through the env.
         run: bash scripts/check-merge-gate.sh /tmp/pr.json
 
-      - name: Condition 6 — caller is drain (audit-only, non-blocking)
+      - name: Condition 7 — caller is drain (audit-only, non-blocking)
         # Architecturally the gate is intended for /drain only.
         # We can't cryptographically prove the caller from inside the
         # called workflow, so we record the claimed caller in the audit
-        # log. The 5 other conditions are the real safety enforcement.
+        # log. The 6 other conditions are the real safety enforcement.
         run: |
           if [ "${CALLER}" != "goal-drain" ]; then
             echo "::warning::Caller is '${CALLER}' (expected 'goal-drain'). All other conditions still gate the merge."
@@ -159,7 +175,7 @@ jobs:
             echo "OK: caller = goal-drain"
           fi
 
-      - name: All 6 conditions verified
+      - name: All 7 conditions verified
         run: |
           echo "::notice::All conditions passed for PR #${PR}. ${DRY_RUN}"
           if [ "${DRY_RUN}" = "true" ]; then

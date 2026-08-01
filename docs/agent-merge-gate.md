@@ -22,22 +22,22 @@ the `IGNORED_CHECKS` env-var to match their own observed CI flakiness.
 
 ## What it does
 
-When invoked with a PR number, the workflow re-verifies six
+When invoked with a PR number, the workflow re-verifies seven
 conditions. Any single failure aborts the workflow non-zero before
-the merge step runs. Only when all six pass does the workflow execute
+the merge step runs. Only when all seven pass does the workflow execute
 `gh pr merge <PR> --squash --delete-branch`.
 
-The six conditions are deliberately **defense in depth** — the
+The seven conditions are deliberately **defense in depth** — the
 calling workflow (drain) is expected to have already checked them.
 This gate re-checks anyway, on the principle that the callable
 surface should self-protect.
 
-Conditions 1-5 live in [`scripts/check-merge-gate.sh`](../scripts/check-merge-gate.sh)
+Conditions 1-6 live in [`scripts/check-merge-gate.sh`](../scripts/check-merge-gate.sh)
 (unit-tested in `scripts/__tests__/check-merge-gate.test.mjs`); the
 workflow fetches the PR state JSON and delegates, so the condition
 logic is exercisable without dispatching a workflow run.
 
-## The six conditions
+## The seven conditions
 
 | # | Condition | How it's checked |
 |---|---|---|
@@ -46,20 +46,37 @@ logic is exercisable without dispatching a workflow run.
 | 3 | All status checks on the PR are `SUCCESS`/NEUTRAL/SKIPPED and the rollup is COMPLETE, **excluding any check names in the workflow-level `IGNORED_CHECKS` env var** | `gh pr view --json statusCheckRollup`; filter rollup by name against `IGNORED_CHECKS`; reject if any remaining check is `FAILURE`, `CANCELLED`, `TIMED_OUT`, or still running (`PENDING`, `IN_PROGRESS`, `QUEUED`, or conclusion-less — an incomplete rollup fails loudly, naming the unfinished check). See "Informational checks" section below |
 | 4 | The PR is `OPEN` and its base is `main` | Standard PR state check |
 | 5 | The PR has no `do-not-merge` label | Standard label exclusion |
-| 6 | The caller is the drain workflow | Audit-logged from the `caller` input; emits a warning (not an error) if `caller != goal-drain` because the called workflow cannot cryptographically prove its parent. The other five conditions remain the load-bearing safety. |
+| 6 | Second-identity approval — **config-gated** via the workflow-level `REVIEWER_APPROVAL_LOGIN` env var | Non-empty: the latest review authored by exactly that login must be `APPROVED` and bound to the PR's **current head commit** (`review.commit.oid == headRefOid` — a stale approval on an earlier commit is refused, naming both commits). Empty: the condition is skipped with a loud `::warning::` naming the residual reliance on citation+label+rollup alone. See "The reviewer-approval condition is configurable, not doctrinal" below |
+| 7 | The caller is the drain workflow | Audit-logged from the `caller` input; emits a warning (not an error) if `caller != goal-drain` because the called workflow cannot cryptographically prove its parent. The other six conditions remain the load-bearing safety. |
 
-### Why there is no approved-review condition
+### The reviewer-approval condition is configurable, not doctrinal
 
-The framework's `pr-reviewer` never clicks Approve. The GO/NO-GO
-verdict lives in review comments and as a `verdict:*` label on the
-bead (`verdict:go` / `verdict:no-go` — see `.claude/commands/review-pr.md`
-step 5), and `/drain` dispatches this gate only after a GO verdict is
-recorded. The gate re-verifies the **mechanical** conditions above;
-the **editorial** verdict is the drain orchestrator's dispatch
-precondition, not a gate condition — an Actions runner cannot read the
-bead's `verdict:*` label anyway (the bd tracker is local). Forks whose
-reviewer bot DOES post `--approve` may add a review-state condition as
-a fork-local override on their own copy of the workflow.
+Condition 6 exists to keep the autonomous merge path a **two-identity
+path**: `repository_dispatch` is sendable by any write-scoped identity,
+so without a second-identity check a compromised or prompt-injected
+worker account could open a cited, labeled, green PR and self-merge it.
+Requiring an APPROVED review from a distinct reviewer login closes that
+— the worker identity cannot produce it (escalation resolution on #578,
+Option A — operator 2026-08-01).
+
+The stance is a **config choice**, set in the workflow env exactly like
+`IGNORED_CHECKS` (repo-controlled; PR content can never toggle or
+satisfy it):
+
+- **Upstream's copy sets `va-reviewer`** — its drain practice posts the
+  verdict via `gh pr review --approve` under the reviewer bot, so the
+  gate requires that approval, freshly bound to the current head commit
+  (a post-approval push must be re-approved).
+- **Never-approve forks set `''` knowingly** — their GO/NO-GO verdict
+  lives in review comments and the bead's `verdict:*` label
+  (`verdict:go` / `verdict:no-go` — see `.claude/commands/review-pr.md`
+  step 5), which an Actions runner cannot read (the bd tracker is
+  local), and `/drain` dispatches only after GO. Emptying the config is
+  a deliberate acceptance that the gate's mechanical conditions rely on
+  citation+label+rollup alone; the gate says so loudly on every run.
+
+Workflow files are not in `syncDirectories`, so each fork makes this
+choice on its own manual-install copy.
 
 ## How it's invoked
 
@@ -119,7 +136,7 @@ gh workflow run agent-merge.yml \
   -f dry_run=true
 ```
 
-This runs all six verification steps and logs "would merge" on the
+This runs all seven verification steps and logs "would merge" on the
 final step instead of executing the merge.
 
 ## Why workflow_dispatch can only dry-run
@@ -133,7 +150,7 @@ human dispatching the workflow gets `caller: workflow_dispatch`
   in the audit log
 - Humans can still test the conditions empirically
 - A human cannot use the gate as a backdoor to merge a PR they
-  couldn't otherwise merge — the five other conditions remain in force
+  couldn't otherwise merge — the six other conditions remain in force
 
 ## Drain merge bridge
 
@@ -278,9 +295,11 @@ Before merging this workflow into a fork's `main`, three test
 invocations are recommended:
 
 - **Happy path** — dispatch against the gate's own PR after the full
-  check rollup is green and complete, with the `Bead: <id>` citation
-  and exactly one `safety:*` label on the PR → all six conditions
-  pass → "would merge" log → exit 0.
+  check rollup is green and complete, with the `Bead: <id>` citation,
+  exactly one `safety:*` label on the PR, and (when
+  `REVIEWER_APPROVAL_LOGIN` is set) a fresh APPROVED review from that
+  login at the current head → all seven conditions pass → "would
+  merge" log → exit 0.
 - **Deliberate failure 1** — dispatch against a closed/merged PR →
   condition 4 fails ("PR not open") → exit non-zero.
 - **Deliberate failure 2** — dispatch against a non-existent PR
