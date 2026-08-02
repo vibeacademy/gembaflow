@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
-import { loadFromFixture } from "./lib/boards/data.mjs";
+import { loadFromFixture, hydrateHumanOpsNotes } from "./lib/boards/data.mjs";
 import { buildColumns, buildGraph, buildEpicGraph, columnOf } from "./lib/boards/graph.mjs";
 
 // How long jsdom needs after JSDOM() construction before inline <script> tags
@@ -103,6 +103,53 @@ describe("data + graph layer", () => {
     expect(drawn).toEqual(
       expect.arrayContaining(["el-2→el-3", "el-3→el-4", "el-4→el-5"]),
     );
+  });
+
+  it("hydrates human-ops notes in a single batched fetch, never N+1", () => {
+    // Five human-ops beads missing notes + one already-hydrated + one
+    // non-human-ops. The fetcher stands in for the `bd show` subprocess:
+    // the batching contract is at most ONE call regardless of bead count.
+    const mkBead = (id, extra = {}) => ({
+      id,
+      humanOps: true,
+      notes: null,
+      operator: null,
+      ...extra,
+    });
+    const beads = new Map([
+      ["h-1", mkBead("h-1")],
+      ["h-2", mkBead("h-2")],
+      ["h-3", mkBead("h-3")],
+      ["h-4", mkBead("h-4")],
+      ["h-5", mkBead("h-5")],
+      ["h-6", mkBead("h-6", { notes: "already here" })],
+      ["t-1", mkBead("t-1", { humanOps: false })],
+    ]);
+    const calls = [];
+    hydrateHumanOpsNotes(beads, (ids) => {
+      calls.push(ids);
+      return ids.map((id) => ({ id, notes: `Operator: step for ${id}` }));
+    });
+    // Subprocess-count assertion: one batched call, N+1 is a regression.
+    expect(calls.length).toBeLessThanOrEqual(1);
+    expect(calls[0]).toEqual(["h-1", "h-2", "h-3", "h-4", "h-5"]); // pending only
+    expect(beads.get("h-3").notes).toBe("Operator: step for h-3");
+    expect(beads.get("h-3").operator.summary).toBe("step for h-3");
+    expect(beads.get("h-6").notes).toBe("already here"); // untouched
+    expect(beads.get("t-1").notes).toBeNull(); // non-human-ops never hydrated
+  });
+
+  it("skips the notes fetch entirely when no human-ops bead needs hydration", () => {
+    const beads = new Map([
+      ["t-1", { id: "t-1", humanOps: false, notes: null, operator: null }],
+      ["h-1", { id: "h-1", humanOps: true, notes: "n", operator: null }],
+    ]);
+    let calls = 0;
+    hydrateHumanOpsNotes(beads, () => {
+      calls += 1;
+      return [];
+    });
+    expect(calls).toBe(0);
   });
 
   it("excludes epics from the tree and treats parent-child as grouping", () => {
@@ -682,5 +729,17 @@ describe("--check shape validator", () => {
     expect(result.stderr).toContain("--check FAILED");
     expect(result.stderr).toContain('unknown dependency type "supersedes"');
     expect(result.stderr).toContain("dr-1");
+  });
+
+  it("catches field drift on a NON-first bead (checkShape validates every bead)", () => {
+    // dr-3 is the THIRD bead in the drifted fixture and is missing `status`.
+    // A sample-only validator (first bead) would miss it — the full-array
+    // validator must name both the bead and the field.
+    const result = check("drifted");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("normalized bead dr-3 missing field: status");
+    // The healthy non-first beads produce no missing-field noise.
+    expect(result.stderr).not.toContain("dr-2 missing field");
+    expect(result.stderr).not.toContain("dr-1 missing field");
   });
 });

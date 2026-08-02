@@ -68,7 +68,7 @@
     "deny_secrets": "Secret files (.env, *.key, credentials) are denied to prevent accidental exposure of sensitive data.",
     "bot_accounts": "This template assumes separate bot accounts for worker and reviewer agents. See .claude/README.md for setup instructions.",
     "assistantMode": "Canonical, version-controlled selection of the main-session assistant mode. Set to one of the names in .claude/modes/ (e.g. \"scaffolded\", \"socratic\", \"terse-expert\", \"shipping-coach\") to share a mode with the team. Leave null to fall back to .claude/mode.local (personal, gitignored) or to the framework default. See .claude/modes/README.md for the registry and CLAUDE.md for the resolution chain.",
-    "beads": "bd (beads) is the issue tracker, version-pinned framework-wide in scripts/lib/bd-version.sh and gated by scripts/check-bd.sh (bootstrap Phase 0 and Codespaces postCreate both install the pinned @beads/bd from npm; the gate fails loudly on missing/mismatched versions — see docs/BEADS.md). bd:* allowed broadly; DENIED: bd edit / bd create-form (interactive, hang headless agents — use bd update flags instead) and bd delete (destructive; close beads, don't delete them). ASK: bd dolt push/pull (a write against the git remote's hidden ref — treat like git push; agents never sync autonomously) and bd init (re-init can destroy tracker data; first-time init goes through scripts/init-beads.sh). Prefix denies are best-effort — Bash-level deny matching does not cover every invocation shape. The Stop + SessionStart hooks regenerate .gembaflow-boards/*.html from bd state (render-boards-on-bd.sh --refresh) — once per assistant turn, not per bd mutation; the renderer never blocks and logs to .gembaflow-boards/render.log. The second SessionStart hook (no matcher: fires on startup, resume, compaction and clear) injects bd prime --hook-json (~1.2k tokens of tracker context, survives compaction) — the useful half of 'bd setup claude', adopted natively; bd's managed CLAUDE.md block and AGENTS.md boilerplate are deliberately rejected (init uses --skip-agents; scripts/init-beads.sh removes any that lands) because their guidance (agents bd close on completion, bd remember over the memory files) conflicts with the framework memory architecture."
+    "beads": "bd (beads) is the issue tracker, version-pinned framework-wide in scripts/lib/bd-version.sh and gated by scripts/check-bd.sh (bootstrap Phase 0 and Codespaces postCreate both install the pinned @beads/bd from npm; the gate fails loudly on missing/mismatched versions — see docs/BEADS.md). bd:* allowed broadly; DENIED: bd edit / bd create-form (interactive, hang headless agents — use bd update flags instead) and bd delete (destructive; close beads, don't delete them). ASK: bd dolt push/pull (a write against the git remote's hidden ref — treat like git push; agents never sync autonomously) and bd init (re-init can destroy tracker data; first-time init goes through scripts/init-beads.sh). Prefix denies are best-effort — Bash-level deny matching does not cover every invocation shape. The Stop + SessionStart hooks regenerate .gembaflow-boards/*.html from bd state (render-boards-on-bd.sh; every regen is unconditional, the hook takes no flags) — once per assistant turn, not per bd mutation; the renderer never blocks and logs to .gembaflow-boards/render.log. The second SessionStart hook (no matcher: fires on startup, resume, compaction and clear) injects bd prime --hook-json (~1.2k tokens of tracker context, survives compaction) — the useful half of 'bd setup claude', adopted natively; bd's managed CLAUDE.md block and AGENTS.md boilerplate are deliberately rejected (init uses --skip-agents; scripts/init-beads.sh removes any that lands) because their guidance (agents bd close on completion, bd remember over the memory files) conflicts with the framework memory architecture."
   },
   "hooks": {
     "Stop": [
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-boards-on-bd.sh --refresh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-boards-on-bd.sh",
             "timeout": 30
           }
         ]
@@ -88,7 +88,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-boards-on-bd.sh --refresh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/render-boards-on-bd.sh",
             "timeout": 30
           }
         ]

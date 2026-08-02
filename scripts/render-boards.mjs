@@ -18,7 +18,6 @@
 //
 // Usage:
 //   node scripts/render-boards.mjs                 # render from live bd state
-//   node scripts/render-boards.mjs --refresh       # same (hook SessionStart alias)
 //   node scripts/render-boards.mjs --fixture <dir> # render from captured JSON
 //   node scripts/render-boards.mjs --out <dir>     # override output dir
 //   node scripts/render-boards.mjs --check         # validate bd JSON shape (exit 1 on drift)
@@ -45,7 +44,7 @@ function parseArgs(argv) {
     if (argv[i] === "--fixture") args.fixture = argv[++i];
     else if (argv[i] === "--out") args.out = argv[++i];
     else if (argv[i] === "--check") args.check = true;
-    // --refresh is accepted as a no-op alias (SessionStart hook passes it).
+    // Unknown flags are ignored: renders must never fail on argv drift.
   }
   return args;
 }
@@ -91,13 +90,19 @@ function checkShape(state) {
     problems.push("bd state unavailable (bd not installed or .beads/ missing)");
     return problems;
   }
-  const sample = state.beads.values().next().value;
-  if (!sample) return problems; // empty DB is a valid shape
-  for (const field of ["id", "title", "status", "priority", "type", "labels", "deps"]) {
-    if (!(field in sample)) problems.push(`normalized bead missing field: ${field}`);
-  }
+  // Field-validate EVERY bead, not just a sample — drift can appear in any
+  // status list bd emits (e.g. only closed beads losing a field). Normalized
+  // beads always carry every key, so presence alone is vacuous; `undefined`
+  // is the drift signal (normalizeBead defaults everything except id/status).
   for (const bead of state.beads.values()) {
-    for (const d of bead.deps) {
+    for (const field of ["id", "title", "status", "priority", "type", "labels", "deps"]) {
+      if (!(field in bead) || bead[field] === undefined) {
+        problems.push(
+          `normalized bead ${bead.id ?? "<no id>"} missing field: ${field}`,
+        );
+      }
+    }
+    for (const d of bead.deps ?? []) {
       if (!["blocks", "parent-child", "relates-to"].includes(d.type)) {
         problems.push(`unknown dependency type "${d.type}" on ${bead.id} — bd upgrade changed the schema?`);
       }

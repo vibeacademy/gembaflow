@@ -10,8 +10,9 @@
 //   where type is "blocks" | "parent-child" | "relates-to" and depends_on_id
 //   is the BLOCKER (issue_id depends on it).
 // - `bd list --json` does NOT include `notes`; `bd show --json` and
-//   `bd ready --json` do. Notes are hydrated via `bd show` only for beads
-//   labeled `human-ops` (the Operator: line lives in notes).
+//   `bd ready --json` do. Notes are hydrated via ONE batched multi-id
+//   `bd show <id...>` call, only for beads labeled `human-ops` (the
+//   Operator: line lives in notes) — never one subprocess per bead.
 // - closed beads carry `close_reason` and `closed_at`.
 
 import { execFileSync } from "node:child_process";
@@ -151,6 +152,34 @@ function buildBeadMap(rawLists) {
   return beads;
 }
 
+/**
+ * Hydrate notes for human-ops beads (Operator: line) — list output lacks
+ * notes, so they come from `bd show`. `fetchShown` receives the FULL array of
+ * bead ids still missing notes and must return an array of raw bd issues
+ * (multi-id `bd show --json` shape, verified against bd 1.1.0). It is called
+ * at most ONCE per load — batching is the contract, not an optimization:
+ * per-bead subprocess spawns were the N+1 this replaces.
+ */
+export function hydrateHumanOpsNotes(beads, fetchShown) {
+  const pending = [...beads.values()].filter(
+    (b) => b.humanOps && b.notes === null,
+  );
+  if (!pending.length) return;
+  const shown = fetchShown(pending.map((b) => b.id));
+  const byId = new Map();
+  const rawList = Array.isArray(shown) ? shown : shown ? [shown] : [];
+  for (const raw of rawList) {
+    if (raw && raw.id) byId.set(raw.id, raw);
+  }
+  for (const bead of pending) {
+    const raw = byId.get(bead.id);
+    if (raw && raw.notes) {
+      bead.notes = raw.notes;
+      bead.operator = parseOperator(raw.notes);
+    }
+  }
+}
+
 /** Derive https://github.com/<org>/<repo> from a git remote URL. */
 export function repoUrlFromOrigin(remote) {
   if (!remote) return null;
@@ -190,17 +219,9 @@ export function loadFromBd(rootDir) {
     Array.isArray(ready) ? ready.map((r) => r.id) : [],
   );
 
-  // Hydrate notes for human-ops beads (Operator: line) — list output lacks notes.
-  for (const bead of beads.values()) {
-    if (bead.humanOps && bead.notes === null) {
-      const shown = bdJson(["show", bead.id], rootDir);
-      const raw = Array.isArray(shown) ? shown[0] : shown;
-      if (raw && raw.notes) {
-        bead.notes = raw.notes;
-        bead.operator = parseOperator(raw.notes);
-      }
-    }
-  }
+  // Hydrate notes for human-ops beads in ONE batched subprocess (multi-id
+  // `bd show` — verified against bd 1.1.0), replacing per-bead N+1 spawns.
+  hydrateHumanOpsNotes(beads, (ids) => bdJson(["show", ...ids], rootDir) ?? []);
 
   let repoUrl = null;
   try {
@@ -234,17 +255,15 @@ export function loadFromFixture(fixtureDir) {
   const ready = readJson("ready.json", []);
 
   const beads = buildBeadMap([open, blocked, inProgress, closed, deferred, ready]);
-  // Fixture shows carry notes for human-ops beads.
-  for (const bead of beads.values()) {
-    if (bead.humanOps && bead.notes === null) {
-      const shown = readJson(`show-${bead.id}.json`, null);
-      const raw = Array.isArray(shown) ? shown[0] : shown;
-      if (raw && raw.notes) {
-        bead.notes = raw.notes;
-        bead.operator = parseOperator(raw.notes);
-      }
-    }
-  }
+  // Fixture shows carry notes for human-ops beads. Fixtures store one
+  // show-<id>.json per bead (captured single-id output), so the batch
+  // fetcher flattens the per-id files into one multi-id-shaped array.
+  hydrateHumanOpsNotes(beads, (ids) =>
+    ids.flatMap((id) => {
+      const shown = readJson(`show-${id}.json`, null);
+      return Array.isArray(shown) ? shown : shown ? [shown] : [];
+    }),
+  );
   const readyIds = new Set(Array.isArray(ready) ? ready.map((r) => r.id) : []);
   return { beads, readyIds, repoUrl: "https://github.com/example-org/example-repo" };
 }
