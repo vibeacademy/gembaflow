@@ -18,5 +18,13 @@
     "issue_type": "task",
     "labels": [],
     "dependencies": []
+  },
+  {
+    "id": "dr-3",
+    "title": "NON-first bead with field drift: bd stopped emitting status",
+    "priority": 2,
+    "issue_type": "task",
+    "labels": [],
+    "dependencies": []
   }
 ]

@@ -3,19 +3,20 @@
 # Claude Code hook: regenerate the HTML board projections at turn boundaries.
 #
 # Wired in settings (see .claude/settings.template.json):
-#   - Stop (--refresh)         — fires once per assistant turn, after all tools
-#     have completed. Coalesces any number of bd mutations made during a turn
+#   - Stop         — fires once per assistant turn, after all tools have
+#     completed. Coalesces any number of bd mutations made during a turn
 #     into a single render.
-#     Invoke: render-boards-on-bd.sh --refresh
+#     Invoke: render-boards-on-bd.sh
 #
-#   - SessionStart (--refresh) — unconditional regeneration, bounding drift
-#     from mutations made outside a session (human merges, manual bd edits,
+#   - SessionStart — unconditional regeneration, bounding drift from
+#     mutations made outside a session (human merges, manual bd edits,
 #     bd dolt pull).
 #
-# Manual invocation: call with --refresh to force an unconditional regen
-# (used by /board-refresh and the Stop/SessionStart hooks). Invocation without
-# arguments behaves identically — the refresh is always unconditional. Earlier
-# fork iterations carried a PostToolUse fallback here (verb-regex matching on
+# Manual invocation: run with no arguments (used by /board-refresh and the
+# Stop/SessionStart hooks). Every invocation is an unconditional regen —
+# there is no conditional path, so the hook takes no flags (arguments are
+# ignored; the retired --refresh alias changed nothing). Earlier fork
+# iterations carried a PostToolUse fallback here (verb-regex matching on
 # tool_input.command plus a jsonl-mtime freshness check); both strategies are
 # retired and deliberately NOT ported.
 #

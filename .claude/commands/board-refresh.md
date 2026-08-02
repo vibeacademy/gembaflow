@@ -5,7 +5,7 @@ description: Regenerate the HTML board projections (kanban + tech tree) from bea
 Regenerate the read-only board projections from the beads tracker.
 
 The boards normally regenerate automatically — a Stop hook fires
-`.claude/hooks/render-boards-on-bd.sh --refresh` once per assistant turn
+`.claude/hooks/render-boards-on-bd.sh` once per assistant turn
 (coalescing any number of `bd` mutations made during the turn into a single
 render), and a SessionStart hook does the same hard refresh when a session
 begins. Use this command when state changed outside those paths: mutations
