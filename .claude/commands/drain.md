@@ -160,6 +160,7 @@ After pre-flight clears:
    # bd JSON hygiene (BEADS-CONVENTIONS § Script conventions item 3):
    # --limit 0 or the queue silently caps at 100; capture to a file with
    # stderr separated; sanitize control chars before jq.
+   TMP=$(mktemp -d)
    bd ready --json --limit 0 >"$TMP/ready.json" 2>"$TMP/ready.stderr"
    perl -pe 's/[\x00-\x09\x0b\x0c\x0e-\x1f]/ /g' "$TMP/ready.json" | jq '[.[]
      | select(.issue_type == "task")
