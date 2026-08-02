@@ -4,6 +4,11 @@
 > (gastownhall/beads) is an **operator decision**; no agent files it
 > autonomously. Home artifact: vibeacademy/gembaflow#594 (gotcha 9,
 > `docs/BEADS.md`).
+>
+> **Duplicate check (PR #595 review):** gastownhall/beads#599 ("Beads CLI
+> outputs invalid JSON with unescaped control characters", closed/triaged
+> 2025-12) appears to cover this bug — recommend a "still reproduces in
+> 1.1.0" comment on that issue instead of a new filing; operator decides.
 
 ## Title
 

@@ -567,11 +567,15 @@ else
         pass "Beads" ".beads/ directory exists"
 
         if JQ_CMD=$(resolve_cmd jq); then
-            # bd ready output parses as JSON
-            if "$BD_CMD" ready --json 2>/dev/null | "$JQ_CMD" -e . >/dev/null 2>&1; then
-                pass "Beads" "bd ready --json parses"
+            # bd ready output parses as JSON. --limit 0: the default caps at
+            # 100 rows (docs/BEADS.md gotcha 10) — skills consume the full
+            # queue, so the probe must validate the full queue. Deliberately
+            # UNsanitized: a raw control char in any bead (gotcha 9) should
+            # fail this probe loudly.
+            if "$BD_CMD" ready --json --limit 0 2>/dev/null | "$JQ_CMD" -e . >/dev/null 2>&1; then
+                pass "Beads" "bd ready --json --limit 0 parses"
             else
-                warn "Beads" "bd ready --json did not return parseable JSON" "Run: bd ready --json and inspect the output"
+                warn "Beads" "bd ready --json --limit 0 did not return parseable JSON" "Likely a raw control char in a bead (docs/BEADS.md gotcha 9); run: bd ready --json --limit 0 and inspect the output"
             fi
 
             # Dependency cycles must be empty
