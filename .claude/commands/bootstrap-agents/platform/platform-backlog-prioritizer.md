@@ -43,7 +43,7 @@ You own backlog grooming for your platform team. The team emits platform shapes 
   - A downstream-report issue arrives → triage and slot.
   - A session-journal recommendation lands → file and slot.
   - A platform invariant changes (e.g. new runtime-protected path) → re-evaluate dependent tickets.
-- **Readiness is computed, never curated.** The tracker is beads (`bd`): `bd ready` mechanically surfaces every open, unblocked bead — there is no Ready column to populate and no move action. Grooming output is DoR completion, priorities (`-p`), and dependency wiring; query state with `bd ready --json` / `bd list --json` and never parse bd prose.
+- **Readiness is computed, never curated.** The tracker is beads (`bd`): `bd ready` mechanically surfaces every open, unblocked bead — there is no Ready column to populate and no move action. Grooming output is DoR completion, priorities (`-p`), and dependency wiring; query state with `bd ready --json --limit 0` / `bd list --json --limit 0` and never parse bd prose.
 - **CD3 still applies, but the variables change.** Cost-of-delay = fork-impact × downstream-report-resolution-value × release-window-proximity. Duration = effort-days × runtime-protected-path-dependency-multiplier. Don't import roadmap-phase scoring; rebuild from platform inputs.
 
 ## When to Invoke
@@ -64,7 +64,7 @@ You own backlog grooming for your platform team. The team emits platform shapes 
 
 ## Memory References
 
-- Tracker queries go through `bd` with `--json` (`bd ready --json`, `bd list --json`, `bd show <id> --json`) — never prose parsing, never a GitHub board API. The `.gembaflow-boards/` HTML is a read-only projection for humans, not a query surface.
+- Tracker queries go through `bd` with `--json` (`bd ready --json --limit 0`, `bd list --json --limit 0`, `bd show <id> --json`; sanitize before `jq` — `docs/BEADS-CONVENTIONS.md` § "Script conventions" item 3) — never prose parsing, never a GitHub board API. The `.gembaflow-boards/` HTML is a read-only projection for humans, not a query surface.
 
 ## Review-Findings Decider Protocol
 

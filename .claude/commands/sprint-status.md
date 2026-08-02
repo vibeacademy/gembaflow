@@ -11,8 +11,8 @@ Launch the agile-backlog-prioritizer agent to provide a quick status overview of
 Compute the count per board concept from bd, following the canonical mapping
 in CLAUDE.md § "Work-Item Tracking (Beads)":
 
-- **Backlog** — `bd list --status=open --json -n 0`, minus the ids returned by `bd ready --json`
-- **Ready** — `bd ready --json`. This is mechanical (open + unblocked), not editorial: the count includes epics and ungroomed items. Report the raw number; when judging claimable work, filter `--type=task`.
+- **Backlog** — `bd list --status=open --json -n 0`, minus the ids returned by `bd ready --json --limit 0`
+- **Ready** — `bd ready --json --limit 0` (bare `bd ready` silently caps at 100 — bd JSON hygiene, `docs/BEADS-CONVENTIONS.md` § "Script conventions" item 3). This is mechanical (open + unblocked), not editorial: the count includes epics and ungroomed items. Report the raw number; when judging claimable work, filter `--type=task`.
 - **In Progress** — `bd list --status=in_progress --json -n 0`
 - **In Review** — beads carrying the `in-review` label, joined with `gh pr list --json number,title,createdAt` via their `pr:<N>` label. An open PR is the operative signal — flag any `in-review` bead whose PR is no longer open.
 - **Done** — `bd list --status=closed --all --json -n 0`
@@ -35,7 +35,7 @@ Then:
 - Who needs to take action?
 
 ### 4. Recent Completions
-- Beads closed this week (`bd list --status=closed --all --json`, filter on `closed_at`)
+- Beads closed this week (`bd list --status=closed --all --json --limit 0`, filter on `closed_at`)
 - Velocity trend
 
 ### 5. Immediate Actions Needed

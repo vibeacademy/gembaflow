@@ -94,7 +94,7 @@ configuration. Surfaces every issue that could block a workshop participant.
 
    There is no project-board remote check: work-item tracking is beads
    (`bd`), which is local. The beads checks (bd on PATH, `.beads/`
-   present, `bd ready --json` parses, `bd dep cycles` empty, board
+   present, `bd ready --json --limit 0` parses, `bd dep cycles` empty, board
    projections at `.gembaflow-boards/kanban.html` present and not stale)
    run inside `scripts/doctor.sh` as local checks.
 

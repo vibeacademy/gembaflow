@@ -29,7 +29,7 @@ if any check fails — do not continue with partial tooling.
    placement step; a bead becomes ready mechanically once it is unblocked and
    groomed (Ready is computed, never curated)
 3. **Never create duplicate tickets** — search existing beads first
-   (`bd list --json` + text match, or `bd search "<terms>"`)
+   (`bd list --json --limit 0` + text match, or `bd search "<terms>"`)
 4. **Assign appropriate priority** with `-p <0-3>` (0 = critical, 1 = important, 2 = nice to have, 3 = someday)
 
 ## Workflow
@@ -37,7 +37,7 @@ if any check fails — do not continue with partial tooling.
 1. **Understand** — Ask clarifying questions about the feature/fix/task
 2. **Gather Context** — Read `docs/TECHNICAL-ARCHITECTURE.md` and `docs/PRODUCT-REQUIREMENTS.md` to pre-populate Environment Context and Guardrails
 3. **Research** — Search existing beads to avoid duplicates
-   (`bd list --json` + text match, or `bd search "<terms>"`), check related code
+   (`bd list --json --limit 0` + text match, or `bd search "<terms>"`), check related code
 4. **Draft** — Write the ticket following the template below
 5. **Scope Check** — If effort estimate is XL or the happy path has multiple branch points, suggest decomposition before creating
 6. **Review** — Present the draft to the user for approval

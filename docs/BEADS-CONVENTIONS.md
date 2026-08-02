@@ -78,7 +78,8 @@ this is the full statement.
 ## Script conventions (shell code that touches bd)
 
 Two adoption gotchas from the reference fork (downstream report §4, items
-3–4) are binding conventions for any script in this repo that calls `bd`:
+3–4) plus one pair of live cutover findings (gotchas 9–10, gembaflow#594)
+are binding conventions for any script in this repo that calls `bd`:
 
 1. **bd prose output is not a stable interface.** bd is an active 1.x; its
    prose changed between releases during the reference fork's own two-day
@@ -96,6 +97,28 @@ Two adoption gotchas from the reference fork (downstream report §4, items
    duplicating (the migrator uses `--external-ref` as that key; see
    `scripts/migrate-issues-to-beads.sh` for the reference implementation of
    both rules).
+3. **bd JSON hygiene — sanitize before jq, never trust default limits.**
+   This is the canonical statement of the pattern; every skill/command
+   pipeline that parses bd JSON references it rather than restating it.
+   bd 1.1.0 can emit raw control characters inside `--json` output (a
+   literal tab from an issue body makes `jq` hard-fail with "control
+   characters must be escaped"), and enumerating commands silently cap
+   their output (`bd ready` defaults to 100 rows, with only a stderr
+   advisory). Both were hit live at the meta cutover. Therefore, every
+   pipeline that parses bd JSON:
+   - passes `--limit 0` when enumerating (`bd ready`, `bd list`);
+   - sanitizes before `jq`: capture stdout to a file, then
+     `perl -pe 's/[\x00-\x09\x0b\x0c\x0e-\x1f]/ /g' <file> | jq ...` —
+     files, not shell variables (command substitution can mangle control
+     bytes), and keep stderr out of the captured stream (`2>` elsewhere)
+     so advisories never mix into the JSON;
+   - never lets a failed parse read as an empty result: in absence checks
+     (`jq 'length == 0'` shapes) a parse error silently "passes" — check
+     jq's exit status and fail loudly instead.
+
+   Quirk write-ups with repro context: `docs/BEADS.md` § "bd 1.1.0 JSON
+   output quirks (gotchas 9–10)"; drafted upstream bug reports:
+   `docs/bd-upstream-reports/`.
 
 ## Boards
 

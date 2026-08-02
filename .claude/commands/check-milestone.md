@@ -28,7 +28,7 @@ Launch the agile-backlog-prioritizer agent to assess progress toward a specific 
 - Assess risk factors (scope creep, technical debt, unclear specs)
 
 ### 4. Velocity & Forecasting
-- Calculate team velocity (beads completed per week) — `bd list --status=closed --all --json` and bucket by `closed_at`
+- Calculate team velocity (beads completed per week) — `bd list --status=closed --all --json --limit 0` and bucket by `closed_at`
 - Estimate remaining effort based on incomplete beads (`effort:*` labels)
 - Project completion date based on current velocity
 - Compare projected vs. target completion date

@@ -170,7 +170,7 @@ Print a single closing block:
 
   Mode: <solo|multi-bot>
   Tracker: beads (bd), prefix <prefix from bd config / init-beads>
-  Ready (top 3 from bd ready --json):
+  Ready (top 3 from bd ready --json --limit 0):
     1. <bead-id> — <title>
     2. <bead-id> — <title>
     3. <bead-id> — <title>

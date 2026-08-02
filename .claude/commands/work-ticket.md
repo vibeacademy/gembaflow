@@ -21,7 +21,7 @@ the user if any check fails — do not continue with partial tooling.
 3. **Claude hooks are registered** — Check that hook files referenced in
    `.claude/settings.local.json` exist and are executable. WARN if any hook is
    missing or not executable.
-4. **Beads tracker is available** — Run `bd ready --json` and confirm it
+4. **Beads tracker is available** — Run `bd ready --json --limit 0` and confirm it
    returns without error, and confirm `.beads/` exists. If either fails,
    STOP and report.
 
@@ -77,8 +77,9 @@ template strings leak into runtime instructions.
 
 ## Workflow Steps
 
-1. **Select Ticket** — Run `bd ready --json` and filter to tasks
-   (`bd ready --json --type=task`, or `bd ready --json | jq 'map(select(.issue_type == "task"))'`),
+1. **Select Ticket** — Run `bd ready --json --limit 0` and filter to tasks
+   (`bd ready --json --limit 0 --type=task`, or `bd ready --json --limit 0 | jq 'map(select(.issue_type == "task"))'`,
+   sanitized per bd JSON hygiene — `docs/BEADS-CONVENTIONS.md` § "Script conventions" item 3),
    then take the highest-priority bead. Verify Definition of Ready
    (`bd ready` is mechanical open+unblocked — it does not check DoR
    completeness) and confirm no blockers

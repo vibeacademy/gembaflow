@@ -141,6 +141,7 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `docs/UPGRADING.md` | framework | Upgrade guide for participants | Overwrite |
 | `docs/BEADS.md` | framework | bd (beads) dependency management — pin, install, init, upgrade procedure | Overwrite |
 | `docs/BEADS-CONVENTIONS.md` | framework | Canonical beads label vocabulary + agent/renderer conventions (hygiene, branches/PRs, boards, honest limits) | Overwrite |
+| `docs/bd-upstream-reports/**` | framework | Drafted bd bug reports (gotchas 9–10); filing upstream is an operator decision | Overwrite |
 | `docs/testing/agent-restriction-tests.md` | framework | Test documentation | Overwrite |
 | `docs/PRODUCT-REQUIREMENTS.md` | user-content | Bootstrap-generated, user-owned | Never touch |
 | `docs/PRODUCT-ROADMAP.md` | user-content | Bootstrap-generated, user-owned | Never touch |

@@ -65,7 +65,7 @@ Use the template structure from existing journals in `reports/session-journals/`
 ## After Writing
 
 1. Read the journal back to verify completeness
-2. Cross-reference against the git log and bd state (`bd list --status=closed --all --json`) to catch anything missed
+2. Cross-reference against the git log and bd state (`bd list --status=closed --all --json --limit 0`) to catch anything missed
 3. **Validate memory writes** — check that completed tickets have corresponding
    `CompletedTicket` entities in Memory MCP:
    - For each bead listed in "Tickets Delivered", query Memory MCP:

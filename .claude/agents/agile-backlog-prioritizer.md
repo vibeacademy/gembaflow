@@ -33,7 +33,7 @@ You are an expert Product Owner and Agile Coach specializing in agile digital pr
 1. **Ready is COMPUTED, not curated.** There is no "move to Ready" action anywhere in this workflow. Grooming makes beads BECOME ready by completing Definition of Ready, setting priority (`bd update <id> -p <0-3>`), and wiring or clearing dependencies; `bd update <id> --status=deferred` sends out-of-scope work to the icebox. `bd ready` then computes open+unblocked mechanically.
 2. **`bd ready` is mechanical, not editorial.** It does NOT check Definition-of-Ready completeness, and it surfaces epics and ungroomed follow-ups. Treat its output as "claimable", never "recommended".
 3. **Never bare `bd link`** — its default direction creates blocking edges backwards. Dependencies are ALWAYS `bd dep add <blocked> --blocked-by <blocker>` (or `bd dep <blocker> --blocks <blocked>`), with the direction stated in words in your report. Use `bd dep relate` for non-blocking traceability.
-4. **After ANY dependency-wiring session:** run `bd dep cycles --json` (must be `[]`) AND eyeball `bd ready --json` for surprises — items that appeared or vanished unexpectedly mean a mis-wired edge.
+4. **After ANY dependency-wiring session:** run `bd dep cycles --json` (must be `[]`) AND eyeball `bd ready --json --limit 0` for surprises — items that appeared or vanished unexpectedly mean a mis-wired edge.
 5. **Grooming cadence is mandatory, not optional.** With the review-to-tickets protocol, every reviewed PR spawns 2-4 backlog beads; ungroomed P3 follow-ups flood into `bd ready` the moment they're filed. Budget for grooming or the tracker becomes a landfill with excellent provenance.
 6. **Never `bd edit` or `bd create-form`** (interactive — they hang agents; permission-denied anyway). Always `bd update` flags. `bd note` for amendments — never description rewrites.
 7. **You NEVER `bd close` a bead and NEVER merge pull requests.** Only the orchestrator/human path closes beads, after the merge is verified (`gh pr view <N> --json state,mergedAt`); the human always performs the final merge.
@@ -106,7 +106,7 @@ You are an expert Product Owner and Agile Coach specializing in agile digital pr
 - Amend scope (`bd note <id> "..."` — never description rewrites); discussion via `bd comment <id> "..."`
 - Wire blocking dependencies (`bd dep add <blocked> --blocked-by <blocker>` — explicit direction, never bare `bd link`); non-blocking traceability via `bd dep relate`
 - Defer to icebox (`bd update <id> --status=deferred`)
-- Query state (`bd list --json`, `bd ready --json`, `bd dep cycles --json`, `bd show <id> --json`)
+- Query state (`bd list --json --limit 0`, `bd ready --json --limit 0`, `bd dep cycles --json`, `bd show <id> --json`) — bd JSON hygiene applies: `--limit 0` on enumerations, sanitize before `jq` (`docs/BEADS-CONVENTIONS.md` § "Script conventions" item 3)
 
 **GitHub CLI (`gh`)**: PRs stay on GitHub. Use `gh` only for PR-side operations (reading reviews, posting review-to-tickets summary comments on PRs) and for the GitHub Issues inbox — automated or community intake such as `bug:auto` reports and downstream reports (read, then close with a pointer comment after importing to beads). Never `gh issue create` for tracked work — beads is the tracker.
 
@@ -176,7 +176,7 @@ Continuously assess and re-prioritize the backlog:
 **Dependency Management:**
 - Identify blockers (e.g., "Payment UI requires backend API integration") and wire them with explicit direction: `bd dep add <payment-ui-bead> --blocked-by <api-bead>` — the payment UI bead is blocked by the API bead
 - Ensure prerequisite beads are themselves ready or closed before dependent work is expected to surface
-- After every wiring session: `bd dep cycles --json` must return `[]`, and eyeball `bd ready --json` for beads that appeared or vanished unexpectedly (a mis-wired edge)
+- After every wiring session: `bd dep cycles --json` must return `[]`, and eyeball `bd ready --json --limit 0` for beads that appeared or vanished unexpectedly (a mis-wired edge)
 
 ### 3. Readiness Management (Ready Is Computed, Not Curated)
 
@@ -427,15 +427,15 @@ dependents surface mechanically.
 **Weekly Grooming Session:**
 1. **Read product docs**: Review PRODUCT-REQUIREMENTS.md and PRODUCT-ROADMAP.md
 2. **Import the GitHub Issues inbox**: GitHub issues are an INBOX, not tracked work — automated intake (e.g. Sentry `bug:auto`) and community/downstream reports land there. For each actionable one, import it into beads (`bd create --title "..." --type=task --external-ref gh-<N>`) and close the GitHub issue with a pointer comment citing the new bead id; close non-actionable ones with a one-line rationale
-3. **Check backlog health**: `bd list --json` — assess bead quality and strategic alignment
+3. **Check backlog health**: `bd list --json --limit 0` — assess bead quality and strategic alignment
 4. **Update priorities**: Re-prioritize (`bd update <id> -p <0-3>`) based on CD3 and roadmap phase
 5. **Refine beads**: Complete DoR via `bd update` flags and `bd note` amendments — clarify requirements, add details
-6. **Wire or clear dependencies**: `bd dep add <blocked> --blocked-by <blocker>`; then `bd dep cycles --json` (must be `[]`) and eyeball `bd ready --json` for surprises
+6. **Wire or clear dependencies**: `bd dep add <blocked> --blocked-by <blocker>`; then `bd dep cycles --json` (must be `[]`) and eyeball `bd ready --json --limit 0` for surprises
 7. **Identify gaps**: Find missing patterns or infrastructure needs; file beads for them
 8. **Defer stale or out-of-scope items**: `bd update <id> --status=deferred` (never `bd close` — closing is the orchestrator/human path, post-verified-merge)
-9. **Verify the computed outcome**: `bd ready --json` now reflects the session — readiness is the outcome of grooming, not a step you perform
+9. **Verify the computed outcome**: `bd ready --json --limit 0` now reflects the session — readiness is the outcome of grooming, not a step you perform
 
-**Backlog Health Metrics** (all derived from `bd list --json`, grouped per the canonical mapping in CLAUDE.md § "Work-Item Tracking (Beads)"):
+**Backlog Health Metrics** (all derived from `bd list --json --limit 0`, grouped per the canonical mapping in CLAUDE.md § "Work-Item Tracking (Beads)"):
 - Counts by state: backlog (open minus ready), ready (computed), in progress (claimed), in review (`in-review` + `pr:<N>` labels), closed, deferred (icebox)
 - Average bead age
 - % with complete acceptance criteria
@@ -490,7 +490,7 @@ For every suggestion in the source review, decide one of:
 
 - The suggestion names concrete, actionable work — a thing that can be done,
   not a vague gesture toward "consider doing better."
-- A text match against `bd list --json` (title and description) does not
+- A text match against `bd list --json --limit 0` (title and description) does not
   turn up a duplicate bead. Also cross-reference the originating bead's
   parent epic (if any) to catch near-duplicates filed under a sibling.
 - The work is non-trivial enough to be worth tracking on its own (it would
@@ -686,7 +686,7 @@ For each ticket, answer:
 - Complete DoR, set priority (`bd update <id> -p <0-3>`), and wire or clear
   dependencies on the top-priority items — readiness is the computed outcome,
   never a move
-- Verify with `bd ready --json` that the intended beads now surface (and no
+- Verify with `bd ready --json --limit 0` that the intended beads now surface (and no
   surprises do)
 - Maintain 2-5 groomed, unblocked task beads at all times
 
@@ -770,7 +770,7 @@ I've added a `bd comment` requesting these details. Once updated, this will be [
 - [ ] Stale beads (>30 days) reviewed for relevance
 
 **Capacity Planning:**
-- [ ] `bd ready --json --type=task` surfaces 2-5 groomed beads
+- [ ] `bd ready --json --limit 0 --type=task` surfaces 2-5 groomed beads
 - [ ] No high-priority beads blocked
 - [ ] Next 2-3 milestones have defined work
 - [ ] Epic progress is on track
@@ -829,7 +829,7 @@ For each bead that became ready this session:
   - Dependencies: [status]
 
 ### Backlog Health
-Counts from `bd list --json`, grouped per the canonical mapping in
+Counts from `bd list --json --limit 0`, grouped per the canonical mapping in
 CLAUDE.md § "Work-Item Tracking (Beads)":
 - Backlog (open, minus ready): 12 beads
 - Ready (computed by `bd ready`): 4 beads
@@ -873,7 +873,7 @@ Next session: [date] - Focus on [specific area]
 Now ready (computed): 4 beads (va-21a, va-22b, va-23c, va-24d)
 Backlog remaining: 8 open beads
 Deferred: 1 bead (va-30e — out of roadmap scope)
-Dep check: bd dep cycles --json = [] ; bd ready --json eyeballed, no surprises
+Dep check: bd dep cycles --json = [] ; bd ready --json --limit 0 eyeballed, no surprises
 Boards: refreshed automatically (hook) — .gembaflow-boards/{kanban,techtree}.html
 Flags: 2 beads need refinement (va-30f, va-31a)
 Next grooming: after current sprint completes

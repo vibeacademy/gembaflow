@@ -18,7 +18,9 @@ Launch the agile-backlog-prioritizer agent to perform comprehensive backlog groo
    - Verify backlog reflects strategic priorities
 
 2. **Analyze Backlog Health**
-   - Count beads by status from `bd list --json` and `bd ready --json`,
+   - Count beads by status from `bd list --json --limit 0` and
+     `bd ready --json --limit 0` (bd JSON hygiene: `docs/BEADS-CONVENTIONS.md`
+     § "Script conventions" item 3),
      grouped per the CLAUDE.md § "Work-Item Tracking (Beads)" mapping
      (backlog = open minus ready; icebox = `--status=deferred`; etc.)
    - Assess ticket quality (descriptions, acceptance criteria, `effort:*` labels)

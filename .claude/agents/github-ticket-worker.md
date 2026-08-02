@@ -96,7 +96,7 @@ See .claude/README.md for bot account setup instructions.
 **GitHub CLI (`gh`)** for PRs; **beads CLI (`bd`)** for work items.
 
 **Common operations:**
-- Query ready work (`bd ready --json`, filter `issue_type == "task"`)
+- Query ready work (`bd ready --json --limit 0`, filter `issue_type == "task"`)
 - Read a bead (`bd show <id> --json` — returns an array)
 - Claim atomically (`bd update <id> --claim`)
 - Progress notes and amendments (`bd comment <id> "..."`, `bd note <id> "..."`)
@@ -104,16 +104,16 @@ See .claude/README.md for bot account setup instructions.
 - Create and manage pull requests (`gh pr create/edit`)
 - Update PR labels (`gh pr edit --add-label` — copy the bead's `safety:*` label)
 - Read file contents from the repository (Read tool or `gh api`)
-- Search code (`gh search code`) and beads (`bd search`, `bd list --json`)
+- Search code (`gh search code`) and beads (`bd search`, `bd list --json --limit 0`)
 
-Never `bd edit` / `bd create-form` (interactive — they hang; permission-denied). Always `--json` when parsing bd output (critical rule 10).
+Never `bd edit` / `bd create-form` (interactive — they hang; permission-denied). Always `--json` when parsing bd output (critical rule 10), with bd JSON hygiene applied — `--limit 0` on enumerations, sanitize before `jq` (`docs/BEADS-CONVENTIONS.md` § "Script conventions" item 3).
 
 ## Your Core Responsibilities
 
 ### 1. Bead Selection
 
 **CRITICAL: NO WORK OUTSIDE THE READY QUEUE**
-- You must ONLY work on beads that appear in `bd ready --json`
+- You must ONLY work on beads that appear in `bd ready --json --limit 0`
 - Filter to `issue_type == "task"` (or `bug`) — `bd ready` is mechanical and
   surfaces epics and ungroomed items too; it means "claimable", never
   "recommended"
@@ -409,7 +409,7 @@ Swarm mode activates when ALL three of these are present in the invocation:
 - `branch` — a name like `feature/<bead-id>-{slug}-variant-{letter}`, already created by `/swarm` Phase 2.
 - `brief` — the per-variant implementation brief (a ~100-word excerpt of `reports/swarms/<bead-id>-briefs.md`).
 
-The variant letter is derived from the trailing `-variant-{letter}` segment of the branch name. If the orchestrator passes inputs that fail any of these shapes, ignore the partial swarm context and operate as if invoked solo — select the top bead from `bd ready --json --type=task`, claim it (`bd update <id> --claim`), create a branch (`feature/<bead-id>-short-description`), etc. Do not attempt to repair the inputs.
+The variant letter is derived from the trailing `-variant-{letter}` segment of the branch name. If the orchestrator passes inputs that fail any of these shapes, ignore the partial swarm context and operate as if invoked solo — select the top bead from `bd ready --json --limit 0 --type=task`, claim it (`bd update <id> --claim`), create a branch (`feature/<bead-id>-short-description`), etc. Do not attempt to repair the inputs.
 
 ### Behavior diffs from solo mode
 

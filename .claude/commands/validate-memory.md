@@ -23,7 +23,8 @@ Stop here. Do not treat this as an error.
 ### Step 2: Identify Completed Tickets
 
 Query beads for work completed during the current session:
-`bd list --status=closed --all --json` — the `close_reason` carries the
+`bd list --status=closed --all --json --limit 0` — the `close_reason`
+carries the
 PR number (e.g. "PR #N merged to main after GO review"). Cross-check
 against recent `git log --merges` on main for PR merge commits.
 

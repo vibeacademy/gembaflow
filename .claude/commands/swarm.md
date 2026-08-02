@@ -12,7 +12,7 @@ Before running any planner or worker, verify all checks below. STOP and report t
 
 1. **`gh` CLI authenticated** — `gh auth status` must succeed. Re-verify immediately before each `gh pr create` in Phase 4 — the account-switch hook can flip state mid-session.
 2. **GitHub account is the configured worker bot** — Run `scripts/ensure-github-account.sh`. If only a personal account is active, STOP and instruct the user to fix.
-3. **Beads tracker available** — Run `bd ready --json` and confirm it returns without error, and confirm `.beads/` exists. If either fails, STOP and report.
+3. **Beads tracker available** — Run `bd ready --json --limit 0` and confirm it returns without error, and confirm `.beads/` exists. If either fails, STOP and report.
 4. **Bead exists and is open** — `bd show <bead-id> --json` must return a non-closed bead.
 5. **Definition of Ready** — The bead description contains all four Power Sections (A: Environment Context, B: Guardrails, C: Happy Path, D: Definition of Done), each non-empty. If any is missing, STOP and report which section(s). Do not invent missing content. See `docs/TICKET-FORMAT.md`.
 6. **Bead is NOT already claimed** — Check `bd show <bead-id> --json`: if the status is already `in_progress` (claimed) or the bead carries an `in-review` label, STOP and report. The bead may be under solo `/work-ticket`; swarming on top of in-flight work would collide on branches and PRs.
