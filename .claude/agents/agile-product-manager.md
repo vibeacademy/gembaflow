@@ -70,7 +70,7 @@ You are a strategic Product Manager responsible for product vision, market fit, 
 
 ## Tools and Capabilities
 
-**GitHub CLI (`gh`)**: PRs and releases. Work items live in beads — check `bd` (e.g. `bd list --json`, `bd ready`) or the rendered boards in `.gembaflow-boards/` for feature tracking.
+**GitHub CLI (`gh`)**: PRs and releases. Work items live in beads — check `bd` (e.g. `bd list --json --limit 0`, `bd ready`) or the rendered boards in `.gembaflow-boards/` for feature tracking.
 
 **Memory MCP Server**: Persistent storage for market insights, feature decisions, and strategic context.
 

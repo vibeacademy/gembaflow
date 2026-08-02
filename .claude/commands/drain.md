@@ -69,11 +69,16 @@ bash scripts/substitute-config-placeholders.sh --check
 1. **`gh` CLI is authenticated as `{{bot.worker}}`** — `gh auth status` shows
    `{{bot.worker}}` as the active account. If not, run `gh auth switch -u {{bot.worker}}`.
 2. **Repository accessible** — `gh repo view --json nameWithOwner` succeeds.
-3. **Beads tracker healthy** — `.beads/` exists, `bd ready --json` parses
-   (valid JSON array), and `bd dep cycles --json` returns `[]`. A non-empty
-   cycles result means the dependency graph has a cycle — STOP, hand the
-   cycle list to the operator, and never drain on top of a cyclic graph
-   (`bd ready` output is untrustworthy while a cycle exists).
+3. **Beads tracker healthy** — `.beads/` exists, `bd ready --json --limit 0`
+   parses (valid JSON array), and `bd dep cycles --json` returns `[]`. A
+   non-empty cycles result means the dependency graph has a cycle — STOP,
+   hand the cycle list to the operator, and never drain on top of a cyclic
+   graph (`bd ready` output is untrustworthy while a cycle exists).
+
+   Every bd-JSON pipeline in this skill follows the bd JSON hygiene
+   convention (`docs/BEADS-CONVENTIONS.md` § "Script conventions" item 3):
+   `--limit 0` on enumerations, sanitize bd output before piping to `jq`,
+   and keep stderr out of the captured stream.
 4. **Manual-install drain artifacts** — these don't propagate via template-sync
    by design (workflow files aren't in `syncDirectories`, so forks can
    customize their own workflows without sync clobber). Each fork installs
@@ -92,8 +97,8 @@ bash scripts/substitute-config-placeholders.sh --check
        `bash scripts/setup-safety-labels.sh` (no `--check`) to create them
        idempotently — single command, the helper is safe to re-run.
      - *Beads labels:* at least one bead carries a `safety:*` label —
-       `bd list --json | jq '[.[] | select(((.labels // []) | map(select(startswith("safety:"))) | length) > 0)] | length'`
-       must be > 0. Zero means grooming has never applied the bd-side safety
+       `bd list --json --limit 0 | jq '[.[] | select(((.labels // []) | map(select(startswith("safety:"))) | length) > 0)] | length'`
+       (sanitized per the hygiene convention above) must be > 0. Zero means grooming has never applied the bd-side safety
        vocabulary; classify (per `docs/safety-classes.md`) before draining.
 5. **Every polled external signal points at THIS repo.** For each external
    signal the drain will trust during the run (deploy-status service, error-
@@ -122,7 +127,7 @@ bash scripts/substitute-config-placeholders.sh --check
    a drain on top of an already-soft production.
 7. **Safety classification — asserted on the drain-eligible snapshot, NOT
    the whole backlog.** Compute the drain-eligible snapshot first (the exact
-   query in "Snapshot, sort, filter, plan" step 1: `bd ready --json`,
+   query in "Snapshot, sort, filter, plan" step 1: `bd ready --json --limit 0`,
    `issue_type == "task"`, exactly one `safety:*` label, the run's class
    filter, capped by `--max-tickets` if passed). Then:
 
@@ -145,13 +150,19 @@ bash scripts/substitute-config-placeholders.sh --check
 
 After pre-flight clears:
 
-1. **Snapshot the ready queue** — `bd ready --json`, filtered to work the
-   drain may touch: `issue_type == "task"` AND exactly one `safety:*` label.
+1. **Snapshot the ready queue** — `bd ready --json --limit 0`, filtered to
+   work the drain may touch: `issue_type == "task"` AND exactly one
+   `safety:*` label.
    (`bd ready` is blocker-aware but not editorial — it also surfaces epics
    and ungroomed beads; this filter is what makes the queue drain-eligible.)
 
    ```bash
-   bd ready --json | jq '[.[]
+   # bd JSON hygiene (BEADS-CONVENTIONS § Script conventions item 3):
+   # --limit 0 or the queue silently caps at 100; capture to a file with
+   # stderr separated; sanitize control chars before jq.
+   TMP=$(mktemp -d)
+   bd ready --json --limit 0 >"$TMP/ready.json" 2>"$TMP/ready.stderr"
+   perl -pe 's/[\x00-\x09\x0b\x0c\x0e-\x1f]/ /g' "$TMP/ready.json" | jq '[.[]
      | select(.issue_type == "task")
      | select(((.labels // []) | map(select(startswith("safety:"))) | length) == 1)]'
    ```

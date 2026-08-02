@@ -21,6 +21,23 @@ import { join } from "node:path";
 
 const BD_TIMEOUT_MS = 10_000;
 
+/**
+ * Parse bd --json output, tolerating bd 1.1.0's intermittent raw control
+ * characters inside JSON strings (docs/BEADS.md gotcha 9: e.g. a literal
+ * tab carried over from an issue body is emitted unescaped, and JSON.parse
+ * rejects it). Control characters other than \n and \r are replaced with a
+ * space — safe both inside strings (minor whitespace loss) and between
+ * tokens (plain whitespace). Returns null on unparseable input.
+ */
+export function parseBdJson(text) {
+  if (typeof text !== "string") return null;
+  try {
+    return JSON.parse(text.replace(/[\x00-\x09\x0b\x0c\x0e-\x1f]/g, " "));
+  } catch {
+    return null;
+  }
+}
+
 /** Run a bd command, returning parsed JSON (null on any failure). */
 function bdJson(args, cwd) {
   try {
@@ -30,7 +47,7 @@ function bdJson(args, cwd) {
       timeout: BD_TIMEOUT_MS,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    return JSON.parse(out);
+    return parseBdJson(out);
   } catch {
     return null;
   }
@@ -212,7 +229,10 @@ export function loadFromBd(rootDir) {
     bdJson(["list", "--status=closed", "--all", "-n", "0"], rootDir) ?? [];
   const deferred =
     bdJson(["list", "--status=deferred", "-n", "0"], rootDir) ?? [];
-  const ready = bdJson(["ready"], rootDir) ?? [];
+  // --limit 0: bd ready silently caps at 100 rows by default, with only a
+  // stderr advisory (docs/BEADS.md gotcha 10) — without it, readyIds (and
+  // the notes carried by ready output) truncate on large trackers.
+  const ready = bdJson(["ready", "--limit", "0"], rootDir) ?? [];
 
   const beads = buildBeadMap([open, blocked, inProgress, closed, deferred, ready]);
   const readyIds = new Set(

@@ -559,7 +559,8 @@ bd update va-79a --claim
 bd update va-79a --add-label in-review --add-label pr:108
 
 # Ready is never written at all - bd ready computes open+unblocked
-bd ready --json
+# (--limit 0: bd ready silently caps at 100 by default - docs/BEADS.md gotcha 10)
+bd ready --json --limit 0
 ```
 
 **Prevention:** none needed — the failure mode no longer exists.

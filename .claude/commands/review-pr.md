@@ -14,8 +14,9 @@ Launch the pr-reviewer agent to review pull requests and provide go/no-go recomm
 
 ## Workflow
 
-1. **Find PR** — List beads labeled `in-review` (`bd list --json` filtered
-   on labels) and join them against open PRs
+1. **Find PR** — List beads labeled `in-review` (`bd list --json --limit 0`
+   filtered on labels, sanitized per bd JSON hygiene —
+   `docs/BEADS-CONVENTIONS.md` § "Script conventions" item 3) and join them against open PRs
    (`gh pr list --json number,title,headRefName`). The open PR is the
    operative signal — the `in-review` label alone is advisory. Or use the
    provided PR number and read the bead id from the PR body (`Bead: <id>`).

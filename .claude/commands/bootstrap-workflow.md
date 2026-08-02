@@ -115,7 +115,7 @@ Convert PRD features into beads following `docs/TICKET-FORMAT.md`:
 - Wire dependencies with explicit direction:
   `bd dep add <blocked> --blocked-by <blocker>` — **never bare `bd link`**
 - After ALL wiring: `bd dep cycles --json` must return `[]`, then eyeball
-  `bd ready --json` to confirm the intended beads surfaced
+  `bd ready --json --limit 0` to confirm the intended beads surfaced
 
 ### 5. Verify Readiness
 
@@ -123,7 +123,7 @@ Readiness is computed, never curated — there is no "move to Ready" action.
 `bd ready` mechanically surfaces every open, unblocked bead. Confirm it
 surfaces the intended 2-5 MVP tasks:
 
-- Run `bd ready --json` — the MVP tasks selected above appear
+- Run `bd ready --json --limit 0` — the MVP tasks selected above appear
 - If an intended bead is missing: a dependency is unresolved or it was
   deferred — grooming completes DoR, priorities, and dependencies
 - If too much surfaces: wire the missing dependencies, or defer out-of-scope
@@ -161,7 +161,8 @@ to the user if any check fails — do not continue with partial tooling.
    `.claude/settings.local.json` exist and are executable. WARN if any hook is
    missing or not executable.
 4. **Beads tracker works** — `./scripts/check-bd.sh` passes; after init,
-   `bd ready --json` parses as valid JSON (an empty `[]` is fine). If either
+   `bd ready --json --limit 0` parses as valid JSON (an empty `[]` is fine).
+   If either
    fails, STOP and report.
 
 ## Configuration Required
@@ -208,7 +209,7 @@ The workflow activation agent will:
      A through D
 
 5. **Verify Readiness**
-   - Run `bd ready --json` and confirm the intended 2-5 MVP tasks surface
+   - Run `bd ready --json --limit 0` and confirm the intended 2-5 MVP tasks surface
    - Fix gaps by completing DoR, priorities, or dependency wiring — there is
      no move action
 
@@ -361,8 +362,8 @@ state — there is no board URL to visit and nothing to configure on GitHub.
 After this phase, verify the workflow:
 
 1. **Check the Tracker**
-   - `bd list --json` shows the created epics and tasks
-   - `bd ready --json` surfaces the intended MVP tasks
+   - `bd list --json --limit 0` shows the created epics and tasks
+   - `bd ready --json --limit 0` surfaces the intended MVP tasks
    - Open `.gembaflow-boards/kanban.html` — the beads render
 
 2. **Check Branch Protection**

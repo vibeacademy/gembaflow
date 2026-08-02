@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
-import { loadFromFixture, hydrateHumanOpsNotes } from "./lib/boards/data.mjs";
+import { loadFromFixture, hydrateHumanOpsNotes, parseBdJson } from "./lib/boards/data.mjs";
 import { buildColumns, buildGraph, buildEpicGraph, columnOf } from "./lib/boards/graph.mjs";
 
 // How long jsdom needs after JSDOM() construction before inline <script> tags
@@ -45,6 +45,37 @@ function render(fixture, outDir) {
   );
   return result;
 }
+
+describe("parseBdJson (bd JSON hygiene, docs/BEADS.md gotchas 9-10)", () => {
+  it("parses clean bd JSON unchanged", () => {
+    expect(parseBdJson('[{"id":"el-1","title":"ok"}]')).toEqual([
+      { id: "el-1", title: "ok" },
+    ]);
+  });
+
+  it("tolerates raw control characters inside JSON strings (gotcha 9)", () => {
+    // bd 1.1.0 can emit a literal tab (carried over from an issue body)
+    // unescaped inside a JSON string; JSON.parse alone rejects it.
+    const raw = '[{"id":"el-1","description":"a\tliteral\ttab\x00here"}]';
+    expect(() => JSON.parse(raw)).toThrow(); // the quirk is real
+    const parsed = parseBdJson(raw);
+    expect(parsed).toEqual([
+      { id: "el-1", description: "a literal tab here" },
+    ]);
+  });
+
+  it("preserves legal inter-token whitespace and escaped sequences", () => {
+    const parsed = parseBdJson('\n\t[ {"id": "el-1", "title": "tab\\tkept"} ]\n');
+    expect(parsed).toEqual([{ id: "el-1", title: "tab\tkept" }]);
+  });
+
+  it("returns null (never throws) on garbage or non-string input", () => {
+    expect(parseBdJson("bd: something went wrong")).toBeNull();
+    expect(parseBdJson("")).toBeNull();
+    expect(parseBdJson(null)).toBeNull();
+    expect(parseBdJson(undefined)).toBeNull();
+  });
+});
 
 describe("data + graph layer", () => {
   const state = loadFromFixture(join(FIXTURES, "happy"));

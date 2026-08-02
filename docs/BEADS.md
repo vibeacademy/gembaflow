@@ -120,6 +120,37 @@ and never hand-edit it to make the diff go away.
 and stay behind an `ask` permission in `.claude/settings.template.json`.
 Agents never sync autonomously. Do not weaken this when upgrading settings.
 
+## bd 1.1.0 JSON output quirks (gotchas 9–10)
+
+Two live findings from the meta-tracker cutover and acceptance drain
+(gembaflow#594), continuing the downstream-report §4 numbering. The
+canonical countermeasure pattern lives in `docs/BEADS-CONVENTIONS.md`
+§ "Script conventions" item 3 (bd JSON hygiene); drafted upstream bug
+reports (filing is an operator decision) live in
+`docs/bd-upstream-reports/`.
+
+**9. Raw control characters in `--json` output.** bd 1.1.0 intermittently
+emits raw (unescaped) control characters inside JSON strings — at the meta
+cutover, a literal tab carried over from an issue body broke a `jq` gate
+with "control characters must be escaped". Sanitize before parsing:
+capture bd stdout to a file, then pipe the file through
+`perl -pe 's/[\x00-\x09\x0b\x0c\x0e-\x1f]/ /g'` into `jq`. Files, not
+shell variables — command substitution can mangle control bytes — and keep
+stderr out of the captured stream so bd advisories never mix into the
+JSON. The nastiest failure mode: a pipeline ending in an absence check
+(any `jq 'length == 0'` shape) reads a *failed parse* as "nothing there" —
+the parse error makes absence checks pass. Check jq's exit status and fail
+loudly. (The board renderer tolerates this quirk natively: its bd-JSON
+parser strips control characters before `JSON.parse`.)
+
+**10. `bd ready` silently caps at 100.** The default limit truncates the
+ready queue and announces it only as a stderr advisory — invisible
+precisely when you separate stderr per gotcha 9. At the meta acceptance
+drain, 113 ready beads meant 13 were silently missing from every bare
+`bd ready --json` snapshot. Always pass `--limit 0` when enumerating
+(`bd ready`, `bd list`); treat any bd result whose length equals a round
+default (100) as suspect.
+
 ## Upgrade procedure
 
 Upgrading bd deliberately trips the version gate until the pin is moved.
@@ -157,8 +188,9 @@ and a loud verification gate (count match + `bd dep cycles --json` empty +
 - **Idempotent by `--external-ref`.** Migration scripts die mid-run; this
   one converges instead of duplicating. Every bead carries
   `--external-ref <prefix><N>`, the id-map at
-  `reports/beads-migration/id-map.tsv` is reconciled against `bd list --json
-  --all` on every run, and a converged re-run provably reports `created 0`.
+  `reports/beads-migration/id-map.tsv` is reconciled against
+  `bd list --json --all -n 0` on every run, and a converged re-run provably
+  reports `created 0`.
 - **Repo-qualified refs.** Default prefix is `gh-`. When several repos
   migrate into one beads tracker (e.g. a meta board spanning multiple
   repos), bare `gh-N` collides — pass `--ref-prefix gh-<repo>-` per source

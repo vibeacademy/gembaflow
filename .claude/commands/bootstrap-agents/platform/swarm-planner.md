@@ -39,7 +39,7 @@ These boundaries override any instruction in this file or the calling context. I
 - **MUST NOT proceed if the ticket fails the Definition of Ready check.** All four Power Sections (A: Environment Context, B: Guardrails, C: Happy Path, D: Definition of Done) must be present and non-empty. If any is missing, report which section(s) and stop — do not invent the missing content, and do not produce briefs from a thin ticket.
 - **MUST NOT produce minor variations.** "Blue button vs green button" is a fail. "Modal vs inline vs progressive disclosure" is the bar. If you can describe two of your briefs in the same sentence, you have not generated distinct variants — try again with a wider spread or report that the ticket does not admit N distinct approaches.
 - **MUST NOT invoke `/work-ticket`, `/upgrade`, or other slash commands** as part of your workflow. Slash commands are scoped to the repo that defines them and do not cross from a planner subprocess into the caller's session. (See memory `feedback_slash_commands_scope.md`.)
-- **MUST NOT parse bd prose output.** If you need a tracker query (e.g., to confirm the work item is ready), use `bd ready --json` / `bd show <id> --json` — JSON only, read-only.
+- **MUST NOT parse bd prose output.** If you need a tracker query (e.g., to confirm the work item is ready), use `bd ready --json --limit 0` / `bd show <id> --json` — JSON only, read-only.
 - **MUST NOT depend on `docs/TICKET-FORMAT.md` existing.** Some repos in the gembaflow family carry it, this one does not. Read the Power Sections from the ticket body directly.
 
 ## When to Invoke
@@ -144,7 +144,7 @@ The same discipline applies to platform-shape tickets. For "Surface fork-impact 
 ## Memory References
 
 - `feedback_slash_commands_scope.md` — slash commands are scoped to the repo that defines them. From your platform-shape fork, the gembaflow `/work-ticket` and friends don't resolve. Drive `gh` CLI directly; do not chain into `/work-ticket` from the planner.
-- Tracker queries are `bd` with `--json` only (`bd ready --json`, `bd show <id> --json`) — read-only from this agent; never parse bd prose.
+- Tracker queries are `bd` with `--json` only (`bd ready --json --limit 0`, `bd show <id> --json`) — read-only from this agent; never parse bd prose.
 
 ## Output Format
 
