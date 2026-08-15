@@ -109,6 +109,34 @@ if ! bash "${SCRIPT_DIR}/check-bd.sh" --quiet 2>/dev/null; then
 fi
 
 # ---------------------------------------------------------------------------
+# .claude/settings.local.json — materialize from template on fresh forks.
+#
+# Claude Code only reads settings.json / settings.local.json; the template
+# at .claude/settings.template.json holds the canonical bd permission block
+# (deny bd edit/create-form/delete; ask on bd dolt push/pull/init), the
+# Stop + SessionStart board-render hooks, and the SessionStart bd prime hook.
+# Without a live settings file none of those gates are active. Copy the
+# template once — byte-for-byte, no modifications — so they are live for the
+# operator's first Claude Code session, before /bootstrap is ever typed.
+#
+# Guard: skip if either live settings file already exists (no clobber for
+# forks that maintain their own settings) or the template is absent.
+# Idempotent across Codespace rebuilds.
+# ---------------------------------------------------------------------------
+_settings_copied=false
+if [ ! -f ".claude/settings.json" ] && [ ! -f ".claude/settings.local.json" ]; then
+    if [ -f ".claude/settings.template.json" ]; then
+        if cp ".claude/settings.template.json" ".claude/settings.local.json" 2>/dev/null; then
+            _settings_copied=true
+        else
+            note_warning "Could not copy .claude/settings.template.json to .claude/settings.local.json; bd permission gates and board hooks are inactive. Fix manually: \`cp .claude/settings.template.json .claude/settings.local.json\`."
+        fi
+    else
+        note_warning ".claude/settings.template.json not found; bd permission gates and board hooks are inactive. This file is required for a correct Codespace setup."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Python dev deps — fail-tolerant (per SC5 of the quickstart plan)
 # ---------------------------------------------------------------------------
 if [ -f "pyproject.toml" ] && command -v uv >/dev/null 2>&1; then
@@ -128,6 +156,22 @@ fi
     echo "2. Type \`/bootstrap\` to walk through product → architecture → agent specialization → workflow activation."
     echo ""
     echo "After \`/bootstrap\`, you'll have a populated PRD, roadmap, technical architecture, specialized agents, and a Ready column."
+    echo ""
+    echo "---"
+    echo ""
+    echo "## Claude Code settings"
+    echo ""
+    if [ "$_settings_copied" = "true" ]; then
+        echo "Claude Code settings materialized from \`.claude/settings.template.json\` → \`.claude/settings.local.json\`."
+        echo "bd permission gates (deny destructive commands; ask before sync operations), the beads context hook,"
+        echo "and the board-render hooks are all active."
+    else
+        if [ -f ".claude/settings.json" ] || [ -f ".claude/settings.local.json" ]; then
+            echo "Pre-existing Claude Code settings detected — template not copied (no clobber)."
+            echo "Verify that your settings include the bd permission gates and board-render hooks from"
+            echo "\`.claude/settings.template.json\` if you have not merged them already."
+        fi
+    fi
     echo ""
     echo "---"
     echo ""

@@ -155,13 +155,41 @@ elif [ "$NO_COMMIT" = true ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 7. Verify the SessionStart prime hook is wired. The framework template
-#    ships it; forks maintaining their own settings merge it themselves.
+# 7. Verify the SessionStart prime hook is wired in the LIVE settings.
+#
+#    The framework template ships the hook; this step checks that it is
+#    active in a live settings file (.claude/settings.json or
+#    .claude/settings.local.json). On miss: WARN with the exact remediation
+#    command (not a hard failure — forks maintaining hand-rolled settings are
+#    a supported posture). A secondary template check ensures template drift
+#    still surfaces regardless of the live-settings result.
 # ---------------------------------------------------------------------------
-if grep -q 'bd prime --hook-json' .claude/settings.template.json 2>/dev/null; then
-    echo "OK: SessionStart \`bd prime --hook-json\` hook present in .claude/settings.template.json."
+_live_settings=""
+if [ -f ".claude/settings.json" ]; then
+    _live_settings=".claude/settings.json"
+elif [ -f ".claude/settings.local.json" ]; then
+    _live_settings=".claude/settings.local.json"
+fi
+
+if [ -n "$_live_settings" ]; then
+    if grep -q 'bd prime --hook-json' "$_live_settings" 2>/dev/null; then
+        echo "OK: SessionStart \`bd prime --hook-json\` hook present in ${_live_settings}."
+    else
+        echo "WARNING: ${_live_settings} exists but lacks the SessionStart \`bd prime --hook-json\` hook." >&2
+        echo "  bd context will not be injected at session start." >&2
+        echo "  Remediation: cp .claude/settings.template.json .claude/settings.local.json" >&2
+    fi
 else
-    echo "WARNING: .claude/settings.template.json lacks the SessionStart \`bd prime --hook-json\` hook — see docs/BEADS.md." >&2
+    echo "WARNING: No live Claude Code settings file found (.claude/settings.json or .claude/settings.local.json)." >&2
+    echo "  bd permission gates, board-render hooks, and the bd prime context hook are all inactive." >&2
+    echo "  Remediation: cp .claude/settings.template.json .claude/settings.local.json" >&2
+fi
+
+# Secondary check: template drift surfaces even when the live-settings check passes.
+if grep -q 'bd prime --hook-json' .claude/settings.template.json 2>/dev/null; then
+    echo "OK: SessionStart \`bd prime --hook-json\` hook present in .claude/settings.template.json (template baseline)."
+else
+    echo "WARNING: .claude/settings.template.json lacks the SessionStart \`bd prime --hook-json\` hook — template has drifted; see docs/BEADS.md." >&2
 fi
 
 echo ""

@@ -157,9 +157,17 @@ to the user if any check fails — do not continue with partial tooling.
 2. **GitHub account is correct** — Run `gh auth status` and confirm the active
    account matches the expected worker/bot account. If only a personal account
    is active, STOP and instruct the user to fix the account setup.
-3. **Claude hooks are registered** — Check that hook files referenced in
-   `.claude/settings.local.json` exist and are executable. WARN if any hook is
-   missing or not executable.
+3. **Claude Code settings and hooks are active** — First check whether a live
+   settings file exists (`.claude/settings.json` or `.claude/settings.local.json`).
+   If neither exists, STOP and instruct the operator:
+   > No live Claude Code settings file found. bd permission gates, board-render
+   > hooks, and the bd prime context hook are all inactive.
+   > Run: `cp .claude/settings.template.json .claude/settings.local.json`
+   > then re-run `/bootstrap-workflow`.
+
+   If a live settings file exists, check that hook files it references are
+   present and executable. WARN (do not STOP) if any hook file is missing
+   or not executable.
 4. **Beads tracker works** — `./scripts/check-bd.sh` passes; after init,
    `bd ready --json --limit 0` parses as valid JSON (an empty `[]` is fine).
    If either
