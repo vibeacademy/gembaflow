@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-08-15
+
 ### Removed
 
 - **BREAKING: the one-release GitHub-Projects compatibility flag and everything behind it (#587)** — the deprecation contract from #579 comes due: `scripts/lib/legacy-github-projects.sh` (the flag reader, which warned on every enabled read), `.github/workflows/auto-board-status.yml` (already gated to a loud no-op when the flag was off), the `legacy` block in `.gembaflow-config.example.json`, the legacy `{{board.id}}` branch in `scripts/substitute-config-placeholders.sh` (the three canonical placeholders are untouched), all `bootstrap.sh` / `/bootstrap` / `/bootstrap-workflow` legacy-path branches, and the flag's test file are deleted. `docs/BEADS.md`'s flag section becomes a removal note. beads (bd) is the framework tracker, unconditionally. The migrator `scripts/migrate-issues-to-beads.sh` STAYS — it is the permanent opt-in path for old forks, independent of the flag. `grep -ri` for the flag key now returns only CHANGELOG history and the removal note. (#587)
