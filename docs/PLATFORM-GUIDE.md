@@ -340,13 +340,6 @@ once T3 lands).
 | `{{bot.worker}}` | GitHub login of the worker bot (opens PRs, makes commits) |
 | `{{bot.reviewer}}` | GitHub login of the reviewer bot (posts `/review-pr` verdicts) |
 
-Legacy: `{{board.id}}` (Project board number) was retired with the beads
-cutover (epic #574) — readiness is computed by `bd ready`, not a project
-board. The substitution script still applies a `board.id` config value when
-one is present, but requires it only if a customized spec file still
-contains the placeholder, which can only happen on the deprecated
-`legacy.githubProjects` path (removal: vibeacademy/gembaflow#587).
-
 ### How substitution happens
 
 1. **Config file.** `.gembaflow-config.json` (per-fork; gitignored) holds the
