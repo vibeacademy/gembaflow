@@ -41,8 +41,14 @@
   //     Defaults (without this block) exclude `administration` and
   //     `repository_projects` — both required for the happy path.
   //   - vscode.extensions: preinstall Claude Code (provides `claude` CLI and
-  //     sidebar UI). Pinned to ^1 so the workshop experience stays stable
-  //     across minor extension releases.
+  //     sidebar UI). Deliberately UNPINNED: the devcontainer `extensions`
+  //     field accepts only `publisher.name` or `publisher.name@<exact>` —
+  //     a semver range like `@^1` is an invalid version request and the
+  //     install silently no-ops (gembaflow#681). Exact pins are rejected
+  //     too: the extension tracks the fast-moving claude CLI, and a stale
+  //     pin is a worse failure than drift (risk R5, accepted for v1 —
+  //     workshop runs are the canary; pin to last-known-good only if one
+  //     breaks).
   "customizations": {
     "codespaces": {
       "repositories": {
@@ -61,7 +67,7 @@
     },
     "vscode": {
       "extensions": [
-        "anthropic.claude-code@^1"
+        "anthropic.claude-code"
       ]
     }
   },
