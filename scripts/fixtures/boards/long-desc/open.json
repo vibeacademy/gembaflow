@@ -1,0 +1,19 @@
+[
+  {
+    "id": "ld-1",
+    "title": "Long-description bead exercising the modal full-text path",
+    "description": "A. Problem. The board renderer silently truncates bead descriptions to 420 characters when it builds the embedded bead-data JSON map. That single map feeds both the hover flyout and the click-to-open detail modal, so the modal inherits an invisible 420-character cut and the full card ends mid-sentence with no ellipsis or marker. B. Approach. Embed the full description at build time and let the flyout keep its existing client-side 220-character ellipsized preview so the modal can render the complete text unchanged. C. Definition of Done. A bead whose description exceeds 420 characters shows its entire text in the detail modal, scrollable within the 80vh max-height, while the hover flyout still shows only the short 220-character preview with a trailing ellipsis. D. Risks. A larger embedded payload on very large boards; mitigated because the renderer stays zero-dependency and fully deterministic and the size growth is only a small single-digit percentage even on a board with several hundred beads.",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:37:58Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:37:58Z",
+    "labels": [
+      "track:boards"
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  }
+]

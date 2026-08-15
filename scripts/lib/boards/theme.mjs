@@ -234,7 +234,7 @@ export function beadDataScript(beads) {
       p: `P${b.priority}`,
       y: b.type,
       l: b.labels,
-      d: (b.description ?? "").slice(0, 420),
+      d: b.description ?? "",
       k: b.deps.filter((d) => d.type === "blocks").map((d) => d.blocker).sort(),
       r: b.closeReason ?? null,
       o: b.operator ? b.operator.steps : null,

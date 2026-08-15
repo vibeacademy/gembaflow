@@ -341,6 +341,62 @@ describe("renderer output", () => {
   });
 });
 
+describe("modal shows full bead description (#645, 420-char cap fix)", () => {
+  // Regression: beadDataScript() used to cap the embedded description at 420
+  // chars, so the detail modal — which renders b.d raw — silently ended mid-
+  // sentence. The fix embeds the full description; the flyout keeps its
+  // client-side 220+ellipsis preview. The fixture bead ld-1 has a >900-char
+  // description so the two behaviors are distinguishable.
+  let outDir;
+  let kanban;
+  let fullDesc;
+
+  beforeAll(() => {
+    outDir = mkdtempSync(join(tmpdir(), "boards-long-desc-"));
+    render("long-desc", outDir);
+    kanban = readFileSync(join(outDir, "kanban.html"), "utf8");
+    const state = loadFromFixture(join(FIXTURES, "long-desc"));
+    fullDesc = state.beads.get("ld-1").description;
+  });
+
+  it("embeds the FULL >420-char description in bead-data (no build-time cap)", () => {
+    // Sanity: the fixture description is well past the old 420-char cap.
+    expect(fullDesc.length).toBeGreaterThan(900);
+    const m = /<script type="application\/json" id="bead-data">([^]*?)<\/script>/.exec(kanban);
+    const map = JSON.parse(m[1]);
+    // The embedded value must be the complete description, not sliced to 420.
+    expect(map["ld-1"].d).toBe(fullDesc);
+    expect(map["ld-1"].d.length).toBe(fullDesc.length);
+    expect(map["ld-1"].d).toContain("several hundred beads."); // the tail past 420
+  });
+
+  it("flyout shows the 220+ellipsis preview while the modal shows the full text (jsdom)", async () => {
+    const dom = new JSDOM(kanban, { runScripts: "dangerously", pretendToBeVisual: true });
+    await new Promise((r) => setTimeout(r, JSDOM_SETTLE_MS));
+    const doc = dom.window.document;
+    const chip = doc.querySelector('.chip.id.has-detail[data-bead="ld-1"]');
+    expect(chip).toBeTruthy();
+
+    // Hover → flyout carries only the short ellipsized preview.
+    chip.dispatchEvent(new dom.window.Event("mouseenter"));
+    const flyout = doc.getElementById("flyout");
+    expect(flyout.style.display).toBe("block");
+    const preview = fullDesc.slice(0, 220) + "…";
+    expect(flyout.textContent).toContain(preview);
+    // The tail past 420 must NOT appear in the compact flyout.
+    expect(flyout.textContent).not.toContain("several hundred beads.");
+
+    // Click → modal shows the complete description.
+    chip.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    const overlay = doc.getElementById("modal-overlay");
+    expect(overlay.style.display).toBe("flex");
+    const modal = doc.getElementById("modal");
+    expect(modal.textContent).toContain(fullDesc);
+    // Explicitly assert the past-420 tail reaches the modal.
+    expect(modal.textContent).toContain("several hundred beads.");
+  });
+});
+
 describe("epic filter (kanban)", () => {
   let outDir;
   let kanban;
