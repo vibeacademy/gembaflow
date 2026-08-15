@@ -207,23 +207,21 @@ and a loud verification gate (count match + `bd dep cycles --json` empty +
   "fix" rot by rewriting descriptions; use `bd note` (mechanical-hygiene
   rule 4, `docs/BEADS-CONVENTIONS.md`).
 
-## GitHub-Projects compatibility flag (DEPRECATED — one release)
+## GitHub-Projects compatibility flag (REMOVED — v1.7.0)
 
-Beads is the default tracker; new forks never see a GitHub Project. Forks
-mid-migration can keep the legacy GH-Projects path reachable for exactly one
-release via a default-OFF flag (removal ticket filed at introduction time:
-vibeacademy/gembaflow#587). The flag has two surfaces because
-`.gembaflow-config.json` is gitignored and invisible to Actions:
+The one-release GitHub-Projects compatibility flag (`legacy.githubProjects` in
+`.gembaflow-config.json` / `GEMBAFLOW_LEGACY_GITHUB_PROJECTS` Actions variable)
+was removed in v1.7.0 (vibeacademy/gembaflow#587). The flag and everything
+behind it — `scripts/lib/legacy-github-projects.sh`,
+`.github/workflows/auto-board-status.yml`, and the `legacy` config block — are
+gone entirely.
 
-| Surface | Where | Read by |
-|---|---|---|
-| `legacy.githubProjects: true` | `.gembaflow-config.json` | `bootstrap.sh` / local tooling, via `scripts/lib/legacy-github-projects.sh` |
-| `GEMBAFLOW_LEGACY_GITHUB_PROJECTS=true` | repo Actions variable | `.github/workflows/auto-board-status.yml` |
+Forks that had `legacy.githubProjects: true` and relied on
+`auto-board-status.yml` for board-column updates: that workflow file was never
+synced (workflow files are deliberately outside `syncDirectories`), so your fork
+copy already held its pre-removal form. Delete your fork's copy manually. The
+flag value in `.gembaflow-config.json` is now silently ignored.
 
-With the flag OFF (default) the legacy workflow no-ops with a loud skip
-notice and no `project` PAT scope is required anywhere. With the flag ON,
-every read prints a deprecation warning; the legacy board path (PAT
-`project`-scope probe, `auto-board-status.yml`, optional `board.id` /
-`{{board.id}}` substitution) stays functional for the release. The flag
-never leaks GH-Projects pre-flights into the beads path — the deleted
-protocols stay deleted.
+To migrate remaining GitHub issues to beads, use
+`scripts/migrate-issues-to-beads.sh` (permanent opt-in path, unaffected by this
+removal).

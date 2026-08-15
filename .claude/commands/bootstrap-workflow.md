@@ -23,10 +23,7 @@ This is the final bootstrap phase. It activates the full agent workflow.
 **Migrating an existing fork off GitHub Projects?** This phase is for
 standing up a NEW workflow. An existing fork with open GitHub issues runs
 `scripts/migrate-issues-to-beads.sh` instead (idempotent, safe to re-run;
-see docs/BEADS.md § "Migrating an existing fork"). The legacy GH-Projects
-path survives for exactly one release behind the deprecated
-`legacy.githubProjects` flag — see "Legacy GitHub-Projects path" at the
-bottom.
+see docs/BEADS.md § "Migrating an existing fork").
 
 ## Ticket Format Requirement
 
@@ -245,16 +242,9 @@ The workflow activation agent will:
        "bot": {
          "worker": "<your-worker-bot-account>",
          "reviewer": "<your-reviewer-bot-account>"
-       },
-       "legacy": {
-         "githubProjects": false
        }
      }
      ```
-
-     Leave `legacy.githubProjects` at `false` — it is the deprecated
-     one-release GitHub-Projects compatibility flag (removal:
-     vibeacademy/gembaflow#587), not part of a fresh bootstrap.
 
    - Run the substitution script:
 
@@ -428,30 +418,6 @@ Your project is now ready for development!
   commands
 - Force a render with `/board-refresh`; if that works but the hook doesn't
   fire, check the hook registration in `.claude/settings`
-
-## Legacy GitHub-Projects path (DEPRECATED — one release only)
-
-Skip this section entirely on a fresh bootstrap. It exists only for forks
-mid-migration that set `legacy.githubProjects: true` in
-`.gembaflow-config.json` (and the `GEMBAFLOW_LEGACY_GITHUB_PROJECTS` Actions
-variable for workflows — the config file is gitignored and invisible to
-Actions). The flag defaults to OFF, warns on every read, and is removed next
-release: vibeacademy/gembaflow#587.
-
-While the flag is on:
-
-- The GitHub Project board remains the operator's legacy view; PAT `project`
-  scope is still required for board writes (bootstrap.sh probes it only in
-  this mode).
-- `.github/workflows/auto-board-status.yml` stays functional (it no-ops
-  loudly when the flag is off).
-- `board.id` may be added back to `.gembaflow-config.json` if any customized
-  spec still carries the `{{board.id}}` placeholder.
-
-None of this leaks into the beads path: with the flag off (the default),
-no board pre-flight, board column, or `project`-scope check exists anywhere
-in this wizard. Finish the migration with `scripts/migrate-issues-to-beads.sh`
-and turn the flag off.
 
 ## Running This Command
 

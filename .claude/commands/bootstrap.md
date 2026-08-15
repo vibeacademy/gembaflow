@@ -150,11 +150,7 @@ Same pattern as Step 2:
 Check both signals:
 
 - Status: `phase4:complete` marker
-- Artifact: initialized beads tracker present (`.beads/metadata.json`
-  exists). Legacy alternative — only when the deprecated
-  `legacy.githubProjects` flag is `true` in `.gembaflow-config.json`
-  (removal: vibeacademy/gembaflow#587) — a project-board reference
-  (`board.id`) populated in `.gembaflow-config.json`.
+- Artifact: initialized beads tracker present (`.beads/metadata.json` exists).
 
 If both present, skip with `→ Phase 4 already complete; skipping /bootstrap-workflow.`
 

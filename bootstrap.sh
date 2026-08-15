@@ -353,27 +353,9 @@ phase0_environment() {
             BOOTSTRAP_WORKER_ACCOUNT="$worker_account"
             print_success "Worker account set: ${worker_account}"
 
-            # PAT-scope probe. Beads (bd) is the tracker: the worker needs
-            # 'repo' and 'workflow' only — the 'project' scope is probed
-            # exclusively on the DEPRECATED legacy GitHub-Projects path
-            # (one-release flag; removal: vibeacademy/gembaflow#587).
-            # shellcheck source=scripts/lib/legacy-github-projects.sh
-            source "${BOOTSTRAP_DIR}/scripts/lib/legacy-github-projects.sh"
-            if gembaflow_legacy_github_projects_enabled; then
-                print_info "Verifying PAT scopes for ${worker_account} (legacy GH-Projects flag is ON)..."
-                if gh project list --limit 1 &>/dev/null 2>&1; then
-                    print_success "Worker PAT has 'project' scope (needed only while the legacy flag is on)."
-                else
-                    print_warning "Worker PAT may be missing the 'project' scope."
-                    echo "  The legacy GitHub-Projects path (deprecated, removed next release)"
-                    echo "  requires the 'project' scope on a classic PAT, or the 'Projects'"
-                    echo "  permission on a fine-grained PAT."
-                    echo "  Re-create the PAT at https://github.com/settings/tokens"
-                    echo "  and check 'repo', 'project', and 'workflow'."
-                fi
-            else
-                print_success "PAT scope check: beads (bd) is the tracker — 'repo' and 'workflow' scopes suffice (no 'project' scope needed)."
-            fi
+            # PAT-scope check: beads (bd) is the tracker — 'repo' and 'workflow'
+            # scopes suffice; no 'project' scope is needed.
+            print_success "PAT scope check: beads (bd) is the tracker — 'repo' and 'workflow' scopes suffice (no 'project' scope needed)."
         fi
     fi
 
@@ -445,25 +427,9 @@ phase0_environment() {
             BOOTSTRAP_REVIEWER_ACCOUNT="$reviewer_account"
             print_success "Reviewer account set: ${reviewer_account}"
 
-            # PAT-scope probe — same rule as the worker: 'project' scope is
-            # legacy-flag-only (see vibeacademy/gembaflow#587).
-            # shellcheck source=scripts/lib/legacy-github-projects.sh
-            source "${BOOTSTRAP_DIR}/scripts/lib/legacy-github-projects.sh"
-            if gembaflow_legacy_github_projects_enabled; then
-                print_info "Verifying PAT scopes for ${reviewer_account} (legacy GH-Projects flag is ON)..."
-                if gh project list --limit 1 &>/dev/null 2>&1; then
-                    print_success "Reviewer PAT has 'project' scope (needed only while the legacy flag is on)."
-                else
-                    print_warning "Reviewer PAT may be missing the 'project' scope."
-                    echo "  The legacy GitHub-Projects path (deprecated, removed next release)"
-                    echo "  requires the 'project' scope on a classic PAT, or the 'Projects'"
-                    echo "  permission on a fine-grained PAT."
-                    echo "  Re-create the PAT at https://github.com/settings/tokens"
-                    echo "  and check 'repo', 'project', and 'workflow'."
-                fi
-            else
-                print_success "PAT scope check: beads (bd) is the tracker — 'repo' and 'workflow' scopes suffice (no 'project' scope needed)."
-            fi
+            # PAT-scope check: beads (bd) is the tracker — 'repo' and 'workflow'
+            # scopes suffice; no 'project' scope is needed.
+            print_success "PAT scope check: beads (bd) is the tracker — 'repo' and 'workflow' scopes suffice (no 'project' scope needed)."
         fi
     fi
 
@@ -932,16 +898,6 @@ phase4_workflow() {
     echo "  - Creating the initial backlog from PRD features (bd create)"
     echo "  - Verifying readiness (bd ready is computed, never curated)"
     echo ""
-
-    # Legacy note (DEPRECATED, one release only — vibeacademy/gembaflow#587):
-    # forks that set legacy.githubProjects=true in .gembaflow-config.json are
-    # finishing a GitHub-Projects migration; /bootstrap-workflow documents
-    # the legacy path for them.
-    # shellcheck source=scripts/lib/legacy-github-projects.sh
-    source "${BOOTSTRAP_DIR}/scripts/lib/legacy-github-projects.sh"
-    if gembaflow_legacy_github_projects_enabled; then
-        print_warning "Legacy GH-Projects flag is ON — /bootstrap-workflow will note the deprecated board path. Migrate with scripts/migrate-issues-to-beads.sh."
-    fi
 
     print_info "Starting Claude Code with /bootstrap-workflow command..."
     echo ""

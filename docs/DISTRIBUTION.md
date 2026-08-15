@@ -114,8 +114,6 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `scripts/migrate-issues-to-beads.sh` | framework | Opt-in GitHub Issues → beads fork migrator (dry-run default, idempotent by external-ref) | Overwrite |
 | `scripts/__tests__/migrate-issues-to-beads.test.mjs` | framework | Migrator tests (stubbed `bd`/`gh` on PATH) | Overwrite |
 | `scripts/fixtures/beads-migration/**` | framework | Migrator test fixtures (issues export + stub `bd`/`gh`) | Overwrite |
-| `scripts/lib/legacy-github-projects.sh` | framework | One-release GitHub-Projects compatibility-flag reader (deprecation warning on every enabled read) | Overwrite |
-| `scripts/__tests__/legacy-github-projects.test.mjs` | framework | Compatibility-flag reader tests | Overwrite |
 
 ## `docs/`
 

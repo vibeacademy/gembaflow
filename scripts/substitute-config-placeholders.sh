@@ -13,12 +13,6 @@
 #   {{bot.worker}}     — GitHub login of the worker bot (opens PRs, makes commits)
 #   {{bot.reviewer}}   — GitHub login of the reviewer bot (posts /review-pr verdicts)
 #
-# LEGACY (deprecated with the beads cutover, epic #574): {{board.id}} — the
-# GitHub Project board number. Required only while a spec file still
-# contains the placeholder AND the fork runs the one-release
-# `legacy.githubProjects` compatibility flag (docs/BEADS.md). Optional
-# otherwise; supply it as `board.id` in the config when needed.
-#
 # Usage:
 #   bash scripts/substitute-config-placeholders.sh           # substitute in place
 #   bash scripts/substitute-config-placeholders.sh --check   # report unsubstituted placeholders without modifying anything
@@ -39,9 +33,7 @@ show_help() {
 substitute-config-placeholders.sh — Substitute bootstrap-time templated values.
 
 Reads .gembaflow-config.json and substitutes {{org}}, {{bot.worker}},
-{{bot.reviewer}} placeholders in .claude/commands/*.md files. The legacy
-{{board.id}} placeholder (deprecated with the beads cutover) is substituted
-only when `board.id` is present in the config.
+{{bot.reviewer}} placeholders in .claude/commands/*.md files.
 
 Usage:
   bash scripts/substitute-config-placeholders.sh           # substitute in place
@@ -86,7 +78,7 @@ if $CHECK_ONLY; then
     # `grep -c` exits 1 when there are zero matches AND prints "0"; the
     # `|| echo 0` ran in addition, producing "0\n0" and tripping `[ -gt ]`.
     # Split: capture stdout, then fall back to 0 only on grep error.
-    file_hits=$(grep -c -E "\{\{(org|board\.id|bot\.worker|bot\.reviewer)\}\}" "$file" 2>/dev/null) || file_hits=0
+    file_hits=$(grep -c -E "\{\{(org|bot\.worker|bot\.reviewer)\}\}" "$file" 2>/dev/null) || file_hits=0
     if [ "$file_hits" -gt 0 ]; then
       echo "$file: $file_hits unsubstituted placeholder(s)"
       count=$((count + file_hits))
@@ -103,7 +95,6 @@ fi
 # ── Extract values ────────────────────────────────────────────────────────────
 
 ORG=$(jq -r '.org // ""' "$CONFIG_FILE")
-BOARD_ID=$(jq -r '.board.id // ""' "$CONFIG_FILE")
 BOT_WORKER=$(jq -r '.bot.worker // ""' "$CONFIG_FILE")
 BOT_REVIEWER=$(jq -r '.bot.reviewer // ""' "$CONFIG_FILE")
 
@@ -119,21 +110,8 @@ for pair in "org:$ORG" "bot.worker:$BOT_WORKER" "bot.reviewer:$BOT_REVIEWER"; do
   fi
 done
 
-# board.id is legacy-optional (beads cutover, epic #574): required only when a
-# target file still carries the {{board.id}} placeholder — which only happens
-# on the deprecated legacy.githubProjects path (docs/BEADS.md).
-if { [ -z "$BOARD_ID" ] || [ "$BOARD_ID" = "null" ]; } \
-  && grep -rql '{{board\.id}}' "$TARGET_DIR" 2>/dev/null; then
-  echo "ERROR: a file under $TARGET_DIR/ contains {{board.id}} but $CONFIG_FILE has no board.id." >&2
-  echo "board.id is only needed on the deprecated legacy GitHub-Projects path" >&2
-  echo "(legacy.githubProjects flag — see docs/BEADS.md). Either migrate to beads" >&2
-  echo "(scripts/migrate-issues-to-beads.sh) or add board.id to the config." >&2
-  exit 1
-fi
-[ "$BOARD_ID" = "null" ] && BOARD_ID=""
-
 # Validate values don't contain sed-delimiter chars or newlines.
-for pair in "org:$ORG" "board.id:$BOARD_ID" "bot.worker:$BOT_WORKER" "bot.reviewer:$BOT_REVIEWER"; do
+for pair in "org:$ORG" "bot.worker:$BOT_WORKER" "bot.reviewer:$BOT_REVIEWER"; do
   k="${pair%%:*}"
   v="${pair#*:}"
   if [[ "$v" == *"|"* ]] || [[ "$v" == *$'\n'* ]] || [[ "$v" == *"/"* ]]; then
@@ -159,7 +137,6 @@ while IFS= read -r -d '' file; do
   tmp=$(mktemp)
   sed \
     -e "s|{{org}}|$ORG|g" \
-    -e "s|{{board\.id}}|$BOARD_ID|g" \
     -e "s|{{bot\.worker}}|$BOT_WORKER|g" \
     -e "s|{{bot\.reviewer}}|$BOT_REVIEWER|g" \
     "$file" > "$tmp"
