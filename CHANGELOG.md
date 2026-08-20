@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-08-20
+
 ### Changed
 
 - **SEC-02: Codespaces installation token least-privileged — the devcontainer permissions block is removed entirely (gh-gf-548)** — the block granted `contents/issues/pull_requests/administration/repository_projects/workflows: write` under `repositories."*"` — every repo the operator can reach, held ambiently by the same token the autonomous agent uses. A prompt-injected agent could have disabled branch protection, added collaborators, or written a secret-exfiltrating workflow across the operator's entire account, gated only by a one-time dialog workshop guidance conditions people to accept. Now the Codespace token keeps GitHub's default: fork-scoped, with the contents/issues/PR access the normal ticket/PR flow needs. `workflows: write` had zero consumers (scripts only read runs); `repository_projects` lost its last consumer when #587 removed the legacy path; `administration`'s only consumer is `/bootstrap` Phase 4's ruleset POST, which now fails fast through the probe-first gate (#520) with the calm scoped-PAT upgrade path (`docs/codespaces-secrets.md`) instead of a raw 403. The first-boot "Approve these permissions?" dialog disappears — `docs/QUICKSTART.md` Step 2 updated accordingly, and `docs/codespaces-secrets.md`'s devcontainer pointer now describes the default-token posture. Also: `docs/DISTRIBUTION.md` rows added for `scripts/lib/ruleset-probe.sh` + its test file (deferred from #694's review). (#548)
