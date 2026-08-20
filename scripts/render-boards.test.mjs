@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
 import { loadFromFixture, hydrateHumanOpsNotes, parseBdJson } from "./lib/boards/data.mjs";
 import { buildColumns, buildGraph, buildEpicGraph, columnOf } from "./lib/boards/graph.mjs";
+import { beadDataScript, DETAIL_HTML, DETAIL_JS } from "./lib/boards/theme.mjs";
 
 // How long jsdom needs after JSDOM() construction before inline <script> tags
 // have finished evaluating (event listeners registered, DOM mutations applied).
@@ -828,5 +829,161 @@ describe("--check shape validator", () => {
     // The healthy non-first beads produce no missing-field noise.
     expect(result.stderr).not.toContain("dr-2 missing field");
     expect(result.stderr).not.toContain("dr-1 missing field");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Modal markdown rendering — escape-first subset renderer (#688)
+//
+// Reference implementations:
+//   • vibeacademy/website PR #303 (fork bead va-x35.11) — primary
+//   • vibeacademy/jiujitsology PR #2 (bead jj-1xt) — secondary (fenced blocks,
+//     ordered lists, heading-level offset h3+)
+//
+// Security invariant: esc() runs BEFORE mdToHtml(); mdToHtml receives an
+// already-escaped string and applies only structural transforms to it.
+// ──────────────────────────────────────────────────────────────────────────────
+describe("modal markdown rendering (gh-gf-688)", () => {
+  /** Build a minimal self-contained page with one chip + the detail system. */
+  function makePage(beads) {
+    const chips = beads
+      .map(
+        (b) =>
+          `<span class="chip id has-detail" data-bead="${b.id}" tabindex="0">${b.id}</span>`,
+      )
+      .join("");
+    return `<!doctype html><html><body>${chips}${DETAIL_HTML}${beadDataScript(
+      new Map(beads.map((b) => [b.id, b])),
+    )}<script>${DETAIL_JS}</script></body></html>`;
+  }
+
+  /** Construct a minimal bead object compatible with beadDataScript(). */
+  function bead(id, description) {
+    return {
+      id,
+      title: `Title for ${id}`,
+      status: "open",
+      priority: 2,
+      type: "task",
+      labels: [],
+      description,
+      deps: [],
+      closeReason: null,
+      operator: null,
+    };
+  }
+
+  /** Open the modal for a given bead id and return the modal element. */
+  async function openModal(beads, id) {
+    const dom = new JSDOM(makePage(beads), {
+      runScripts: "dangerously",
+      pretendToBeVisual: true,
+    });
+    await new Promise((r) => setTimeout(r, JSDOM_SETTLE_MS));
+    const doc = dom.window.document;
+    doc
+      .querySelector(`.chip.id.has-detail[data-bead="${id}"]`)
+      .dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    return doc.getElementById("modal");
+  }
+
+  it("promotes markdown syntax to formatted tags in the full modal", async () => {
+    const desc =
+      "### Problem Statement\n\nThis bead tests **markdown rendering** in the board modal.\n\n- First bullet item\n- Second bullet item with **bold**\n- Third item with `code`";
+    const modal = await openModal([bead("md-1", desc)], "md-1");
+    const region = modal.querySelector(".desc.md");
+    expect(region).toBeTruthy();
+
+    // ATX heading → h-element (h3+ to avoid colliding with the modal's h2 title)
+    const heading = region.querySelector("h3,h4,h5,h6");
+    expect(heading).toBeTruthy();
+    expect(heading.textContent).toContain("Problem Statement");
+
+    // **bold** → <strong>
+    const strong = region.querySelector("strong");
+    expect(strong).toBeTruthy();
+    expect(strong.textContent).toContain("markdown rendering");
+
+    // `code` → <code>
+    const code = region.querySelector("code");
+    expect(code).toBeTruthy();
+    expect(code.textContent).toContain("code");
+
+    // - bullets → <ul><li>
+    const listItems = region.querySelectorAll("ul li");
+    expect(listItems.length).toBeGreaterThanOrEqual(2);
+    expect(region.querySelector("ul")).toBeTruthy();
+
+    // No literal markdown syntax must leak into the rendered output
+    expect(region.innerHTML).not.toContain("### ");
+    expect(region.innerHTML).not.toContain("**");
+  });
+
+  it("renders a fenced code block as <pre><code>", async () => {
+    const desc = "Before:\n\n```\nbd show md-2\nbd list\n```\n\nAfter.";
+    const modal = await openModal([bead("md-2", desc)], "md-2");
+    const pre = modal.querySelector(".desc.md pre code");
+    expect(pre).toBeTruthy();
+    expect(pre.textContent).toContain("bd show md-2");
+    expect(pre.textContent).toContain("bd list");
+  });
+
+  it("renders an ordered list as <ol><li>", async () => {
+    const desc = "Steps:\n\n1. First step\n2. Second step\n3. Third step";
+    const modal = await openModal([bead("md-3", desc)], "md-3");
+    const region = modal.querySelector(".desc.md");
+    expect(region.querySelector("ol")).toBeTruthy();
+    expect(region.querySelectorAll("ol li").length).toBe(3);
+    expect(region.innerHTML).not.toContain("1. First");
+  });
+
+  it("flyout preview is plain ellipsized text — no markdown rendered", async () => {
+    const desc =
+      "### Problem Statement\n\nThis bead tests **markdown rendering** in the board modal.\n\n- First bullet item";
+    const dom = new JSDOM(makePage([bead("md-4", desc)]), {
+      runScripts: "dangerously",
+      pretendToBeVisual: true,
+    });
+    await new Promise((r) => setTimeout(r, JSDOM_SETTLE_MS));
+    const doc = dom.window.document;
+    const chip = doc.querySelector('.chip.id.has-detail[data-bead="md-4"]');
+    chip.dispatchEvent(new dom.window.Event("mouseenter"));
+    const flyout = doc.getElementById("flyout");
+    const flyoutDesc = flyout.querySelector(".desc");
+    // Flyout must NOT render headings or bold — plain pre-wrap text only
+    expect(flyoutDesc.querySelector("h3")).toBeNull();
+    expect(flyoutDesc.querySelector("strong")).toBeNull();
+    expect(flyoutDesc.querySelector("ul")).toBeNull();
+    // The flyout .desc must NOT carry the .md class
+    expect(flyoutDesc.classList.contains("md")).toBe(false);
+  });
+
+  it("escape-first: markdown description containing hostile HTML renders formatted but escaped (XSS guard, gh-gf-688)", async () => {
+    // The description contains markdown structure AND hostile HTML payloads.
+    // esc() runs first → < becomes &lt; before mdToHtml sees the string.
+    // mdToHtml must NOT produce live <script> or <img onerror> nodes.
+    const desc =
+      "### Heading\n\n**bold** text and <script>alert(1)</script>\n\n- item with <img src=x onerror=alert(2)>";
+    const modal = await openModal([bead("md-xss", desc)], "md-xss");
+    const region = modal.querySelector(".desc.md");
+    expect(region).toBeTruthy();
+
+    // Structural markdown must still render (escape-first does not suppress structure)
+    const heading = region.querySelector("h3,h4,h5,h6");
+    expect(heading).toBeTruthy();
+    expect(heading.textContent).toContain("Heading");
+    const strong = region.querySelector("strong");
+    expect(strong).toBeTruthy();
+
+    // No live <script> node inside the modal
+    expect(modal.querySelector("script")).toBeNull();
+
+    // No live <img> with onerror inside the modal
+    for (const img of modal.querySelectorAll("img")) {
+      expect(img.getAttribute("onerror")).toBeNull();
+    }
+
+    // The text content must contain the visible (harmless) text, not be blank
+    expect(region.textContent).toContain("alert");
   });
 });

@@ -164,6 +164,24 @@ a.chip.in-review:hover, a.chip.done-chip:hover { text-decoration: underline; fil
 #modal .row { margin: 6px 0; font-size: 14px; }
 #modal .row b { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin-right: 6px; }
 #modal .desc { white-space: pre-wrap; }
+#modal .desc.md { white-space: normal; line-height: 1.6; }
+#modal .desc.md h3, #modal .desc.md h4, #modal .desc.md h5, #modal .desc.md h6 {
+  margin: 14px 0 4px; font-size: 14px; color: var(--muted);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .02em; font-weight: 700;
+}
+#modal .desc.md p { margin: 8px 0; }
+#modal .desc.md ul, #modal .desc.md ol { margin: 8px 0; padding-left: 22px; }
+#modal .desc.md li { margin: 3px 0; }
+#modal .desc.md code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px; background: var(--panel-2);
+  padding: 1px 5px; border-radius: 4px;
+}
+#modal .desc.md pre {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; margin: 8px 0; overflow-x: auto;
+}
+#modal .desc.md pre code { background: none; padding: 0; font-size: 12.5px; }
 #modal .reason { color: var(--win); }
 `;
 
@@ -262,6 +280,78 @@ export const DETAIL_JS = `
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  // mdInline(t): apply bold and inline-code transforms to a ALREADY-esc()'d string.
+  // SECURITY INVARIANT: t must have been passed through esc() before calling here.
+  // Code spans are tokenized out first so **markers** inside them are left literal.
+  // This function only wraps already-escaped content in safe structural tags.
+  var reInlineCode = new RegExp('(\x60[^\x60]+\x60)', 'g');
+  function mdInline(t) {
+    var parts = String(t).split(reInlineCode);
+    for (var i = 0; i < parts.length; i++) {
+      if (i % 2) {
+        parts[i] = '<code>' + parts[i].slice(1, -1) + '</code>';
+      } else {
+        parts[i] = parts[i].replace(/[*][*]([^*]+)[*][*]/g, '<strong>$1</strong>');
+      }
+    }
+    return parts.join('');
+  }
+  // mdToHtml(s): minimal markdown subset for the modal, run on esc()'d text.
+  // SECURITY INVARIANT: s MUST already be HTML-escaped (via esc()) before being
+  // passed here. This function applies structural transforms to the escaped string
+  // only -- it never injects raw bead text as HTML. No raw-HTML passthrough.
+  // Supported: ATX headings (#/##/###/####), fenced code blocks, unordered/ordered
+  // lists (- * and 1.), bold (**text**), inline code (backtick-delimited), paragraphs.
+  var reFence = /^\\s*\x60\x60\x60/;
+  var reHeading = /^(#{1,4})\\s+(.*)/;
+  var reUl = /^\\s*[-*]\\s+(.*)/;
+  var reOl = /^\\s*\\d+\\.\\s+(.*)/;
+  var reBlank = /^\\s*$/;
+  function mdToHtml(s) {
+    var lines = String(s == null ? '' : s).split('\\n');
+    var out = [], list = null, items = [], para = [];
+    function flushList() {
+      if (list) { out.push('<' + list + '>' + items.join('') + '</' + list + '>'); list = null; items = []; }
+    }
+    function flushPara() {
+      if (para.length) { out.push('<p>' + mdInline(para.join(' ')) + '</p>'); para = []; }
+    }
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (reFence.test(line)) {
+        flushList(); flushPara();
+        var code = [];
+        for (i++; i < lines.length && !reFence.test(lines[i]); i++) code.push(lines[i]);
+        out.push('<pre><code>' + code.join('\\n') + '</code></pre>');
+        continue;
+      }
+      var hd = reHeading.exec(line);
+      if (hd) {
+        flushList(); flushPara();
+        var lvl = Math.min(6, hd[1].length + 2);
+        out.push('<h' + lvl + '>' + mdInline(hd[2]) + '</h' + lvl + '>');
+        continue;
+      }
+      var ul = reUl.exec(line);
+      if (ul) {
+        flushPara();
+        if (list && list !== 'ul') flushList();
+        list = 'ul'; items.push('<li>' + mdInline(ul[1]) + '</li>');
+        continue;
+      }
+      var ol = reOl.exec(line);
+      if (ol) {
+        flushPara();
+        if (list && list !== 'ol') flushList();
+        list = 'ol'; items.push('<li>' + mdInline(ol[1]) + '</li>');
+        continue;
+      }
+      if (reBlank.test(line)) { flushList(); flushPara(); continue; }
+      flushList(); para.push(line);
+    }
+    flushList(); flushPara();
+    return out.join('');
+  }
   function stepsHtml(steps, limit) {
     var items = limit ? steps.slice(0, limit) : steps; // 0 = no limit
     var h = '<ol class="op-steps">';
@@ -277,7 +367,10 @@ export const DETAIL_JS = `
     h += full ? '<h2>' + esc(b.t) + '</h2>' : '<div class="t">' + esc(b.t) + '</div>';
     if (b.l && b.l.length) h += '<div class="row"><b>labels</b> ' + esc(b.l.join(', ')) + '</div>';
     if (b.k && b.k.length) h += '<div class="row"><b>blocked by</b> ' + esc(b.k.join(', ')) + '</div>';
-    if (b.d) h += '<div class="row desc">' + esc(full ? b.d : b.d.slice(0, 220) + (b.d.length > 220 ? '…' : '')) + '</div>';
+    if (b.d) {
+      if (full) h += '<div class="row desc md">' + mdToHtml(esc(b.d)) + '</div>';
+      else h += '<div class="row desc">' + esc(b.d.slice(0, 220) + (b.d.length > 220 ? '…' : '')) + '</div>';
+    }
     if (b.o && b.o.length) h += '<div class="row"><b>operator</b>' + stepsHtml(b.o, full ? 0 : 2) + '</div>';
     if (b.r) h += '<div class="row reason"><b>closed</b> ' + esc(b.r) + '</div>';
     if (!full) h += '<div class="hint">click id for the full card</div>';

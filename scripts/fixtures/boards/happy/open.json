@@ -264,5 +264,23 @@
     "dependency_count": 0,
     "dependent_count": 0,
     "comment_count": 0
+  },
+  {
+    "id": "el-16",
+    "title": "Markdown description fixture",
+    "description": "### Problem Statement\n\nThis bead tests **markdown rendering** in the board modal.\n\n### Approach\n\nUse a hand-rolled converter with `inline code` support.\n\n### Checklist\n\n- First bullet item\n- Second bullet item with **bold**\n- Third item with `code`",
+    "status": "open",
+    "priority": 3,
+    "issue_type": "task",
+    "created_at": "2026-07-10T21:38:10Z",
+    "created_by": "fixture-bot",
+    "updated_at": "2026-07-10T21:38:10Z",
+    "labels": [
+      "campaign:pilot",
+      "track:library"
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
   }
 ]
