@@ -34,6 +34,23 @@ approve because reviewing it properly is too expensive. That is where
 risk hides. The specific intent of this template is to make it easy for
 human supervisors to walk the *gemba*.
 
+## Quickstart (Codespaces, ~15 minutes)
+
+The fastest path from zero to a working agent team — no local installs,
+works from any browser:
+
+1. **Use This Template** — click the badge above and create your repo.
+2. **Open a Codespace** — Code → Codespaces → Create. Tools, Claude
+   Code, and the beads tracker arrive preinstalled.
+3. **Type `/bootstrap` in the Claude Code Sidebar** — answer the
+   questionnaire; you end with a PRD, architecture, specialized agents,
+   and a Ready queue.
+
+**[Read the full Quickstart →](./docs/QUICKSTART.md)**
+
+Prefer a terminal-first setup (or can't use Codespaces)? The classic
+path lives in [docs/GETTING-STARTED.md](./docs/GETTING-STARTED.md).
+
 ## What This Is
 
 Gemba Flow provides a team of AI agents that work together to manage your software project:
