@@ -33,13 +33,21 @@
   },
 
   // Customizations:
-  //   - codespaces.repositories."*".permissions: requests broader GitHub-App
-  //     installation token scopes so /bootstrap Phase 4's ruleset POST and
-  //     /bootstrap-workflow's project-board calls succeed against the
-  //     Codespaces-injected GITHUB_TOKEN. Operator pays a one-time
-  //     "Approve these permissions?" dialog on first Codespace creation.
-  //     Defaults (without this block) exclude `administration` and
-  //     `repository_projects` — both required for the happy path.
+  //   - NO codespaces.repositories permissions block — deliberately (SEC-02,
+  //     gembaflow#548). The Codespaces-injected GITHUB_TOKEN falls back to
+  //     GitHub's default: scoped to THIS fork only, with the contents/
+  //     issues/pull-requests access the normal agent ticket/PR flow needs.
+  //     The old block granted `administration:write` + `workflows:write`
+  //     under `repositories."*"` (every repo the operator can reach) — an
+  //     ambient escalation surface for a prompt-injected agent, and the
+  //     source of the first-boot "Approve these permissions?" dialog.
+  //     Consequence: /bootstrap Phase 4's ruleset POST cannot succeed on
+  //     the default token; the probe-first gate (scripts/lib/
+  //     ruleset-probe.sh, gembaflow#520) detects that and prints the calm
+  //     upgrade path (scoped PAT per docs/codespaces-secrets.md) instead
+  //     of a raw 403. Do NOT re-add `administration` here — the ruleset
+  //     POST is its only consumer and it stays behind an explicit
+  //     operator-run step.
   //   - vscode.extensions: preinstall Claude Code (provides `claude` CLI and
   //     sidebar UI). Deliberately UNPINNED: the devcontainer `extensions`
   //     field accepts only `publisher.name` or `publisher.name@<exact>` —
@@ -50,21 +58,6 @@
   //     workshop runs are the canary; pin to last-known-good only if one
   //     breaks).
   "customizations": {
-    "codespaces": {
-      "repositories": {
-        "*": {
-          "permissions": {
-            "contents": "write",
-            "issues": "write",
-            "pull_requests": "write",
-            "metadata": "read",
-            "administration": "write",
-            "repository_projects": "write",
-            "workflows": "write"
-          }
-        }
-      }
-    },
     "vscode": {
       "extensions": [
         "anthropic.claude-code"

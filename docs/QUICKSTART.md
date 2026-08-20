@@ -103,12 +103,13 @@ place:
 
 <!-- SCREENSHOT: The Codespace loading screen showing the VS Code interface with the "Setting up your codespace" progress notification. -->
 
-**Permissions prompt:** The first time you create a Codespace from this
-template, GitHub shows a one-time dialog listing the permissions the Codespace
-will request (read/write to your repo, Codespaces, and packages). Click
-**"Authorize"** to continue.
-
-<!-- SCREENSHOT: The GitHub Codespace permissions approval dialog. A list of permission scopes is shown with an "Authorize" button at the bottom. -->
+**No extra permissions prompt:** the Codespace uses GitHub's default access —
+scoped to your repository only. You will not see a special approval dialog,
+and nothing the Codespace runs can touch your other repositories. (One
+consequence: the optional branch-protection step during `/bootstrap` will
+offer you a short set of manual instructions instead of running
+automatically — that is expected, and the message explains the upgrade path
+if you want it automated.)
 
 **When the build finishes,** a file called `WELCOME.md` opens automatically.
 It confirms the environment is ready and tells you the single next step: open
