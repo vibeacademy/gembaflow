@@ -77,7 +77,42 @@ Idempotent; `--check` reports without creating.
 
 ### 3. Branch Protection Configuration
 
-Verify or configure branch protection on `main`:
+Verify or configure branch protection on `main`.
+
+> **Token-capability probe (implementer's choice — mirrors bootstrap.sh):**
+> The same probe-first logic from `bootstrap.sh` Phase 4 applies here.
+> Before attempting `gh api repos/{slug}/rulesets POST`, issue a read probe:
+>
+> ```bash
+> gh api "repos/${repo_slug}/rulesets" >/dev/null 2>&1
+> probe_exit=$?
+> ```
+>
+> - Exit 0 → token has `administration:read` (same scope family as the write)
+>   → proceed to POST.
+> - Non-zero → distinguish three branches:
+>   1. Check `gh api repos/{slug}/collaborators/{user}/permission --jq .permission`.
+>      If not `admin`/`maintain` → "Your role is X; ask the owner to run
+>      `/bootstrap-workflow` from their admin account."
+>   2. Else if `$CODESPACES = true` → Codespaces token-scope wall (see below).
+>      *This is the default path once gfm-2mh/SEC-02 removes the devcontainer
+>      permissions block — treat it as first-class UX.*
+>   3. Else → generic 403 manual-fallback.
+>
+> **Branch 2 message (Codespaces — calm and actionable):**
+> > Ruleset creation skipped — your Codespace token does not include the
+> > `administration` scope. To enable auto-rulesets, either:
+> > (a) Run `bash bootstrap.sh` locally after `gh auth login --scopes repo,workflow`
+> > (add `admin:org` for org-owned forks); or
+> > (b) Configure a PAT with `repo,workflow` scopes as a Codespaces secret and
+> > re-run `/bootstrap-workflow` — see `docs/codespaces-secrets.md`.
+>
+> **DO NOT** dump the raw 403 body to the user. **DO NOT** retry or elevate.
+> The `scripts/lib/ruleset-probe.sh` helper is the canonical implementation
+> (sourced by `bootstrap.sh`); replicate the same three-branch logic here
+> without re-importing the shell function.
+
+Checklist:
 - [ ] Require pull request reviews before merging
 - [ ] Require status checks to pass (if CI configured)
 - [ ] Do not allow bypassing the above settings
