@@ -204,8 +204,9 @@ PR and review for the rest of the session. Better to halt and ask.
   — preflight reads `solo_mode`; multi-bot branch implements the
   failure-mode table above
 - [`.devcontainer/devcontainer.json`](../.devcontainer/devcontainer.json)
-  — declares the broader Codespaces permissions block that the
-  installation token uses (orthogonal to PAT secrets — both can be
-  active in multi-bot mode)
+  — deliberately declares NO Codespaces permissions block (SEC-02): the
+  installation token keeps GitHub's default, fork-scoped access. PAT
+  secrets (this doc) are the only way to widen what agents can do — an
+  explicit, revocable grant rather than an ambient one
 - [`scripts/lib/env-compat.sh`](../scripts/lib/env-compat.sh) — the
   `GEMBAFLOW_*` env-var convention these secret names match

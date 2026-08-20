@@ -104,9 +104,11 @@ Content **outside** markers in hybrid files is user-owned. Content
 | `scripts/__tests__/data-loadfrombd.test.mjs` | framework | Board data-layer tests | Overwrite |
 | `scripts/fixtures/boards/**` | framework | Captured bd JSON fixtures for board tests | Overwrite |
 | `scripts/lib/bd-version.sh` | framework | Single source of truth for the pinned bd (beads) version | Overwrite |
+| `scripts/lib/ruleset-probe.sh` | framework | Token-capability probe + three-branch error before the Phase-4 ruleset POST | Overwrite |
 | `scripts/check-bd.sh` | framework | bd version gate (fails loudly on missing/mismatched bd) | Overwrite |
 | `scripts/init-beads.sh` | framework | Framework-compatible bd tracker init sequence | Overwrite |
 | `scripts/__tests__/check-bd.test.mjs` | framework | Version-gate tests (stubbed bd on PATH) | Overwrite |
+| `scripts/__tests__/ruleset-probe.test.mjs` | framework | Ruleset-probe branch tests (stubbed gh on PATH) | Overwrite |
 | `scripts/check-merge-gate.sh` | framework | Agent-merge gate condition logic (conditions 1-5, unit-testable) | Overwrite |
 | `scripts/__tests__/check-merge-gate.test.mjs` | framework | Merge-gate condition tests (fixture PR JSON) | Overwrite |
 | `scripts/write-drain-state.mjs` | framework | Schema-validated drain state writer (rejects off-schema fields) | Overwrite |
