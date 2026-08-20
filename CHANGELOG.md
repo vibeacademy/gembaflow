@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`docs/QUICKSTART.md` — 3-step Codespace-first golden path (gh-gf-521)** — net-new quickstart document targeting workshop participants and non-engineers on Windows/iPad who need zero terminal steps in the happy path. Covers: optional multi-bot secrets (Step 0); "Use this template" with personal-account recommendation and workshop-org alternative (Step 1); Codespace creation with cold-boot wait time, one-time permissions dialog placeholder, and WELCOME.md handoff (Step 2); `/bootstrap` invocation with phase table and expected closing summary (Step 3). Workshop instructor subsections: pre-checklist, pre-warm guidance, and an org-enabled prebuild walkthrough (prebuilds are a GitHub org feature enableable today; a default framework prebuild config is a planned follow-up). Screenshot placeholders as HTML comments throughout. All internal links verified (`docs/codespaces-secrets.md`, `docs/GETTING-STARTED.md`, `docs/PLATFORM-GUIDE.md`). Reality reconciled against v1.7.0: beads/kanban closing promise (not GitHub Projects), settings/extension auto-configure (#680/#681 shipped), sidebar-first phrasing (#684 still open), prebuild config not yet shipped (gfm-y67). (#521)
+
+> **Fork impact** — `docs/QUICKSTART.md` is a framework/Overwrite file and propagates on template sync. No behavior change; docs only.
+
 ## [1.7.0] - 2026-08-15
 
 ### Removed
