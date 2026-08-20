@@ -915,6 +915,11 @@ phase4_workflow() {
     echo ""
     print_info "Checking branch protection on main..."
 
+    # Token-capability probe: source the probe helper so the three-branch
+    # error logic is independently testable (scripts/__tests__/ruleset-probe.test.mjs).
+    # shellcheck source=scripts/lib/ruleset-probe.sh
+    source "${BOOTSTRAP_DIR}/scripts/lib/ruleset-probe.sh"
+
     local remote_url
     remote_url=$(git remote get-url origin 2>/dev/null || true)
     if [ -n "$remote_url" ]; then
@@ -922,36 +927,44 @@ phase4_workflow() {
         repo_slug=$(echo "$remote_url" | sed -E 's#(https://github\.com/|git@github\.com:)##' | sed 's/\.git$//')
 
         if [ -n "$repo_slug" ]; then
-            # Check for existing rulesets that protect main
+            # Check for existing rulesets that protect main.
+            # Pipe stderr to /dev/null; we only need the count on success.
             local existing_rulesets
             existing_rulesets=$(gh api "repos/${repo_slug}/rulesets" --jq 'length' 2>/dev/null || echo "0")
 
             if [ "$existing_rulesets" -gt 0 ] 2>/dev/null; then
                 print_success "Repository has ${existing_rulesets} ruleset(s) — branch protection likely configured."
             else
-                print_info "No rulesets found. Creating branch protection ruleset for main..."
-                if gh api "repos/${repo_slug}/rulesets" \
-                    --method POST \
-                    --field name="Protect main" \
-                    --field target="branch" \
-                    --field enforcement="active" \
-                    --field 'conditions[ref_name][include][]=refs/heads/main' \
-                    --field 'conditions[ref_name][exclude][]=' \
-                    --field 'rules[][type]=pull_request' \
-                    --field 'rules[][type]=required_status_checks' \
-                    &>/dev/null 2>&1; then
-                    print_success "Branch protection ruleset created for main."
-                else
-                    print_warning "Could not create ruleset automatically."
-                    echo "  You may not have admin permissions, or the repo may be on"
-                    echo "  a plan that does not support rulesets via API."
-                    echo ""
-                    echo "  Manual fallback — go to your repo on GitHub:"
-                    echo "    Settings > Rules > Rulesets > New ruleset"
-                    echo "    - Name: Protect main"
-                    echo "    - Target: main branch"
-                    echo "    - Rules: Require pull request, Require status checks"
+                print_info "No rulesets found. Probing token capability before creating ruleset..."
+                # Probe first (READ endpoint, same scope family as the POST).
+                # gembaflow_ruleset_probe prints a user-facing three-branch error
+                # and returns 1 when the token cannot create rulesets; on 0 the
+                # POST is safe to attempt.
+                if gembaflow_ruleset_probe "${repo_slug}"; then
+                    if gh api "repos/${repo_slug}/rulesets" \
+                        --method POST \
+                        --field name="Protect main" \
+                        --field target="branch" \
+                        --field enforcement="active" \
+                        --field 'conditions[ref_name][include][]=refs/heads/main' \
+                        --field 'conditions[ref_name][exclude][]=' \
+                        --field 'rules[][type]=pull_request' \
+                        --field 'rules[][type]=required_status_checks' \
+                        &>/dev/null 2>&1; then
+                        print_success "Branch protection ruleset created for main."
+                    else
+                        # POST failed even though the probe passed (race or plan
+                        # restriction). Fall back to manual; do not retry.
+                        print_warning "Could not create ruleset automatically (POST failed after successful probe)."
+                        echo "  Manual fallback — configure branch protection via GitHub UI:"
+                        echo "    Settings > Rules > Rulesets > New ruleset"
+                        echo "      - Name: Protect main"
+                        echo "      - Target: main branch"
+                        echo "      - Rules: Require pull request, Require status checks"
+                    fi
                 fi
+                # On probe failure gembaflow_ruleset_probe already printed the
+                # branch-specific error; nothing more to do here.
             fi
         fi
     else

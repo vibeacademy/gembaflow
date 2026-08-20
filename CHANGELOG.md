@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`bootstrap.sh` Phase 4 + `/bootstrap-workflow`: token-capability probe before ruleset POST — three-branch error (gh-gf-520)** — the collaborator-role pre-check before the Phase-4 `gh api repos/{slug}/rulesets POST` is replaced with a token-capability probe: `GET /rulesets` (read, same scope family as the write) runs first; a 403 on the probe is the definitive signal that the token cannot create rulesets, and the role check is deferred to within the failure branch. On probe failure, three error branches fire: (1) user is not admin → role error with owner-escalation instructions; (2) user is admin inside Codespaces (`$CODESPACES=true`) → calm Codespaces token-scope wall message with PAT scopes `repo,workflow` (`admin:org` noted for org forks only — no `project` scope, because beads needs none); (3) user is admin outside Codespaces → generic 403 manual-fallback. The POST payload is unchanged. The probe logic is extracted into `scripts/lib/ruleset-probe.sh` so it is independently testable; `scripts/__tests__/ruleset-probe.test.mjs` covers all four branches (happy path + 3 error branches) with a stubbed `gh` binary. `/bootstrap-workflow`'s branch-protection section mirrors the same probe-first logic and documents the implementer's choice. Live Codespace validation rides gfm-2mh/SEC-02's boot test (operator-driven).
+
+> **Fork impact** — `bootstrap.sh` and `.claude/commands/bootstrap-workflow.md` are framework/Overwrite; `scripts/lib/ruleset-probe.sh` and its test are new framework files. Behavior change is in the failure path only: existing runs where the token IS capable are unaffected (probe exits 0, POST proceeds as before). Forks whose token lacks administration scope get a three-branch actionable error instead of a silent POST 403.
+
 ### Added
 
 - **README Quickstart section — the "Use this template" badge now has a landing target (gh-gf-522)** — new `## Quickstart (Codespaces, ~15 minutes)` section between "Why This Exists" and "What This Is", carrying the 3-step pitch verbatim from `docs/QUICKSTART.md` plus a prominent link to it; the terminal-first `docs/GETTING-STARTED.md` pointer is preserved. README is framework/Overwrite — forks inherit on next sync; docs only. (#522)
