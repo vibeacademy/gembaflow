@@ -95,7 +95,8 @@ fly deploy
 
 ### 2. Preview Environments
 
-**Render:** Automatic via `previewsEnabled: true` in `render.yaml`.
+**Render:** Automatic via the top-level `previews:` block
+(`generation: automatic`) in `render.yaml`.
 Preview services follow the pattern `{service}-pr-{number}`.
 
 When Supabase is configured (`SUPABASE_ACCESS_TOKEN` secret), the

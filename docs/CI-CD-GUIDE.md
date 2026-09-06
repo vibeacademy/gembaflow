@@ -165,8 +165,9 @@ preview URL on the PR.
 
 **Required secrets:** `RENDER_API_KEY`, `RENDER_SERVICE_ID`
 
-Render must also have `previewsEnabled: true` in `render.yaml` (already
-configured in this template).
+Render must also have the top-level `previews:` block with
+`generation: automatic` in `render.yaml` (already configured in this
+template).
 
 **Optional Supabase secrets** (for ephemeral PR databases):
 

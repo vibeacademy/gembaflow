@@ -18,7 +18,7 @@ PR closes, both are torn down automatically.
               ▼                                 ▼
 ┌──────────────────────────┐      ┌──────────────────────────────┐
 │   Supabase GitHub        │      │   Render Native Previews     │
-│   Integration            │      │   (previewsEnabled: true)    │
+│   Integration            │      │   (previews: automatic)      │
 │                          │      │                              │
 │   Creates branch DB      │      │   Creates preview service    │
 │   automatically via      │      │   automatically from         │
@@ -70,7 +70,7 @@ PR closes, both are torn down automatically.
 
 | Resource | Created By | Destroyed By |
 |----------|-----------|--------------|
-| Render preview service | Render (native, via `previewsEnabled: true` in `render.yaml`) | Render (automatic on PR close) |
+| Render preview service | Render (native, via the top-level `previews:` block with `generation: automatic` in `render.yaml`) | Render (automatic on PR close) |
 | Supabase branch database | Supabase GitHub integration (webhook) | `preview-cleanup.yml` via `supabase branches delete` |
 | Env var wiring between them | `preview-deploy.yml` (GitHub Actions) | N/A (destroyed with service) |
 
@@ -131,8 +131,9 @@ deploy.yml (prod) ───── RENDER_API_KEY
 
 Two things happen in parallel, triggered by the PR branch push:
 
-**Render** reads `render.yaml`, sees `previewsEnabled: true`, and spins
-up a preview service named `{base-service}-pr-{number}`.
+**Render** reads `render.yaml`, sees the top-level `previews:` block
+(`generation: automatic`), and spins up a preview service named
+`{base-service}-pr-{number}`.
 
 **Supabase** GitHub integration (configured in Supabase Dashboard >
 Settings > Integrations > GitHub) detects the new branch and creates an

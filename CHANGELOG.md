@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`render.yaml` Blueprint validation — deprecated per-service `previewsEnabled` migrated to the top-level `previews:` block, stale pre-rebrand service name fixed (gh-gf-386)** — Render's current Blueprint schema rejects the per-service `previewsEnabled: true` field (`field previewsEnabled not found in type file.Service`), so New → Blueprint service creation failed validation outright. Both the root `render.yaml` and the FastAPI starter blueprint (`starters/fastapi/render.yaml`) now carry Render's current top-level `previews:` key with `generation: automatic` instead — PR previews stay enabled, no other blueprint behavior changes. Both blueprints also drop the stale pre-rebrand default service name `agile-flow-starter` → `gembaflow-starter` (per-attendee workshop naming is stamped at provisioning time by separate tooling; this only fixes the default), and the FastAPI starter's `uv.lock` is regenerated for the root-package rename (zero dependency churn). Doc/agent references to `previewsEnabled` (`docs/EPHEMERAL-PR-ENVIRONMENTS.md`, `docs/CI-CD-GUIDE.md`, `.claude/agents/devops-engineer.md`) updated to describe the `previews:` block. Downstream origin: the gembaflow-site fork hit the validation failure and fixed it locally with the equivalent block — this upstreams the convergent fix. (#732)
+
+> **Fork impact** — `render.yaml` is fork-owned user-content (`docs/DISTRIBUTION.md`: "Never touch"; hard-excluded in `scripts/template-sync.sh`), so existing forks are unaffected by sync — gembaflow-website already carries the equivalent local fix and now converges with upstream. The doc and agent-file updates are framework files and DO propagate on next sync. New repos born from the template get the valid blueprint immediately — previously Blueprint-based service creation failed on first use.
+
 ## [1.8.0] - 2026-08-20
 
 ### Changed

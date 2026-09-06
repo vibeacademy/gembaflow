@@ -1,6 +1,9 @@
+previews:
+  generation: automatic
+
 services:
   - type: web
-    name: agile-flow-starter
+    name: gembaflow-starter
     runtime: node
     plan: free
     # WARNING: Do not use standalone mode (node .next/standalone/server.js) —
@@ -10,7 +13,6 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
-    previewsEnabled: true
     envVars:
       - key: SENTRY_DSN
         sync: false
