@@ -165,6 +165,15 @@ preview URL on the PR.
 
 **Required secrets:** `RENDER_API_KEY`, `RENDER_SERVICE_ID`
 
+A leading `Detect Deploy Config` job checks which secrets are set and
+publishes `render_configured` / `supabase_configured` outputs (secrets
+are not readable in job-level `if:` expressions, so downstream jobs gate
+on these outputs). When the Render secrets are missing, the
+`Deploy to Render Preview` job is **skipped** (neutral) instead of
+reporting green success without having deployed anything. Skipped jobs
+satisfy required status checks, so check names pinned in rulesets keep
+resolving.
+
 Render must also have the top-level `previews:` block with
 `generation: automatic` in `render.yaml` (already configured in this
 template).
@@ -185,8 +194,11 @@ When Supabase is configured, the workflow:
    Render preview service
 5. Triggers a redeploy so the preview picks up the new credentials
 
-All Supabase steps are gated on `SUPABASE_ACCESS_TOKEN` — if not configured,
-the workflow skips them gracefully and deploys normally.
+All Supabase steps (including the `Wait for Supabase Branch` job) are
+gated on `SUPABASE_ACCESS_TOKEN` + `SUPABASE_PROJECT_REF` via the
+`Detect Deploy Config` job — if not configured, they show as skipped and
+the preview deploys without database wiring (DB-less forks carry none of
+the Supabase machinery at runtime).
 
 ### Preview Cleanup (`preview-cleanup.yml`)
 

@@ -12,6 +12,43 @@ jobs:
   detect:
     uses: ./.github/workflows/_detect-changes.yml
 
+  # Config detection: secrets are not readable in job-level `if:`
+  # expressions, so this cheap job (~3s, no checkout) reads them into step
+  # env and republishes presence as job outputs. Downstream jobs gate on
+  # the outputs, so unconfigured forks see SKIPPED (neutral) instead of a
+  # green check that deployed nothing. Skipped jobs satisfy required
+  # status checks (see the note in `_detect-changes.yml`), so pinning
+  # "Deploy to Render Preview" as a required check stays safe.
+  # Secret VALUES are never echoed — only presence booleans.
+  config:
+    name: Detect Deploy Config
+    runs-on: ubuntu-latest
+    outputs:
+      render_configured: ${{ steps.probe.outputs.render_configured }}
+      supabase_configured: ${{ steps.probe.outputs.supabase_configured }}
+    steps:
+      - name: Probe configured secrets
+        id: probe
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          if [ -n "$RENDER_API_KEY" ] && [ -n "$RENDER_SERVICE_ID" ]; then
+            echo "render_configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "render_configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::RENDER_API_KEY / RENDER_SERVICE_ID not configured — the Render preview deploy will show as skipped, not success."
+          fi
+
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$SUPABASE_PROJECT_REF" ]; then
+            echo "supabase_configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "supabase_configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF not configured — Supabase branch-database steps will be skipped."
+          fi
+
   ci:
     name: CI Checks
     needs: detect
@@ -20,8 +57,11 @@ jobs:
 
   wait-for-supabase:
     name: Wait for Supabase Branch
-    needs: detect
-    if: github.repository != 'vibeacademy/gembaflow' && needs.detect.outputs.should-run-ci == 'true'
+    needs: [detect, config]
+    if: >-
+      github.repository != 'vibeacademy/gembaflow' &&
+      needs.detect.outputs.should-run-ci == 'true' &&
+      needs.config.outputs.supabase_configured == 'true'
     runs-on: ubuntu-latest
     outputs:
       branch_ready: ${{ steps.check.outputs.conclusion || 'skipped' }}
@@ -45,13 +85,18 @@ jobs:
 
   deploy-preview:
     name: Deploy to Render Preview
-    needs: [detect, ci, wait-for-supabase]
+    needs: [detect, config, ci, wait-for-supabase]
     # `always()` lets us evaluate even if wait-for-supabase failed via its
-    # continue-on-error. Hard gates: CI must have succeeded AND the diff
-    # must touch a code path (docs-only PRs skip the Render compute).
+    # continue-on-error (or was skipped for unconfigured Supabase). Hard
+    # gates: CI must have succeeded, the diff must touch a code path
+    # (docs-only PRs skip the Render compute), AND Render must actually be
+    # configured — otherwise this job previously exited 0 having deployed
+    # nothing, showing a false-green check. Unconfigured forks now see
+    # SKIPPED (neutral) instead.
     if: |
       always() &&
       needs.detect.outputs.should-run-ci == 'true' &&
+      needs.config.outputs.render_configured == 'true' &&
       needs.ci.result == 'success'
     runs-on: ubuntu-latest
     permissions:
@@ -62,14 +107,19 @@ jobs:
         uses: actions/checkout@v4
 
       # ── Supabase Branch Credential Detection ──────────────────────────
+      # All Supabase steps gate on the config job's detection output so
+      # DB-less forks (no SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF)
+      # skip the machinery entirely instead of running no-op fallbacks.
 
       - name: Setup Supabase CLI
+        if: needs.config.outputs.supabase_configured == 'true'
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
       - name: Fetch branch database credentials
         id: supabase_branch
+        if: needs.config.outputs.supabase_configured == 'true'
         uses: 0xbigboss/supabase-branch-gh-action@v1
         continue-on-error: true
         with:
@@ -79,6 +129,7 @@ jobs:
 
       - name: Set Supabase environment variables
         id: supabase_env
+        if: needs.config.outputs.supabase_configured == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
@@ -173,6 +224,9 @@ jobs:
           PR_NUMBER="${{ github.event.pull_request.number }}"
           echo "Waiting for Render preview service for PR #${PR_NUMBER}..."
 
+          # Defense-in-depth only: the job-level gate on the config job's
+          # render_configured output means this branch is unreachable when
+          # Render is unconfigured (the whole job shows as skipped).
           if [ -z "$RENDER_API_KEY" ] || [ -z "$RENDER_SERVICE_ID" ]; then
             echo "RENDER_API_KEY or RENDER_SERVICE_ID not configured"
             echo "preview_found=false" >> "$GITHUB_OUTPUT"
@@ -272,10 +326,15 @@ jobs:
           fi
 
       # ── Inject Supabase credentials into Render preview ───────────────
+      # Also gated on Supabase config: with no Supabase secrets there are
+      # no credentials to inject, and skipping avoids clobbering the
+      # preview's env vars with empty values + a pointless redeploy.
 
       - name: Update Render preview environment variables
         id: render_env
-        if: steps.render_preview.outputs.preview_found == 'true'
+        if: >-
+          steps.render_preview.outputs.preview_found == 'true' &&
+          needs.config.outputs.supabase_configured == 'true'
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
@@ -600,6 +659,7 @@ jobs:
           script: |
             const smokeResult = '${{ steps.smoke_test.outputs.result }}';
             const previewUrl = '${{ steps.preview_url.outputs.url }}';
+            const supabaseConfigured = '${{ needs.config.outputs.supabase_configured }}';
             const branchExists = '${{ steps.supabase_env.outputs.branch_exists }}';
             const migrationStatus = '${{ steps.supabase_migrate.outputs.migration_status }}';
             const authConfigured = '${{ steps.supabase_auth.outputs.auth_configured }}';
@@ -612,7 +672,7 @@ jobs:
             body += `| Preview URL | ${previewUrl || 'Not available'} |\n`;
             body += `| Render Service | ${previewFound === 'true' ? 'Found' : 'Not found'} |\n`;
             body += `| Env Vars Injected | ${envUpdated === 'true' ? 'Yes' : 'No'} |\n`;
-            body += `| Supabase Branch | ${branchExists === 'true' ? 'Detected' : 'Not detected'} |\n`;
+            body += `| Supabase Branch | ${branchExists === 'true' ? 'Detected' : supabaseConfigured !== 'true' ? 'Not configured' : 'Not detected'} |\n`;
 
             if (branchExists === 'true') {
               body += `| Migrations | ${migrationStatus === 'success' ? 'Applied' : migrationStatus === 'failed' ? 'Failed' : 'Skipped'} |\n`;
@@ -643,6 +703,8 @@ jobs:
               } else if (authConfigured === 'failed') {
                 body += '> **Auth NOT configured:** Failed to update Supabase branch auth redirect URLs after 3 retries. Magic link login will redirect to **production** instead of this preview. See workflow logs for details.\n';
               }
+            } else if (supabaseConfigured !== 'true') {
+              body += '\n> Supabase is not configured for this repository — preview deployed without database wiring.\n';
             } else {
               body += '\n> No Supabase branch detected. Preview uses production database.\n';
             }
