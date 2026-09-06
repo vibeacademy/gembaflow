@@ -1,12 +1,14 @@
+previews:
+  generation: automatic
+
 services:
   - type: web
-    name: agile-flow-starter
+    name: gembaflow-starter
     runtime: python
     plan: free
     buildCommand: pip install .
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
-    previewsEnabled: true
     envVars:
       - key: SENTRY_DSN
         sync: false
