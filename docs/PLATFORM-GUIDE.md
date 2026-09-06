@@ -380,3 +380,46 @@ project IDs, not template strings it would have to expand.
 The cost is one bootstrap step + one `/upgrade` re-run when new placeholders
 ship. The benefit is the framework's source-of-truth specs stay generic, and
 forks don't carry merge conflicts on these files every release cycle.
+
+## Workshop mode
+
+Workshop mode conditions agent behavior for **one-day facilitated
+MVP-to-production workshop cohorts** (monthly cadence; ~6 attendees per
+cohort). It is enabled per-repo by the facilitator's provisioning, never by
+the framework itself.
+
+### Config
+
+`.gembaflow-config.json` gains an optional `workshop` block
+(schema in `.gembaflow-config.example.json`):
+
+```json
+"workshop": { "enabled": true, "cohort": "2026-10-nashville" }
+```
+
+**Absent block or `enabled: false` → zero behavior change.** Every
+conditional that reads the block treats absence and `false` identically, so
+non-workshop forks are unaffected by this feature existing. Note that
+`.gembaflow-config.json` is gitignored and `scripts/codespace-postcreate.sh`
+writes it only when the file is absent — a facilitator provisioning attendee
+repos commits the config past the gitignore (`git add -f`) so it survives
+Codespace boot; the postCreate script never clobbers an existing file.
+
+### What it changes when enabled
+
+| Behavior | Where it lives |
+|---|---|
+| **Pattern-first bias** — tickets matching a `docs/PATTERN-LIBRARY.md` entry apply the proven pattern (pattern number cited in the PR body); no match → simplest approach that ships within the session | `github-ticket-worker` agent § "Workshop Mode"; `/work-ticket` critical rule 11 |
+| **Stack defaults locked** — Next.js + Supabase web app; no iOS/Android targets or mobile frameworks; mobile-implying tickets surface the constraint instead of proceeding | `github-ticket-worker` agent; `/bootstrap-architecture` shortcut |
+| **Iteration-zero compression** — bootstrap Phase 1 seeds the PRD from the attendee's pre-work paragraph (one confirm loop, not open-ended discovery); Phase 2 confirms the locked stack instead of running a design session | `/bootstrap-product` + `/bootstrap-architecture` workshop-mode shortcuts; `/bootstrap` preflight 1d |
+| **Infra fence** — agents never modify the `render.yaml` service name, repo/org secrets, or `.github/workflows/*`; facilitator-owned during the cohort | `github-ticket-worker` agent; `/bootstrap-architecture` shortcut |
+| **Merge discipline** — production merges stay human; agents open PRs, never merge | Already the framework default — workshop mode states it rather than re-implementing it |
+
+Workshop mode **composes** with solo/multi-bot mode (`solo_mode`) and swarm
+mode: it constrains what agents build and how, not the bead/PR protocol.
+The `cohort` slug parameterizes the monthly cadence — provisioning tooling
+and fleet observability key off it; framework behavior does not branch on
+its value.
+
+For instructor-side setup (pre-warm, prebuilds, org pattern), see
+[`docs/QUICKSTART.md`](QUICKSTART.md) § "Workshop Instructor Guide".

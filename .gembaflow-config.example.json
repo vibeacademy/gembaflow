@@ -5,5 +5,10 @@
   "bot": {
     "worker": "your-worker-bot-account",
     "reviewer": "your-reviewer-bot-account"
+  },
+  "workshop": {
+    "$comment": "Workshop mode — conditions agent behavior for one-day facilitated workshop cohorts (pattern-first bias, locked Next.js + Supabase stack, compressed iteration zero, facilitator-owned infra fence). Absent block or enabled: false means ZERO behavior change — leave it disabled unless a facilitator provisioned this repo for a cohort. When enabling, set cohort to the cohort slug, e.g. \"2026-10-nashville\". See docs/PLATFORM-GUIDE.md § \"Workshop mode\".",
+    "enabled": false,
+    "cohort": ""
   }
 }

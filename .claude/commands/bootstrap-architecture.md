@@ -19,6 +19,34 @@ The System Architect will read your PRD and help you define:
 
 ## Process
 
+### Workshop-Mode Shortcut (conditional)
+
+Read the `workshop` block from `.gembaflow-config.json` first. If
+`workshop.enabled` is `true`, **confirm the locked stack instead of
+running an architecture design session**:
+
+1. Skip the Platform Selection question — the platform is **Render**
+   (facilitator-provisioned). Write `.claude/PROJECT.md` with
+   `Hosting: Render` as described in step 0 below.
+2. Skip the Stack Transition section entirely — the stack is locked to
+   the shipped **Next.js starter + Supabase** (web application). No
+   FastAPI/Go/other swap, no mobile frameworks. If the PRD implies a
+   stack outside this (native mobile especially), surface the workshop
+   constraint and resolve it with the attendee before continuing.
+3. Present a one-screen stack confirmation (Next.js + TypeScript +
+   Vitest frontend, Supabase Postgres + Auth, Render hosting with PR
+   previews) and ask for a single yes/adjust response — do not run the
+   open-ended Technology Selection dialogue.
+4. Generate `docs/TECHNICAL-ARCHITECTURE.md` from the template below
+   with the locked stack filled in; data models and system design still
+   come from the PRD (that part is product-specific, not compressed).
+5. **Do not touch the `render.yaml` service name, repo/org secrets, or
+   `.github/workflows/*`** — facilitator-owned during the cohort.
+
+If `workshop.enabled` is `false`, the field is absent, or the block is
+absent entirely, ignore this section — the full process below runs
+unchanged.
+
 ### 0. Platform Selection
 
 Before diving into architecture, ask the user about their deployment platform:
