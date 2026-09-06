@@ -31,16 +31,21 @@ PR closes, both are torn down automatically.
 ┌─────────────────────────────────────────────────────────────────────┐
 │                  preview-deploy.yml (GitHub Actions)                │
 │                                                                     │
+│  0. Detect config (which secrets are set; unconfigured = skip)      │
 │  1. CI checks pass                                                  │
-│  2. Wait for Supabase branch DB (up to 10 min)                      │
-│  3. Fetch branch credentials (URL, anon_key, service_role_key)      │
-│  4. Apply migrations (supabase db push)                             │
-│  5. Configure auth redirect URLs for preview                        │
+│  2. Wait for Supabase branch DB (up to 10 min)*                     │
+│  3. Fetch branch credentials (URL, anon_key, service_role_key)*     │
+│  4. Apply migrations (supabase db push)*                            │
+│  5. Configure auth redirect URLs for preview*                       │
 │  6. Find Render preview service via API                             │
-│  7. Inject Supabase credentials into Render env vars                │
-│  8. Trigger Render redeploy                                         │
+│  7. Inject Supabase credentials into Render env vars*               │
+│  8. Trigger Render redeploy*                                        │
 │  9. Health check (/api/health)                                      │
 │ 10. Post status comment on PR                                       │
+│                                                                     │
+│  * Supabase steps — skipped when Supabase secrets are not set.      │
+│    Steps 6–10 are skipped entirely (neutral, NOT green success)     │
+│    when Render secrets are not set.                                 │
 └─────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -144,6 +149,19 @@ isolated Postgres database with its own API endpoint, `anon_key`, and
 
 `preview-deploy.yml` runs on `pull_request: [opened, synchronize, reopened]`:
 
+0. **Config detection** — a cheap `Detect Deploy Config` job reads which
+   secrets are set and publishes `render_configured` /
+   `supabase_configured` job outputs (secrets cannot be referenced in
+   job-level `if:` expressions, so downstream jobs gate on these outputs
+   instead). When Render secrets are missing, the entire
+   `Deploy to Render Preview` job is **skipped (neutral)** — it no longer
+   reports green success having deployed nothing. When Supabase secrets
+   are missing, the `Wait for Supabase Branch` job and every
+   Supabase-specific step are skipped. Skipped jobs satisfy required
+   status checks (GitHub's May 2022 status-check semantics — see the
+   note in `_detect-changes.yml`), so pinning these check names in a
+   ruleset stays safe.
+
 1. **CI checks** — lint, type-check, tests must pass first.
 
 2. **Wait for Supabase branch** — uses `0xbigboss/supabase-branch-gh-action@v1`
@@ -214,14 +232,16 @@ production and other PRs.
 
 ## Graceful Degradation
 
-The system works even with partial configuration:
+The system works even with partial configuration. The `Detect Deploy
+Config` job detects which secrets are present, and unconfigured paths
+show as **skipped** (neutral) in the PR checks — never as green success:
 
 | Missing Secret | Behavior |
 |---------------|----------|
-| `SUPABASE_ACCESS_TOKEN` | Supabase steps skipped; preview uses production DB (or no DB) |
+| `SUPABASE_ACCESS_TOKEN` | `Wait for Supabase Branch` job + all Supabase steps skipped; preview deploys without database wiring (DB-less forks) |
 | `SUPABASE_PROJECT_REF` | Same as above |
-| `RENDER_API_KEY` | Workflow skipped entirely |
-| `RENDER_SERVICE_ID` | Workflow skipped entirely |
+| `RENDER_API_KEY` | `Deploy to Render Preview` job skipped (reports neutral, not success) |
+| `RENDER_SERVICE_ID` | Same as above |
 | `SUPABASE_DB_URL` | Production migrations skipped; preview flow unaffected |
 
 ---
