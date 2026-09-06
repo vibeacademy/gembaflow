@@ -220,6 +220,17 @@ arrive.
    pattern in Step 1), verify each attendee has Admin access before the
    session.
 
+4. **Enable workshop mode in each attendee repo (facilitated cohorts).**
+   Commit a `.gembaflow-config.json` carrying
+   `"workshop": { "enabled": true, "cohort": "<your-cohort-slug>" }` into
+   each attendee repo with `git add -f` (the file is gitignored by
+   default; the postCreate script never overwrites an existing config).
+   This gives attendees pattern-first agent behavior, the locked
+   Next.js + Supabase stack, compressed bootstrap Phases 1-2, and the
+   facilitator infra fence. Full reference:
+   [docs/PLATFORM-GUIDE.md](PLATFORM-GUIDE.md) section "Workshop mode".
+   Repos without the block are completely unaffected.
+
 ### Enabling prebuilds (optional, advanced)
 
 GitHub Codespaces prebuilds cache the container image and postCreate script

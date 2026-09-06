@@ -14,6 +14,40 @@ For multiple-choice questions, present numbered options and ask the user to resp
 
 ---
 
+## Workshop-Mode Shortcut (conditional)
+
+Read the `workshop` block from `.gembaflow-config.json` first. If
+`workshop.enabled` is `true`, **do not run the full questionnaire** —
+workshop cohorts compress iteration zero so the day is spent shipping
+features. Instead:
+
+1. **Get the pre-work paragraph.** Ask the attendee to paste their
+   pre-work paragraph (the short product description they wrote before the
+   workshop). If the facilitator provisioned it into the repo (e.g. a
+   `docs/PRE-WORK.md`), read it from there and confirm it's theirs.
+2. **Seed the PRD from it.** Derive answers to the questionnaire sections
+   below from the paragraph. Stack-related answers are **locked by the
+   workshop**, not asked: product type = Web application (Q1.1); technical
+   requirements = Next.js + Supabase, deployed by the facilitator's Render
+   setup (Q7.3); timeline = ASAP — MVP in production today (Q7.1). If the
+   paragraph implies a mobile app, surface the workshop constraint (web
+   apps only — no iOS/Android this cohort) and reframe as a web MVP with
+   the attendee.
+3. **Run ONE short confirm loop, not open-ended discovery.** Present the
+   synthesized summary (domain, problem, primary user, 3–5 MVP features,
+   out-of-scope list) and ask for corrections in a single pass. Only ask
+   individual follow-up questions for fields the paragraph genuinely
+   doesn't cover (typically Q4.1 MVP features and Q4.2 out-of-scope).
+4. **Write the same two documents** from the Output Templates below —
+   the artifacts are identical to the normal path; only the elicitation
+   is compressed.
+
+If `workshop.enabled` is `false`, the field is absent, or the block is
+absent entirely, ignore this section — the questionnaire below runs
+unchanged.
+
+---
+
 ## Pre-Check: Research Artifacts
 
 Before starting the questionnaire, check for these files:

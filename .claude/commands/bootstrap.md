@@ -105,6 +105,17 @@ The actionable error on the missing-secrets path:
 Substitute the actual `<present|MISSING>` values from the env check so
 the operator sees which specific secret needs setting.
 
+Also read the `workshop` block from `.gembaflow-config.json`
+(same file, same read):
+
+| `workshop.enabled` value | Action |
+|---|---|
+| `true` | Proceed in **workshop mode** for the cohort in `workshop.cohort`. Phases 1–2 take the workshop shortcuts (see the per-phase commands); note the mode + cohort in the preflight line and closing summary. |
+| `false`, absent, or block absent | Normal behavior — workshop mode contributes **zero** behavior change. Do not mention it in output. |
+
+Workshop mode composes with solo/multi-bot mode; it does not replace it.
+See `docs/PLATFORM-GUIDE.md` § "Workshop mode" for what the mode changes.
+
 #### 1e. Mark phase0 complete
 
 Append `phase0:complete` to `.claude/.bootstrap-status` if not already present.
@@ -164,7 +175,7 @@ Print a single closing block:
 ```
 ✓ Bootstrap complete.
 
-  Mode: <solo|multi-bot>
+  Mode: <solo|multi-bot>[, workshop (<cohort>)]
   Tracker: beads (bd), prefix <prefix from bd config / init-beads>
   Ready (top 3 from bd ready --json --limit 0):
     1. <bead-id> — <title>

@@ -74,6 +74,7 @@ template strings leak into runtime instructions.
 8. **Never commit directly to main** — always use feature branches and PRs
 9. **Never `bd close`** — workers never close beads (critical rule 10); only the orchestrator/human path closes, after the merge is confirmed
 10. **Stale descriptions**: if the bead text contradicts repo reality, state your interpretation in the PR body and flag it for the reviewer — never silently reinterpret or blindly obey
+11. **Workshop mode (conditional)**: if `.gembaflow-config.json` has `workshop.enabled: true`, the `github-ticket-worker` agent's "Workshop Mode" section applies — pattern-first (cite the `docs/PATTERN-LIBRARY.md` pattern number in the PR body), Next.js + Supabase stack locked (no mobile), and the facilitator infra fence (`render.yaml` service name, secrets, `.github/workflows/*` are off-limits). Absent block or `enabled: false` → this rule is inert.
 
 ## Workflow Steps
 

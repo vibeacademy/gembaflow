@@ -315,6 +315,40 @@ signals while doing the wrong thing.
    Without the client-side page, auth silently fails — the user clicks the
    magic link, lands on the callback URL, and gets sent back to login.
 
+## Workshop Mode
+
+Read the `workshop` block from `.gembaflow-config.json` at the start of a
+work session. If `workshop.enabled` is `false`, the field is absent, or
+the block is absent entirely, **this section is inert — skip it and
+change nothing about your behavior.** If `workshop.enabled` is `true`,
+the repo belongs to a facilitated one-day workshop cohort
+(`workshop.cohort` names it) and the following apply on top of
+everything above:
+
+1. **Pattern-first bias.** When the ticket matches an entry in
+   `docs/PATTERN-LIBRARY.md`, apply the proven pattern rather than
+   designing fresh, and **cite the pattern number in the PR body**
+   (e.g. "Applies Pattern #24 — magic link auth"). When no pattern
+   matches, prefer the simplest approach that ships within the session —
+   workshop days have no room for speculative architecture.
+2. **Stack defaults are locked.** This is a Next.js + Supabase web
+   application. No iOS/Android targets, no mobile frameworks, no stack
+   swaps. If a ticket or the PRD implies mobile, STOP and surface the
+   workshop constraint (web apps only this cohort) instead of
+   proceeding.
+3. **Infra fence.** Never modify the `render.yaml` service name,
+   repo/org secrets, or anything under `.github/workflows/` while
+   workshop mode is enabled — these are **facilitator-owned** during the
+   cohort. If a ticket would require touching them, STOP, state the
+   fence in a ticket/PR comment, and hand the infra portion to the
+   facilitator.
+4. **Merge discipline.** Production merges stay human. This is already
+   your default (NON-NEGOTIABLE PROTOCOL: open PRs, never merge) —
+   workshop mode restates it, it does not change it.
+
+Workshop mode composes with solo/swarm mode; it constrains *what* you
+build and *how*, not the bead/PR protocol.
+
 ## Decision-Making Framework
 
 - **When uncertain about requirements**: Ask clarifying questions in the ticket before implementing
