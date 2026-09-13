@@ -248,6 +248,27 @@ Your application should read these environment variables for Supabase:
 | `SUPABASE_KEY` | Supabase anon key (public, safe for client-side) |
 | `SUPABASE_SERVICE_KEY` | Supabase service_role key (server-side only) |
 
+### Built-in Auth: Magic-Link Scaffold (Next.js starter)
+
+The Next.js starter ships with passwordless magic-link auth already wired
+(`docs/PATTERN-LIBRARY.md` #24): `/login` and `/signup` pages, the PKCE
+callback (`/api/auth/callback`), a client-side hash-fragment callback
+(`/auth/callback`), a CSRF-protected `/api/auth/signout`, session-refresh
+middleware (`getUser()`, never `getSession()`), and an example guarded page
+at `/protected`. It reads the `NEXT_PUBLIC_`-prefixed variable names that
+`preview-deploy.yml` injects into preview environments:
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (embedded client-side at build) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon/publishable key (safe for the client) |
+| `SUPABASE_SERVICE_ROLE_KEY` | service_role key (server-side only; used by `lib/supabase/service.ts`) |
+
+No manual setup is needed beyond setting these variables — with them unset,
+the app still builds and runs and the auth pages render a
+"Supabase not configured" notice (same graceful-gating philosophy as
+`preview-deploy.yml` secret gating).
+
 ### Important: Keys and URL Must Match
 
 Supabase routes requests by the hostname in `SUPABASE_URL`

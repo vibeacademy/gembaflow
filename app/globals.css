@@ -41,3 +41,66 @@ code {
   border-radius: 3px;
   font-size: 0.9em;
 }
+
+/* Auth scaffold (docs/PATTERN-LIBRARY.md #24 — magic-link auth) */
+
+.auth-main {
+  padding-top: 1rem;
+}
+
+.auth-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.auth-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.auth-muted {
+  color: #555;
+  font-size: 0.95em;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.auth-form label {
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.auth-form input {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 1em;
+}
+
+.auth-form button,
+.auth-main form button[type="submit"] {
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.auth-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-error {
+  color: #991b1b;
+  font-size: 0.9em;
+}
