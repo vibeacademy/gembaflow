@@ -2022,7 +2022,7 @@ and capture the per-endpoint secret (every endpoint has its OWN `whsec_`):
     # The endpoint's OWN signing secret — inject as STRIPE_WEBHOOK_SECRET
     # for this preview (env change requires a redeploy, Pattern #8).
     echo "::add-mask::$(echo "$RESPONSE" | jq -r .secret)"
-    echo "WEBHOOK_SECRET=$(echo "$RESPONSE" | jq -r .secret)" >> "$GITHUB_ENV"
+    echo "STRIPE_WEBHOOK_SECRET=$(echo "$RESPONSE" | jq -r .secret)" >> "$GITHUB_ENV"
 ```
 
 Teardown — delete the endpoint when the PR closes, keyed off the metadata:
