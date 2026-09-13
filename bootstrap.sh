@@ -89,6 +89,16 @@ mark_phase_complete() {
     echo "$phase:complete" >> "$STATUS_FILE"
 }
 
+# Record when bootstrap began (once) — the completion marker derives
+# duration_seconds from this line (scripts/lib/bootstrap-marker.sh). Extra
+# lines are safe: `grep -q "^phaseN:complete$"` is the only phase consumer.
+mark_bootstrap_started() {
+    mkdir -p "$(dirname "$STATUS_FILE")"
+    if ! grep -q "^started:" "$STATUS_FILE" 2>/dev/null; then
+        echo "started:$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$STATUS_FILE"
+    fi
+}
+
 get_current_phase() {
     if ! check_phase_complete "phase0"; then
         echo "0"
@@ -732,6 +742,7 @@ MCPEOF
     if [ "$smoke_pass" = true ]; then
         print_success "Environment setup complete."
         mark_phase_complete "phase0"
+        mark_bootstrap_started
     else
         print_error "Some smoke tests failed. Please fix the issues above and re-run."
         return 1
@@ -1072,6 +1083,24 @@ phase4_workflow() {
         else
             print_info "No mode selected; main session will use 'default' behavior."
         fi
+    fi
+
+    # -------------------------------------------------------------------
+    #  Completion marker (gh-gf-524) — write + commit
+    #  .gembaflow-bootstrap-complete so workshop instructors can observe
+    #  fleet bootstrap state (scripts/workshop-fleet-check.sh fetches it
+    #  via raw.githubusercontent.com). Runs after the version stamp so the
+    #  marker carries the stamped version. Never fatal.
+    # -------------------------------------------------------------------
+    echo ""
+    print_info "Writing bootstrap completion marker..."
+    # shellcheck source=scripts/lib/bootstrap-marker.sh
+    source "${BOOTSTRAP_DIR}/scripts/lib/bootstrap-marker.sh"
+    if gembaflow_write_bootstrap_marker; then
+        gembaflow_commit_bootstrap_marker
+        print_success "Completion marker written: .gembaflow-bootstrap-complete"
+    else
+        print_warning "Could not write completion marker (jq missing?) — fleet-check will report YELLOW for this fork."
     fi
 }
 

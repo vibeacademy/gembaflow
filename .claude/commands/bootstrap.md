@@ -45,7 +45,10 @@ markers present.
 
 - If **all 5 markers** are present (phases 0 through 4): print
   `→ Already bootstrapped on <installedAt from .gembaflow-version>; re-run with --force to redo.`
-  and exit cleanly. Do not run any phase.
+  and exit cleanly. Do not run any phase. Exception: if
+  `.gembaflow-bootstrap-complete` is missing at the repo root (fork
+  bootstrapped before the completion marker shipped), backfill it first by
+  running Step 5b's `bash scripts/lib/bootstrap-marker.sh`, then exit.
 - If markers 1-4 are all present but `phase0:complete` is missing
   (Codespaces case — the postCreate script doesn't write phase0): append
   `phase0:complete` to the status file, then print the "already
@@ -121,6 +124,12 @@ See `docs/PLATFORM-GUIDE.md` § "Workshop mode" for what the mode changes.
 Append `phase0:complete` to `.claude/.bootstrap-status` if not already present.
 Create the file (with `mkdir -p .claude` first) if it doesn't exist.
 
+Also append `started:<ISO8601 UTC now>` (e.g. `started:2026-10-17T14:03:00Z`)
+if no `started:` line is present yet. The Phase-4 completion marker derives
+`duration_seconds` from this line (`scripts/lib/bootstrap-marker.sh`). Extra
+lines in the status file are safe — `grep -q "^phaseN:complete$"` is the only
+phase consumer.
+
 ### Step 2 — Phase 1 (Product Definition)
 
 Check both signals:
@@ -168,6 +177,33 @@ If both present, skip with `→ Phase 4 already complete; skipping /bootstrap-wo
 Otherwise, invoke `/bootstrap-workflow`. On success, mark `phase4:complete`.
 On failure, STOP with the summary shape above (failing phase 4).
 
+### Step 5b — Completion marker
+
+After `phase4:complete` is marked (whether phase 4 ran just now or the
+skip-check passed but `.gembaflow-bootstrap-complete` is missing at the repo
+root), run:
+
+```bash
+bash scripts/lib/bootstrap-marker.sh
+```
+
+This writes `.gembaflow-bootstrap-complete` (versioned JSON, `schema_version`
+"1": `completed_at`, `version`, `mode`, optional `workshop` cohort,
+`duration_seconds`), commits it as its own commit
+(`chore(bootstrap): mark complete`), and pushes it so workshop instructors
+can observe fleet bootstrap state via `scripts/workshop-fleet-check.sh`
+(raw.githubusercontent.com fetch).
+
+Push semantics: the default-branch push is EXPECTED to be rejected once the
+Phase-4 ruleset exists (it blocks direct pushes to `main` for all actors —
+rulesets have no admin exemption), so the script then pushes the marker
+commit to the well-known fallback branch `gembaflow/bootstrap-marker`, which
+the ruleset does not cover. The fleet-check reads that branch automatically
+and reports GREEN with a "marker on fallback branch" annotation — either
+push outcome is a success; relay the script's message as-is. Only if BOTH
+pushes fail (network/auth) does the fork stay YELLOW; relay the script's
+re-run guidance. Never fatal — continue to Step 6 in every case.
+
 ### Step 6 — Closing summary
 
 Print a single closing block:
@@ -176,6 +212,7 @@ Print a single closing block:
 ✓ Bootstrap complete.
 
   Mode: <solo|multi-bot>[, workshop (<cohort>)]
+  Marker: .gembaflow-bootstrap-complete <pushed to main|pushed to fallback branch gembaflow/bootstrap-marker|committed — push pending>
   Tracker: beads (bd), prefix <prefix from bd config / init-beads>
   Ready (top 3 from bd ready --json --limit 0):
     1. <bead-id> — <title>
