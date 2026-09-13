@@ -36,6 +36,9 @@
 26. [Neon Auth: Trusted Domains for Preview Environments](#26-neon-auth-trusted-domains-for-preview-environments)
 27. [Neon Auth: Migration from Custom Magic Links](#27-neon-auth-migration-from-custom-magic-links)
 28. [GitHub Actions: Workflow Pushes With GITHUB_TOKEN Don't Re-Trigger CI](#28-github-actions-workflow-pushes-with-github_token-dont-re-trigger-ci)
+29. [Stripe Checkout Session (Server-Side)](#29-stripe-checkout-session-server-side)
+30. [Stripe Webhook Hardening](#30-stripe-webhook-hardening)
+31. [Stripe in Ephemeral Preview Environments](#31-stripe-in-ephemeral-preview-environments)
 
 ---
 
@@ -1589,6 +1592,471 @@ For most repos, the simpler answer is: don't auto-fix in CI. Lint locally.
 - [GitHub Actions: events from GITHUB_TOKEN don't trigger workflows](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow)
 - cubrox session journal `2026-05-25` §9.3 (downstream fork that surfaced this in production)
 - Agile Flow issue [#327](https://github.com/vibeacademy/agile-flow/issues/327) — deletion of `auto-fix.yml` from this template
+
+---
+
+## 29. Stripe Checkout Session (Server-Side)
+
+This is not a gotcha pattern — it's a **complete implementation recipe** for
+server-side Stripe Checkout in Next.js App Router, harvested from production
+code (vibeacademy/website). The shape below survived a security review and
+two rounds of PR findings; deviate from it and you re-earn those findings.
+
+### Why this recipe exists
+
+The naive checkout route has two vulnerabilities and one preview-environment
+break, and all three look fine in local testing:
+
+1. **Trusting a client-supplied Stripe price id.** If the client POSTs
+   `price_xxx` and you pass it straight to Stripe, anyone can check out
+   against any price in your account — including a $0 test price. The client
+   must send *your own* DB row id; the server resolves the real
+   `stripe_price_id` from the DB.
+2. **Writing entitlements in the checkout route.** Session creation proves
+   nothing — the user hasn't paid yet. Grant access only in the webhook
+   (Pattern #30). The checkout route's only job is to mint a redirect URL.
+3. **Hardcoded return URLs.** `success_url: "https://myapp.com/success"`
+   works in production and strands every PR preview user on the production
+   domain. Derive URLs from the request `Origin` header (Pattern #23) and
+   checkout works unchanged on every preview hostname.
+
+### Architecture
+
+```
+Client POSTs { priceId }        # YOUR db uuid, never a Stripe id
+  → authenticate (401 if not)
+  → DB lookup: priceId → stripe_price_id, recurring_interval
+  → mode = recurring_interval ? "subscription" : "payment"
+  → success/cancel URLs derived from Origin header
+  → Stripe Customer: reuse from DB, or create + persist
+  → stripe.checkout.sessions.create(...)
+  → return { url } — client redirects; entitlements happen in the webhook
+```
+
+### File 1: Lazy singleton client — `lib/stripe.ts`
+
+Lazy initialisation matters: reading the secret at import time makes
+`npm run build` fail in any environment where `STRIPE_SECRET_KEY` is absent
+(CI lint jobs, preview builds without payment secrets). Import this module
+only from server-side code — the secret key must never reach the client
+bundle.
+
+```typescript
+import Stripe from "stripe";
+
+let _stripe: Stripe | null = null;
+
+export function getStripe(): Stripe {
+  if (_stripe === null) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2026-06-24.dahlia", // pin it — SDK/API drift breaks fields
+    });
+  }
+  return _stripe;
+}
+```
+
+### File 2: Checkout route — `app/api/checkout/session/route.ts`
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { getStripe } from "@/lib/stripe";
+// Your server-side DB clients: an RLS-scoped client for user-facing reads,
+// a service-role client for the customer-id write (adapt to your stack).
+import { createServerClient, createServiceClient } from "@/lib/db";
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  // 1. Authenticate.
+  const db = await createServerClient();
+  const { data: { user } } = await db.auth.getUser();
+  if (user === null) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // 2. Parse the body — priceId is YOUR uuid, not a Stripe id.
+  let body: { priceId?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  if (typeof body.priceId !== "string" || body.priceId.trim() === "") {
+    return NextResponse.json({ error: "priceId is required" }, { status: 400 });
+  }
+
+  // 3. DB-driven price lookup. The stripe_price_id passed to Stripe comes
+  //    from this row — the client NEVER supplies it (tampering vector).
+  const { data: priceRow } = await db
+    .from("prices")
+    .select("id, stripe_price_id, recurring_interval, active")
+    .eq("id", body.priceId)
+    .eq("active", true)
+    .single();
+  if (priceRow === null) {
+    return NextResponse.json({ error: "Price not found" }, { status: 404 });
+  }
+
+  // 4. Mode from the DB row, not from the client.
+  const mode: "payment" | "subscription" =
+    priceRow.recurring_interval === null ? "payment" : "subscription";
+
+  // 5. Origin-derived return URLs — works unchanged on PR preview URLs.
+  const origin = request.headers.get("origin") ?? "http://localhost:3000";
+  const successUrl = `${origin}/shop/success?session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${origin}/shop/cancel`;
+
+  // 6. Stripe Customer create-or-reuse. Persist the id so every future
+  //    checkout and subscription is linked to the same Customer.
+  const stripe = getStripe();
+  const service = createServiceClient();
+  const { data: profile } = await service
+    .from("profiles")
+    .select("stripe_customer_id")
+    .eq("id", user.id)
+    .single();
+
+  let stripeCustomerId = profile?.stripe_customer_id ?? null;
+  if (stripeCustomerId === null) {
+    // Idempotency key scoped to user_id: a racing retry or parallel tab
+    // gets the SAME Customer back instead of creating a duplicate.
+    const customer = await stripe.customers.create(
+      { email: user.email ?? undefined, metadata: { user_id: user.id } },
+      { idempotencyKey: `create-customer-${user.id}` },
+    );
+    stripeCustomerId = customer.id;
+    await service
+      .from("profiles")
+      .update({ stripe_customer_id: stripeCustomerId })
+      .eq("id", user.id);
+  }
+
+  // 7. Build the session. metadata carries user_id so the webhook can
+  //    resolve the user without a DB roundtrip; for subscriptions, put it
+  //    on subscription_data.metadata too — subscription lifecycle events
+  //    carry the SUBSCRIPTION's metadata, not the session's.
+  const params: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+    mode,
+    customer: stripeCustomerId,
+    line_items: [{ price: priceRow.stripe_price_id, quantity: 1 }],
+    metadata: { user_id: user.id },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  };
+  if (mode === "subscription") {
+    params.subscription_data = { metadata: { user_id: user.id } };
+  }
+
+  // 8. Create the session — wrapped, so a Stripe outage or rate limit
+  //    doesn't surface a raw Stripe error body to the client.
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create(params);
+  } catch (err) {
+    console.error("[checkout] session create failed", { userId: user.id, err });
+    return NextResponse.json(
+      { error: "Payment service temporarily unavailable" },
+      { status: 503 },
+    );
+  }
+
+  // 9. Stripe types session.url as string | null — guard it. A 200 with a
+  //    null url silently breaks the client redirect.
+  if (session.url === null) {
+    return NextResponse.json(
+      { error: "Checkout session URL unavailable" },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json({ url: session.url }, { status: 200 });
+}
+```
+
+### Cross-references
+
+- **Pattern #23** — Origin-derived URLs are why this works on preview environments
+- **Pattern #30** — the webhook that actually grants access after payment
+- **Pattern #31** — running this in ephemeral preview environments
+
+### Common mistakes
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| Client sends a raw Stripe price id | Anyone can pay any price in your account | DB lookup by your own row id; server resolves `stripe_price_id` |
+| Entitlement written in the checkout route | Access granted before (or without) payment | Only the webhook writes entitlements (Pattern #30) |
+| Hardcoded `success_url`/`cancel_url` | Preview users dumped onto production after paying | Derive from the `Origin` header |
+| `new Stripe(...)` at module top level | `npm run build` fails wherever the secret is absent | Lazy singleton (`getStripe()`) |
+| New Stripe Customer per checkout | Duplicate Customers; subscriptions unlinked from users | Create-or-reuse with a persisted `stripe_customer_id` + idempotency key |
+| No `subscription_data.metadata` | Webhook can't resolve the user from subscription events | Set `user_id` on both session and subscription metadata |
+
+---
+
+## 30. Stripe Webhook Hardening
+
+A **complete implementation recipe** for a Stripe webhook receiver
+(harvested from vibeacademy/website production code). A webhook route is an
+unauthenticated public endpoint that writes to your database — the four
+hardening moves below are each load-bearing, and each failure mode is
+invisible in happy-path testing.
+
+### Why this recipe exists
+
+1. **Signature verification must be the FIRST action on the payload.**
+   Anyone can POST a fabricated `checkout.session.completed` body to your
+   endpoint. Verify `stripe-signature` against the *raw request bytes*
+   before parsing anything; invalid signature → 400 with zero DB writes.
+2. **Stripe retries and duplicates events.** At-least-once delivery means
+   your handler WILL see the same event twice. Idempotency comes from a
+   UNIQUE constraint on `stripe_event_id` in the database — not from
+   in-memory state, which evaporates on redeploy and doesn't survive
+   multiple instances.
+3. **Return 200 for non-retryable failures.** A 500 tells Stripe "try
+   again". For errors a retry can never fix (unmapped price, missing
+   metadata from a dashboard-created session), 500 buys you a retry storm
+   and a disabled endpoint. Acknowledge with 200, log loudly, move on.
+   Reserve 500 for genuinely transient failures (DB down) where a retry
+   helps.
+4. **Metadata-first user resolution, DB fallback.** Read `user_id` from the
+   metadata your checkout route set (Pattern #29); fall back to
+   `customer id → your customers table` for events created outside that
+   flow. But keep the DB authoritative for anything money-adjacent (which
+   price maps to which product) — metadata is a hint, not a source of truth.
+
+### The idempotency constraint — migration
+
+```sql
+-- The UNIQUE constraint IS the idempotency mechanism.
+alter table user_entitlements
+  add constraint user_entitlements_stripe_event_id_key
+  unique (stripe_event_id);
+```
+
+### Webhook route — `app/api/webhooks/stripe/route.ts`
+
+```typescript
+import Stripe from "stripe";
+import { getStripe } from "@/lib/stripe";
+import { createServiceClient } from "@/lib/db"; // service-role: webhooks have no user session
+
+// Thrown when retrying can never fix the problem. The outer handler
+// converts it to a 200 so Stripe stops retrying.
+class NonRetryableWebhookError extends Error {}
+
+export async function POST(request: Request): Promise<Response> {
+  // 1. Raw body BEFORE any JSON parsing — signature verification needs
+  //    the exact bytes Stripe sent. request.json() destroys them.
+  const body = await request.text();
+  const sig = request.headers.get("stripe-signature");
+  if (sig === null) {
+    return new Response("Missing stripe-signature header", { status: 400 });
+  }
+
+  // 2. Verify the signature — FIRST action on the payload.
+  //    Invalid signature → 400, zero DB writes.
+  const stripe = getStripe();
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET!,
+    );
+  } catch {
+    return new Response("Webhook signature verification failed", { status: 400 });
+  }
+
+  // 3. Dispatch. Unknown event types return 200 with no writes — you WILL
+  //    receive types you never subscribed to handle.
+  try {
+    switch (event.type) {
+      case "checkout.session.completed":
+        await handleCheckoutCompleted(event);
+        break;
+      // case "customer.subscription.created": ...
+      // case "customer.subscription.deleted": ...
+      // case "invoice.paid": ...
+      default:
+        return new Response("Event type not handled", { status: 200 });
+    }
+  } catch (err) {
+    if (err instanceof NonRetryableWebhookError) {
+      // 200 on purpose: a retry would never succeed. 500 here = retry storm.
+      return new Response(`Skipped (non-retryable): ${err.message}`, { status: 200 });
+    }
+    // Transient failure (e.g. DB down): 500 so Stripe DOES retry.
+    const message = err instanceof Error ? err.message : "Internal error";
+    return new Response(`Webhook handler error: ${message}`, { status: 500 });
+  }
+
+  return new Response("OK", { status: 200 });
+}
+
+async function handleCheckoutCompleted(
+  event: Stripe.CheckoutSessionCompletedEvent,
+): Promise<void> {
+  const session = event.data.object;
+
+  // Subscriptions get their entitlement from customer.subscription.created —
+  // writing here too would double-grant.
+  if (session.mode !== "payment") return;
+
+  // Metadata-first user resolution (set by the checkout route, Pattern #29).
+  const userId = session.metadata?.user_id ?? null;
+  if (userId === null) {
+    // Session created outside our checkout flow (e.g. dashboard test event).
+    // Nothing useful to write; no retry fixes missing metadata.
+    console.warn(`${session.id}: missing user_id metadata — skipping write`);
+    throw new NonRetryableWebhookError("missing metadata");
+  }
+
+  const db = createServiceClient();
+  // Idempotent write: the UNIQUE constraint on stripe_event_id turns a
+  // redelivered event into a no-op instead of a duplicate grant.
+  const { error } = await db.from("user_entitlements").upsert(
+    {
+      user_id: userId,
+      source: "stripe_webhook",
+      stripe_session_id: session.id,
+      stripe_event_id: event.id,
+    },
+    { onConflict: "stripe_event_id", ignoreDuplicates: true },
+  );
+  if (error !== null) {
+    // DB errors ARE transient — throw a plain Error so the 500 path retries.
+    throw new Error(`entitlement upsert failed: ${error.message}`);
+  }
+}
+```
+
+For subscription events, resolve the user the same way:
+`subscription.metadata.user_id` first (the checkout route set it via
+`subscription_data.metadata`), then fall back to
+`subscription.customer → your stripe_customer_id column`. Resolve the
+product/tier from the price id via your DB, not from metadata — DB is
+authoritative.
+
+### Response-code cheat sheet
+
+| Situation | Response | Why |
+|-----------|----------|-----|
+| Invalid/missing signature | 400 | Reject forgeries; zero DB writes happened |
+| Unknown event type | 200 | Stripe expects 2xx; nothing to do |
+| Duplicate event (constraint hit) | 200 | Idempotent no-op |
+| Non-retryable data problem | 200 + loud log | 500 would retry forever and can auto-disable the endpoint |
+| Transient failure (DB down) | 500 | You WANT the retry |
+
+### Cross-references
+
+- **Pattern #29** — the checkout route that sets the metadata this handler reads
+- **Pattern #31** — registering webhook endpoints per preview environment
+
+### Common mistakes
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| `request.json()` before verification | `constructEvent` always fails (bytes altered) — or worse, verification skipped | `request.text()` first; verify; parse never (constructEvent returns the event) |
+| No idempotency constraint | Duplicate entitlements on Stripe redelivery | UNIQUE on `stripe_event_id` + `ignoreDuplicates` upsert |
+| 500 on unmapped/missing data | Retry storm; Stripe eventually disables the endpoint | Non-retryable sentinel → 200 + log |
+| Handling subscriptions in `checkout.session.completed` too | Double-granted entitlements | Route subscriptions through `customer.subscription.created` only |
+| Trusting metadata for price→product mapping | Stale/forged metadata grants the wrong thing | Metadata for user resolution only; DB authoritative for mapping |
+| RLS-scoped DB client in the webhook | Writes silently fail — there is no user session | Service-role client, always |
+
+---
+
+## 31. Stripe in Ephemeral Preview Environments
+
+**Gotcha:** Stripe integrations are wired to *one* permanent URL twice over —
+return URLs and webhook endpoints — while PR preview environments mint a new
+hostname per PR and tear it down on merge. Checkout can be made
+preview-proof for free; webhooks cannot.
+
+### What works unchanged
+
+- **Test mode only.** Previews get `sk_test_...` / `whsec_...` test-mode
+  keys, never live keys. Test clocks, fake cards (`4242 4242 4242 4242`),
+  and dashboard test events all work per-preview. If your preview env-var
+  injection (Pattern #7) can only inject one set of Stripe secrets, that set
+  is the test-mode one.
+- **Checkout return URLs.** If the checkout route derives `success_url` /
+  `cancel_url` from the request `Origin` header (Patterns #23 and #29),
+  every preview's checkout redirects back to that preview with zero
+  configuration. This is the payoff for never hardcoding origins.
+
+### What does NOT work: permanent webhook endpoints
+
+A webhook endpoint registered in the Stripe dashboard points at one fixed
+URL. Consequences on ephemeral infrastructure:
+
+- Events triggered from a preview are delivered to the *production* (or
+  staging) endpoint — the preview's webhook handler never fires, so
+  webhook-granted entitlements never appear on the preview.
+- If you register a preview URL by hand and forget to remove it, Stripe
+  keeps retrying against the torn-down hostname after merge. Persistent
+  delivery failures accumulate, and Stripe disables endpoints that fail for
+  too long — taking your notification hygiene with it.
+
+### Pattern: register the endpoint per environment
+
+Local dev — the Stripe CLI forwards events and prints an ephemeral secret:
+
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+# → whsec_... printed; export it as STRIPE_WEBHOOK_SECRET for the dev server
+```
+
+Preview deploys — create the endpoint via API when the preview comes up,
+and capture the per-endpoint secret (every endpoint has its OWN `whsec_`):
+
+```yaml
+# preview-deploy.yml — after the preview URL is known
+- name: Register Stripe webhook endpoint for this preview
+  run: |
+    RESPONSE=$(curl -s https://api.stripe.com/v1/webhook_endpoints \
+      -u "${STRIPE_TEST_SECRET_KEY}:" \
+      -d "url=${PREVIEW_BASE_URL}/api/webhooks/stripe" \
+      -d "enabled_events[]=checkout.session.completed" \
+      -d "enabled_events[]=customer.subscription.created" \
+      -d "enabled_events[]=customer.subscription.deleted" \
+      -d "enabled_events[]=invoice.paid" \
+      -d "metadata[pr]=${PR_NUMBER}")
+    # The endpoint's OWN signing secret — inject as STRIPE_WEBHOOK_SECRET
+    # for this preview (env change requires a redeploy, Pattern #8).
+    echo "::add-mask::$(echo "$RESPONSE" | jq -r .secret)"
+    echo "STRIPE_WEBHOOK_SECRET=$(echo "$RESPONSE" | jq -r .secret)" >> "$GITHUB_ENV"
+```
+
+Teardown — delete the endpoint when the PR closes, keyed off the metadata:
+
+```yaml
+# preview-teardown.yml — on: pull_request: types: [closed]
+- name: Delete this preview's Stripe webhook endpoint
+  run: |
+    curl -s https://api.stripe.com/v1/webhook_endpoints \
+      -u "${STRIPE_TEST_SECRET_KEY}:" -G -d limit=100 |
+      jq -r --arg pr "${PR_NUMBER}" \
+        '.data[] | select(.metadata.pr == $pr) | .id' |
+      while read -r ep; do
+        curl -s -X DELETE "https://api.stripe.com/v1/webhook_endpoints/$ep" \
+          -u "${STRIPE_TEST_SECRET_KEY}:"
+      done
+```
+
+### Cross-references
+
+- **Pattern #7** — preview env-var injection (where the test keys come from)
+- **Pattern #8** — env changes require a redeploy (the new `whsec_` too)
+- **Pattern #23 / #29** — Origin-derived return URLs are what makes checkout preview-proof
+- **Pattern #30** — the handler these endpoints deliver to
+
+### Common mistakes
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| Live-mode keys in a preview | Real charges from a test PR | Test-mode keys only in preview env injection |
+| One dashboard webhook endpoint for all envs | Preview never receives events; entitlements missing on previews | Per-environment endpoint via API/CLI |
+| Reusing production `whsec_` on a preview | Signature verification fails (each endpoint has its own secret) | Capture the `secret` from the create-endpoint response |
+| No teardown of preview endpoints | Stripe retries dead hostnames, then disables endpoints | Delete on PR close, keyed by endpoint metadata |
+| Injecting the new secret without redeploying | Handler still verifies against the old secret | Pattern #8 — trigger a redeploy after env change |
 
 ---
 
