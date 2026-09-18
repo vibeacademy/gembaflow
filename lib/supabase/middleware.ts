@@ -13,6 +13,12 @@
  *    protected route prefixes (only /protected by default — the starter
  *    guards a single example page; broaden PROTECTED_PREFIXES as your app
  *    grows).
+ * 3. Coming-soon gate (lib/launch.ts): when launch.config.json sets
+ *    launch_mode "coming_soon", anonymous requests to non-allowlisted paths
+ *    are REWRITTEN (not redirected — the URL stays put) to /coming-soon.
+ *    Authenticated users bypass the gate entirely — that IS the dark-prod
+ *    access mechanism, no extra tokens. When launch_mode is "live" or
+ *    absent, the gate is inert and behavior is identical to pre-gate.
  *
  * Graceful degradation (Pattern #24 / #14): when Supabase is not configured
  * (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY unset), this
@@ -32,6 +38,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { isSupabaseConfigured, getSupabaseUrl, getSupabaseAnonKey } from "@/lib/env";
 import { getPublicOrigin } from "@/lib/request-origin";
+import {
+  COMING_SOON_PATH,
+  getLaunchMode,
+  isAllowedWhileGated,
+} from "@/lib/launch";
 
 /**
  * Route prefixes that require an authenticated session.
@@ -48,9 +59,26 @@ export async function updateSession(
     request,
   });
 
+  const { pathname } = request.nextUrl;
+
+  // Coming-soon gate precondition — config-driven, NOT Supabase-driven.
+  // Whether THIS request is actually gated still depends on the session
+  // (authenticated users bypass), resolved below.
+  const gateActive =
+    getLaunchMode() === "coming_soon" && !isAllowedWhileGated(pathname);
+
   // Graceful skip: no Supabase configured → no session to refresh, nothing
   // to guard. The middleware must never crash on missing env (Pattern #24).
+  //
+  // With Supabase unconfigured there is no way to authenticate, so under an
+  // active coming-soon gate EVERYONE is anonymous and everyone gets the
+  // landing page. Acceptable by design: the gate is config-driven and a
+  // deliberately-flipped coming_soon flag should gate even a half-configured
+  // deployment, and the allowlist keeps /coming-soon + monitoring reachable.
   if (!isSupabaseConfigured()) {
+    if (gateActive) {
+      return NextResponse.rewrite(new URL(COMING_SOON_PATH, request.url));
+    }
     return response;
   }
 
@@ -80,7 +108,16 @@ export async function updateSession(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  // Coming-soon gate: anonymous + gated path → rewrite to the landing page.
+  // Rewrite (not redirect) keeps the requested URL in the address bar and
+  // discloses nothing about which routes exist. Authenticated users fall
+  // through to normal serving — dark prod. No session cookies are lost by
+  // returning a fresh rewrite response here: an anonymous request has no
+  // session to refresh.
+  if (gateActive && !user) {
+    return NextResponse.rewrite(new URL(COMING_SOON_PATH, request.url));
+  }
+
   // Segment-boundary-aware prefix match: a prefix guards its exact path and
   // any sub-path separated by a slash, but NOT paths that merely start with
   // the same characters (e.g. "/protected" must not guard "/protected-docs").
