@@ -1,0 +1,5 @@
+{
+  "$comment": "Launch-mode config (committed, config-as-code — NOT an env var). launch_mode: 'live' (default — no gating, the app serves normally) or 'coming_soon' (anonymous visitors are rewritten to the /coming-soon waitlist landing page; logged-in users see the full app — that is the dark-prod access mechanism). Flipping is a one-line PR editing launch_mode; the PR preview shows the flipped state while prod keeps the old one until merge. An absent or unrecognized launch_mode behaves as 'live'. app_name brands the coming-soon page. Read by lib/launch.ts; see docs/PLATFORM-GUIDE.md § 'Coming-soon / dark prod'.",
+  "launch_mode": "live",
+  "app_name": "Agile Flow"
+}
