@@ -39,6 +39,7 @@
 29. [Stripe Checkout Session (Server-Side)](#29-stripe-checkout-session-server-side)
 30. [Stripe Webhook Hardening](#30-stripe-webhook-hardening)
 31. [Stripe in Ephemeral Preview Environments](#31-stripe-in-ephemeral-preview-environments)
+32. [Dark Prod Behind a Coming-Soon Page (Flip-PR Launch Workflow)](#32-dark-prod-behind-a-coming-soon-page-flip-pr-launch-workflow)
 
 ---
 
@@ -2057,6 +2058,236 @@ Teardown — delete the endpoint when the PR closes, keyed off the metadata:
 | Reusing production `whsec_` on a preview | Signature verification fails (each endpoint has its own secret) | Capture the `secret` from the create-endpoint response |
 | No teardown of preview endpoints | Stripe retries dead hostnames, then disables endpoints | Delete on PR close, keyed by endpoint metadata |
 | Injecting the new secret without redeploying | Handler still verifies against the old secret | Pattern #8 — trigger a redeploy after env change |
+
+---
+
+## 32. Dark Prod Behind a Coming-Soon Page (Flip-PR Launch Workflow)
+
+A **complete implementation recipe** for launching dark: deploy to production
+*early*, show the public a coming-soon page that collects waitlist emails,
+build the real app in production all day where only logged-in users can see
+it, then go live with a one-line PR. The code below shipped in the Next.js
+starter (PR #766) — template-born apps already carry it, so this entry is
+about *operating* it: verifying gate state, extending the allowlist safely,
+executing the flip, and reverting one.
+
+### Why this recipe exists
+
+The workshop (and any sane first deployment) wants production deployed
+**before** the product is finished: real domain, real database, real deploy
+pipeline, real email collection — hours before there is anything to show.
+That requires three decisions that each look replaceable and aren't:
+
+1. **The launch flag is config-as-code, not an env var.** The flip has to be
+   reviewable, previewable, and revertible like any other change — an env
+   var is none of those (see below).
+2. **The gate is a middleware *rewrite* with an explicit allowlist.**
+   Anonymous visitors get the landing page at whatever URL they typed — no
+   redirect, no route-structure disclosure. The allowlist is where every
+   self-lockout bug lives.
+3. **The logged-in session IS the dark-prod access mechanism.** No preview
+   tokens, no basic-auth password, no VPN, no secret cookie to distribute —
+   anyone who can sign in (Pattern #24) sees the full app while the gate is
+   up. Zero new secrets.
+
+### The flip surface — `launch.config.json` (config-as-code, NOT an env var)
+
+A committed file at the repo root, read by `lib/launch.ts`:
+
+```json
+{
+  "launch_mode": "live",
+  "app_name": "Agile Flow"
+}
+```
+
+`launch_mode` is `"coming_soon"` or `"live"`; `app_name` brands the landing
+page. Why a committed JSON file instead of an env var:
+
+- **The flip PR's preview deployment shows the flipped state.** Open a PR
+  changing `coming_soon` → `live` and the PR preview serves the LIVE app
+  while prod still serves coming-soon — you review the *launch itself*
+  before merging. An env var cannot give you that: it's set per-service in
+  the dashboard, so the preview and prod read the same value.
+- **Revert = `git revert`.** Going back behind the curtain is a normal PR
+  with normal review and normal CI, visible in history. An env-var rollback
+  is an untracked dashboard mutation.
+- **No dashboard access required.** Attendees and agents flip via PR with
+  repo permissions they already have; nobody needs Render credentials
+  (Pattern #7), and env-var changes would require a redeploy anyway
+  (Pattern #8).
+
+Parsing is **fail-open** (`parseLaunchMode()` in `lib/launch.ts`): only the
+exact string `"coming_soon"` gates — absent key, `null`, typo, wrong type
+all mean `"live"`. A broken config must never lock a production app behind
+its own landing page. The shipped default is `"live"`, so the gate is inert
+until you deliberately flip it on.
+
+### The gate — middleware rewrite + allowlist
+
+The gate lives in `updateSession()` (`lib/supabase/middleware.ts`), the same
+middleware that refreshes Supabase sessions (Pattern #24, File 3):
+
+```typescript
+const gateActive =
+  getLaunchMode() === "coming_soon" && !isAllowedWhileGated(pathname);
+
+// ... after getUser() resolves the session ...
+if (gateActive && !user) {
+  return NextResponse.rewrite(new URL(COMING_SOON_PATH, request.url));
+}
+// Authenticated users fall through to normal serving — dark prod.
+```
+
+**Rewrite, not redirect:** the visitor's URL stays put and every gated path
+serves identical content, so nothing about the route structure leaks — even
+`/protected` shows the landing page instead of its login redirect.
+
+The allowlist (`GATE_ALLOWLIST` in `lib/launch.ts`) is the load-bearing
+part. These paths MUST pass through while the gate is up:
+
+```typescript
+const GATE_ALLOWLIST = [
+  "/coming-soon",        // the landing page itself
+  "/api/waitlist",       // its form endpoint — gating it gates the form away
+                         // from the only audience it exists for
+  "/login",
+  "/signup",
+  "/api/auth/callback",  // server-side PKCE callback (Pattern #24, File 5)
+  "/auth/callback",      // client-side hash-fragment callback (File 6)
+  "/api/auth/signout",
+  "/api/health",         // gated health check = Render marks prod unhealthy
+  "/api/error",          // and takes it down — the gate kills the app
+  "/api/error-events",   //   it was supposed to hide
+  "/_next",              // static assets — gated chunks = blank landing page
+  "/favicon.ico",
+  "/sitemap.xml",
+  "/robots.txt",
+];
+```
+
+Three gotchas baked into that list:
+
+- **BOTH auth callbacks.** `/api/auth/callback` *and* `/auth/callback`
+  (Pattern #24 explains why two exist). Lock out a callback and the magic
+  link dead-ends on the landing page — **nobody can log in, so nobody can
+  reach dark prod**. The gate's own escape hatch is the first thing a
+  careless allowlist removes.
+- **The health check.** Render probes `/api/health`; if the gate swallows
+  it, the platform concludes the service is down and acts accordingly. The
+  monitoring endpoints stay open for the same reason.
+- **Segment-boundary matching.** An entry matches its exact path and
+  slash-separated sub-paths only — `/login` does NOT allowlist
+  `/login-help`. Same rule as `PROTECTED_PREFIXES`; never use bare
+  `startsWith`.
+
+Several entries (`/_next`, `/api/health`, `/api/auth/callback`, favicon,
+etc.) are *already* excluded by the matcher in `middleware.ts` and never
+reach the gate — they are allowlisted anyway as defense-in-depth, so the
+gate stays safe if someone edits the matcher.
+
+One documented edge: with Supabase unconfigured and the gate flipped on,
+EVERYONE is anonymous, so everyone gets the landing page. Deliberate — the
+gate is config-driven, not Supabase-driven, and the allowlist keeps
+monitoring reachable.
+
+### Dark-prod access — the logged-in bypass (zero secrets)
+
+There is no access-control machinery to build. The Pattern #24 auth scaffold
+is the whole mechanism: while the gate is up, a builder opens `/login`
+(allowlisted), requests a magic link, completes the callback (allowlisted),
+and from then on `getUser()` resolves a session and the gate waves every
+request through. The public and the team hit the same production URL and see
+different apps. Nothing to distribute, rotate, or leak.
+
+### The waitlist — dedupe-as-success, service-role-only
+
+Email collection is three pieces:
+
+**Migration** — `supabase/migrations/20260918051627_waitlist_signups.sql`
+(timestamp-named per Pattern #5): `waitlist_signups` with a UNIQUE `email`
+column, **RLS enabled with ZERO policies**. Anon and authenticated roles can
+neither read nor write the table through PostgREST; every insert goes
+through the server-side service-role client, which bypasses RLS.
+
+**Route** — `POST /api/waitlist` (`app/api/waitlist/route.ts`): normalizes
+(`trim().toLowerCase()`) so the unique constraint dedupes case/whitespace
+variants, validates shape, inserts via `createSupabaseService()`, and treats
+the Postgres unique-violation as success:
+
+```typescript
+const UNIQUE_VIOLATION = "23505";
+
+const { error } = await supabase
+  .from("waitlist_signups")
+  .insert({ email: normalized });
+
+if (error && error.code !== UNIQUE_VIOLATION) {
+  return NextResponse.json({ error: "insert_failed" }, { status: 500 });
+}
+// Fresh insert and duplicate are deliberately indistinguishable.
+return NextResponse.json({ ok: true });
+```
+
+Why dedupe-as-success: the signup form is the single UX moment a pre-launch
+page has, and "you're already on the list" rendered as an *error* is both
+hostile and an **enumeration oracle** — a 409 tells anyone which emails are
+subscribed. Returning the same friendly success for both cases removes the
+error state and the oracle in one move.
+
+**Form** — `app/coming-soon/page.tsx` + `waitlist-form.tsx`: deliberately NO
+client-side Supabase. A pre-launch landing bundle should not ship a data
+client for a table anon can't touch anyway.
+
+### The ceremony — flip-PR flow
+
+The full lifecycle, as run in the workshop:
+
+```bash
+# Morning: deploy gated. One-line edit, "launch_mode": "coming_soon",
+# ships with (or right after) the first prod deploy. Prod now serves the
+# waitlist page and collects real emails.
+
+# All day: normal PR loop. Every merge deploys to prod — invisibly.
+# Builders verify in prod via the logged-in bypass.
+
+# End of day: the flip.
+git checkout -b launch/go-live
+# edit launch.config.json: "launch_mode": "coming_soon" -> "live"
+git commit -am "feat: go live"
+gh pr create --title "Go live" --body "Flips launch_mode to live."
+# The PR preview serves the LIVE app = final smoke test OF THE LAUNCH.
+# Merge. Prod deploys. The curtain drops.
+```
+
+**Verify gate state:** read `launch_mode` in `launch.config.json` on the
+deployed ref, or curl the prod URL anonymously (landing page = gated) vs.
+logged-in (app = dark prod working). `/coming-soon` is also directly
+routable in live mode — that's how you preview the landing page before
+flipping the gate on.
+
+**Revert a launch:** `git revert` the flip commit, PR, merge. Prod is back
+behind the curtain with full audit trail.
+
+### Cross-references
+
+- **Pattern #24** — the auth scaffold the logged-in bypass rides on, and why there are TWO callback routes to allowlist
+- **Pattern #7 / #8** — why an env-var gate loses: dashboard-only access, redeploy required, and no preview-the-flip property
+- **Pattern #5** — timestamp migration filenames (`20260918051627_waitlist_signups.sql`)
+
+### Common mistakes
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| Env-var launch flag instead of config-as-code | Flip can't be previewed or reviewed; rollback is a dashboard mutation + redeploy | `launch.config.json` + one-line flip PR |
+| Allowlist missing one or both auth callbacks | Magic link dead-ends on the landing page; nobody can log in, so dark prod is unreachable | Allowlist BOTH `/api/auth/callback` and `/auth/callback` |
+| Gated `/api/health` | Render health checks fail; the platform takes prod down | Keep health + monitoring endpoints allowlisted AND matcher-excluded |
+| No rate limiting on `/api/waitlist` | Anonymous endpoint drives service-role inserts — a bot loop bloats the table at full write privilege (known gap in the shipped scaffold) | Add per-IP rate limiting (middleware token bucket, Upstash `@upstash/ratelimit`, or a captcha) before expecting hostile traffic |
+| Assuming the rewrite gates server actions | The gate rewrites page requests, but `"use server"` actions are POSTs resolved by globally-unique action IDs — a rewrite-based gate does not reliably block them | The starter ships no server actions; if you add any, enforce auth *inside each action* rather than trusting the gate |
+| Returning a fresh rewrite response after `getUser()` | Cookies set during `getUser()` (e.g. invalid-token cleanup) are silently dropped on gated requests | Copy cookies from the in-flight response onto the rewrite response |
+| Surfacing duplicate signup as an error | Hostile UX at the only conversion moment, plus an email-enumeration oracle | Treat `23505` as the same friendly success |
+| Adding RLS policies (or client-side inserts) to `waitlist_signups` | Table exposed to anon through PostgREST | RLS enabled, ZERO policies; service-role inserts via the server route only |
+| Bare `startsWith` allowlist matching | `/login-help`, `/api/healthz`-style lookalikes slip through (or get gated) unpredictably | Segment-boundary match: exact path or `prefix + "/"` |
 
 ---
 
