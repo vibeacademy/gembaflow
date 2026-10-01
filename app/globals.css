@@ -104,3 +104,28 @@ code {
   color: #991b1b;
   font-size: 0.9em;
 }
+
+/* Coming-soon landing (launch.config.json launch_mode — lib/launch.ts) */
+
+.coming-soon-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 70vh;
+  padding-top: 2rem;
+}
+
+.coming-soon-title {
+  font-size: 2.25rem;
+  letter-spacing: -0.02em;
+}
+
+.coming-soon-tagline {
+  color: #555;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+.coming-soon-form {
+  max-width: 26rem;
+}

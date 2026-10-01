@@ -1,5 +1,6 @@
 /**
- * Next.js Middleware entry point — Supabase session refresh + auth guard.
+ * Next.js Middleware entry point — Supabase session refresh + auth guard +
+ * coming-soon gate (launch.config.json launch_mode — see lib/launch.ts).
  *
  * Pattern Library reference: Pattern #24 (Magic Link Auth: Complete
  * Implementation), File 4. Logic lives in lib/supabase/middleware.ts;

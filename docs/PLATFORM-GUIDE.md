@@ -269,6 +269,22 @@ the app still builds and runs and the auth pages render a
 "Supabase not configured" notice (same graceful-gating philosophy as
 `preview-deploy.yml` secret gating).
 
+### Coming-soon / Dark Prod (Next.js starter)
+
+The starter can run "dark": set `launch_mode` to `coming_soon` in the
+committed root `launch.config.json` and anonymous visitors are rewritten
+to a waitlist landing page at `/coming-soon` (emails land in the
+`waitlist_signups` table via `POST /api/waitlist`, a server-side
+service-role insert — the table has RLS enabled with no policies), while
+logged-in users see the full app. The auth surface (`/login`, `/signup`,
+both callbacks, signout) stays reachable while gated, so dark-prod access
+is just "sign in with a magic link" — no extra tokens. Flipping live is a
+one-line PR editing `launch_mode` — the PR preview shows the LIVE state
+while prod still serves coming-soon. The shipped default is `live`
+(absent or unrecognized values also behave as `live`), and everything
+degrades gracefully without Supabase. See `lib/launch.ts` and
+`lib/supabase/middleware.ts` for the mechanics.
+
 ### Important: Keys and URL Must Match
 
 Supabase routes requests by the hostname in `SUPABASE_URL`
